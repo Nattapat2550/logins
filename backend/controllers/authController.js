@@ -13,25 +13,30 @@ const generateCode = () => Math.floor(100000 + Math.random() * 900000).toString(
 
 // Check if email exists (for real-time validation)
 const checkEmail = async (req, res) => {
+  console.log('API: /auth/check-email called with body:', req.body);
   try {
     const { email } = req.body;
     if (!email) {
+      console.log('Error: Email missing in request');
       return res.status(400).json({ message: 'Email required' });
     }
 
     const existingUser  = await findUserByEmail(email);
+    console.log('Check email result for', email, ':', !!existingUser  ? 'exists' : 'available');
+    
     res.json({ 
       exists: !!existingUser , 
       message: existingUser  ? 'Email already registered' : 'Email available' 
     });
   } catch (err) {
-    console.error('Check email error:', err);
-    res.status(500).json({ message: 'Server error checking email' });
+    console.error('Controller Error in checkEmail:', err.message);
+    res.status(500).json({ message: `Server error checking email: ${err.message}` });
   }
 };
 
 // Register - send verification code
 const register = async (req, res) => {
+  console.log('API: /auth/register called with body:', req.body);
   try {
     const { email } = req.body;
     if (!email) {
@@ -48,18 +53,20 @@ const register = async (req, res) => {
     const code = generateCode();
     const expires = Date.now() + 10 * 60 * 1000; // 10 minutes
     verificationCodes.set(email, { code, expires });
+    console.log(`Generated code ${code} for ${email}, expires at ${new Date(expires)}`);
 
     // Send email
     await sendVerificationCode(email, code);
     res.json({ message: 'Verification code sent to your email' });
   } catch (err) {
-    console.error('Register error:', err);
-    res.status(500).json({ message: 'Failed to send verification code' });
+    console.error('Controller Error in register:', err.message);
+    res.status(500).json({ message: 'Failed to send verification code: ' + err.message });
   }
 };
 
 // Verify verification code
 const verifyCode = async (req, res) => {
+  console.log('API: /auth/verify-code called with body:', req.body);
   try {
     const { email, code } = req.body;
     if (!email || !code) {
@@ -78,15 +85,17 @@ const verifyCode = async (req, res) => {
 
     // Code valid, remove from store
     verificationCodes.delete(email);
+    console.log(`Code verified for ${email}`);
     res.json({ message: 'Code verified successfully' });
   } catch (err) {
-    console.error('Verify code error:', err);
-    res.status(500).json({ message: 'Verification failed' });
+    console.error('Controller Error in verifyCode:', err.message);
+    res.status(500).json({ message: 'Verification failed: ' + err.message });
   }
 };
 
 // Complete registration (for email or Google users)
 const completeRegistration = async (req, res) => {
+  console.log('API: /auth/complete-registration called with body:', req.body);
   try {
     const { email, username, password, hashPassword, googleId } = req.body;
     if (!email || !username) {
@@ -99,8 +108,10 @@ const completeRegistration = async (req, res) => {
       if (hashPassword) {
         const salt = await bcrypt.genSalt(10);
         passwordHash = await bcrypt.hash(password, salt);
+        console.log('Password hashed for user');
       } else {
         passwordHash = password; // Plain text (not recommended for production)
+        console.log('Password stored as plain text (insecure)');
       }
     }
 
@@ -113,12 +124,14 @@ const completeRegistration = async (req, res) => {
         username, 
         password: passwordHash 
       });
+      console.log(`Updated existing Google user ${username}`);
     } else if (existingUser ) {
       // Email already exists (not Google)
       return res.status(400).json({ message: 'Email already registered' });
     } else {
       // Create new user
       user = await createUser (email, passwordHash, username, googleId);
+      console.log(`Created new user ${username}`);
     }
 
     // Generate JWT
@@ -128,20 +141,26 @@ const completeRegistration = async (req, res) => {
       { expiresIn: '1d' }
     );
 
+    console.log(`Registration completed for user ${username}`);
     res.json({ 
       message: 'Profile completed successfully', 
       token, 
       username: user.username, 
-      profilePic: user.profile_pic 
+      profilePic: user.profile_pic || 'images/User.png' 
     });
   } catch (err) {
-    console.error('Complete registration error:', err);
-    res.status(500).json({ message: 'Registration failed' });
+    console.error('Controller Error in completeRegistration:', err.message);
+    if (err.message.includes('already exists')) {
+      res.status(400).json({ message: err.message });
+    } else {
+      res.status(500).json({ message: 'Registration failed: ' + err.message });
+    }
   }
 };
 
 // Login with email/password
 const login = async (req, res) => {
+  console.log('API: /auth/login called with body:', req.body);
   try {
     const { email, password, hashPassword } = req.body;
     if (!email || !password) {
@@ -150,6 +169,7 @@ const login = async (req, res) => {
 
     const user = await findUserByEmail(email);
     if (!user) {
+      console.log('Login failed: User not found for email', email);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
@@ -164,6 +184,7 @@ const login = async (req, res) => {
     }
 
     if (!passwordMatch) {
+      console.log('Login failed: Password mismatch for', email);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
@@ -174,20 +195,22 @@ const login = async (req, res) => {
       { expiresIn: '1d' }
     );
 
+    console.log(`Login successful for user ${user.username}`);
     res.json({ 
       message: 'Login successful', 
       token, 
       username: user.username, 
-      profilePic: user.profile_pic 
+      profilePic: user.profile_pic || 'images/User.png' 
     });
   } catch (err) {
-    console.error('Login error:', err);
-    res.status(500).json({ message: 'Login failed' });
+    console.error('Controller Error in login:', err.message);
+    res.status(500).json({ message: 'Login failed: ' + err.message });
   }
 };
 
 // Forgot password - send reset code
 const forgetPassword = async (req, res) => {
+  console.log('API: /auth/forget-password called with body:', req.body);
   try {
     const { email } = req.body;
     if (!email) {
@@ -196,28 +219,35 @@ const forgetPassword = async (req, res) => {
 
     const user = await findUserByEmail(email);
     if (!user) {
+      console.log('Forget password: User not found for', email);
       return res.status(404).json({ message: 'User  not found' });
     }
 
-    // Generate and store reset code (same as verification)
+    // Generate and store reset code (reuse verification store)
     const code = generateCode();
     const expires = Date.now() + 10 * 60 * 1000;
-    verificationCodes.set(email, { code, expires }); // Reuse verification store
+    verificationCodes.set(email, { code, expires });
 
-    await sendVerificationCode(email, code); // Reuse email function (adapt subject if needed)
+    // Send email (reuse verification function; could customize subject)
+    await sendVerificationCode(email, code);
+    console.log(`Reset code sent to ${email}`);
     res.json({ message: 'Password reset code sent to your email' });
   } catch (err) {
-    console.error('Forget password error:', err);
-    res.status(500).json({ message: 'Failed to send reset code' });
+    console.error('Controller Error in forgetPassword:', err.message);
+    res.status(500).json({ message: 'Failed to send reset code: ' + err.message });
   }
 };
 
 // Reset password
 const resetPassword = async (req, res) => {
+  console.log('API: /auth/reset-password called with body:', req.body);
   try {
     const { email, code, newPassword, hashPassword } = req.body;
     if (!email || !code || !newPassword) {
       return res.status(400).json({ message: 'Email, code, and new password required' });
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json({ message: 'New password must be at least 8 characters' });
     }
 
     // Verify code (reuse verification logic)
@@ -232,20 +262,27 @@ const resetPassword = async (req, res) => {
     if (hashPassword) {
       const salt = await bcrypt.genSalt(10);
       passwordHash = await bcrypt.hash(newPassword, salt);
+      console.log('New password hashed');
     } else {
       passwordHash = newPassword;
+      console.log('New password stored as plain text (insecure)');
     }
 
-    // Update user
-    const user = await updateUser ((await findUserByEmail(email)).id, { password: passwordHash });
+    // Update user password
+    const user = await findUserByEmail(email);
+    if (!user) {
+      return res.status(404).json({ message: 'User  not found' });
+    }
+    await updateUser (user.id, { password: passwordHash });
 
     // Clean up code
     verificationCodes.delete(email);
+    console.log(`Password reset successful for ${email}`);
 
     res.json({ message: 'Password reset successful' });
   } catch (err) {
-    console.error('Reset password error:', err);
-    res.status(500).json({ message: 'Password reset failed' });
+    console.error('Controller Error in resetPassword:', err.message);
+    res.status(500).json({ message: 'Password reset failed: ' + err.message });
   }
 };
 
