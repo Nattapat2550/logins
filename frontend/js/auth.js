@@ -1,3 +1,4 @@
+const API_BASE_URL = 'https://backendlogins.onrender.com';
 // Authentication functions
 document.addEventListener('DOMContentLoaded', function() {
     // Setup form submissions
@@ -54,7 +55,7 @@ async function handleRegister(e) {
     
     try {
         // Send request to backend
-        const response = await fetch('https://backendlogins.onrender.com/auth/register', {
+        const response = await fetch('${API_BASE_URL}/auth/register', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -149,7 +150,7 @@ async function handleLogin(e) {
     const hashPassword = document.getElementById('hash-password').checked;
     
     try {
-        const response = await fetch('https://backendlogins.onrender.com/auth/login', {
+        const response = await fetch('${API_BASE_URL}/auth/login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -258,7 +259,7 @@ function checkUrlParams() {
 // Fetch user data after OAuth login
 async function fetchUserData(token) {
     try {
-        const response = await fetch('https://backendlogins.onrender.com/user/profile', {
+        const response = await fetch('${API_BASE_URL}/user/profile', {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`
@@ -277,5 +278,5 @@ async function fetchUserData(token) {
 
 // Google OAuth login
 function loginWithGoogle() {
-    window.location.href = 'https://backendlogins.onrender.com/auth/google';
+    window.location.href = '${API_BASE_URL}/auth/google';
 }

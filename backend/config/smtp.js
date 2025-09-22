@@ -9,6 +9,9 @@ const transporter = nodemailer.createTransport({
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
+  tls: {
+    rejectUnauthorized: false  // For Render's environment
+  }
 });
 
 const sendVerificationCode = async (email, code) => {
@@ -21,4 +24,4 @@ const sendVerificationCode = async (email, code) => {
   await transporter.sendMail(mailOptions);
 };
 
-module.exports = { sendVerificationCode };
+module.exports = {transporter, sendVerificationCode };
