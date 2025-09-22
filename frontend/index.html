@@ -3,46 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register - Auth System</title>
+    <title>Welcome - Auth System</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <div class="container">
-        <div class="page">
-            <div class="card page-card mt-5">
-       <h2 class="text-center">Login</h2>
-       <form id="login-form" class="mt-4">
-           <div class="form-group">
-               <label for="email">Email</label>
-               <input type="email" id="email" required>
-           </div>
-           <div class="form-group">
-               <label for="password">Password</label>
-               <input type="password" id="password" required>
-           </div>
-           <div class="form-group">
-               <label>
-                   <input type="checkbox" id="hash-password">
-                   Hash Password (for security)
-               </label>
-           </div>
-           <button type="submit" class="btn">Login</button>
-       </form>
-       <div class="text-center mt-3">
-           <button class="btn btn-secondary" onclick="loginWithGoogle()">Login with Google</button>
-           <p class="mt-2"><a href="#" onclick="showForgotPassword()">Forgot Password?</a></p>
-       </div>
-   </div>
+        <div class="page text-center">
+            <h1 class="mt-5">Welcome to AuthSystem</h1>
+            <p class="mt-3">A secure platform for user authentication and management.</p>
+            
+            <div class="hero-section mt-5">
+                <img src="https://placeholder-image-service.onrender.com/image/400x300?prompt=Modern%20web%20authentication%20system%20dashboard%20with%20clean%20design&id=landing-img" 
+                     alt="Modern authentication system dashboard interface with clean design" 
+                     class="hero-image">
+                
+                <div class="hero-content mt-4">
+                    <h2>Secure User Authentication</h2>
+                    <p class="mt-2">Experience seamless registration, email verification, and secure login with our advanced authentication system.</p>
+                    <a href="login.html" class="btn mt-4">Get Started - Register / Login</a>
+                    
+                    <div class="features-grid mt-5">
+                        <div class="feature-card">
+                            <h3>Email Verification</h3>
+                            <p>Secure 6-digit code verification sent to your email</p>
+                        </div>
+                        <div class="feature-card">
+                            <h3>Google Login</h3>
+                            <p>Quick sign-in with your Google account</p>
+                        </div>
+                        <div class="feature-card">
+                            <h3>Password Security</h3>
+                            <p>Optional password hashing for enhanced security</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <script src="js/main.js"></script>
-    <script src="js/auth.js"></script>
-    <script>
-       function showForgotPassword() {
-           // You can add a forgot password modal or redirect
-           alert('Forgot password functionality can be added here.');
-       }
-   </script>
 </body>
 </html>

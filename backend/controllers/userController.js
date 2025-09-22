@@ -1,39 +1,71 @@
-const { findUserById, updateUser , deleteUser  } = require('../models/userModel');
+const { findUserById } = require('../models/userModel');
+const multer = require('multer');
+const path = require('path');
 
-const getUserProfile = async (req, res) => {
+// Configure Multer for file uploads (profile pics)
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/');
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files allowed'), false);
+    }
+  }
+});
+
+// Get user profile (protected)
+const getProfile = async (req, res) => {
   try {
     const user = await findUserById(req.user.id);
-    if (!user) return res.status(404).json({ message: 'User  not found' });
-    res.json({ user });
+    if (!user) {
+      return res.status(404).json({ message: 'User  not found' });
+    }
+
+    // Exclude sensitive fields
+    const { password, ...userProfile } = user;
+    res.json({ user: userProfile });
   } catch (err) {
-    res.status(500).json({ message: 'Server error' });
+    console.error('Get profile error:', err);
+    res.status(500).json({ message: 'Failed to fetch profile' });
   }
 };
 
+// Update user profile (protected, with optional file upload)
 const updateProfile = async (req, res) => {
   try {
-    const fields = {};
-    if (req.body.username) fields.username = req.body.username;
-    if (req.file) fields.profile_pic = req.file.filename; // multer middleware handles file upload
+    const updates = req.body;
+    let profilePic = req.file ? `/uploads/${req.file.filename}` : undefined;
 
-    const updatedUser  = await updateUser (req.user.id, fields);
-    res.json({ user: updatedUser  });
+    if (profilePic) {
+      updates.profile_pic = profilePic;
+    }
+
+    const user = await updateUser (req.user.id, updates);
+    if (!user) {
+      return res.status(404).json({ message: 'User  not found' });
+    }
+
+    // Exclude sensitive fields
+    const { password, ...userProfile } = user;
+    res.json({ 
+      message: 'Profile updated successfully', 
+      user: userProfile 
+    });
   } catch (err) {
-    res.status(500).json({ message: 'Server error' });
+    console.error('Update profile error:', err);
+    res.status(500).json({ message: 'Failed to update profile' });
   }
 };
 
-const deleteAccount = async (req, res) => {
-  try {
-    await deleteUser (req.user.id);
-    res.json({ message: 'Account deleted' });
-  } catch (err) {
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
-module.exports = {
-  getUserProfile,
-  updateProfile,
-  deleteAccount,
-};
+module.exports = { getProfile, updateProfile, upload };

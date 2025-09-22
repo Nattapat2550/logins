@@ -16,7 +16,7 @@
             <a href="contact.html" class="nav-link">Contact</a>
             
             <div id="auth-buttons" class="hidden">
-                <a href="index.html" class="btn">Login</a>
+                <a href="login.html" class="btn">Login</a>
             </div>
             
             <div id="user-menu" class="user-menu hidden">
@@ -33,10 +33,58 @@
     <div class="container">
         <div class="page">
             <h1>Contact Us</h1>
-            <p>Get in touch with us for any questions or support needs.</p>
+            
+            <div class="contact-content mt-4">
+                <div class="contact-info">
+                    <h2>Get in Touch</h2>
+                    <p>Have questions or need support? We're here to help!</p>
+                    
+                    <div class="contact-details mt-4">
+                        <div class="contact-item">
+                            <h3>Email Support</h3>
+                            <p>support@authsystem.com</p>
+                        </div>
+                        <div class="contact-item">
+                            <h3>Response Time</h3>
+                            <p>Typically within 24 hours</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="contact-form-card mt-5">
+                    <h2>Send us a Message</h2>
+                    <form id="contact-form">
+                        <div class="form-group">
+                            <label for="contact-name">Your Name</label>
+                            <input type="text" id="contact-name" placeholder="Enter your name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="contact-email">Email Address</label>
+                            <input type="email" id="contact-email" placeholder="Enter your email" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="contact-message">Message</label>
+                            <textarea id="contact-message" placeholder="How can we help you?" rows="5" required></textarea>
+                        </div>
+                        <button type="submit" class="btn">Send Message</button>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 
     <script src="js/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const contactForm = document.getElementById('contact-form');
+            if (contactForm) {
+                contactForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    alert('Thank you for your message! In a real implementation, this would send your message to our support team.');
+                    contactForm.reset();
+                });
+            }
+        });
+    </script>
 </body>
 </html>

@@ -16,7 +16,7 @@
             <a href="contact.html" class="nav-link">Contact</a>
             
             <div id="auth-buttons" class="hidden">
-                <a href="index.html" class="btn">Login</a>
+                <a href="login.html" class="btn">Login</a>
             </div>
             
             <div id="user-menu" class="user-menu hidden">
@@ -34,39 +34,101 @@
         <div class="page">
             <h1>Account Settings</h1>
             
-            <div class="card mt-4">
-                <h3>Profile Information</h3>
-                <form id="profile-form" class="mt-3">
-                    <div class="form-group">
-                        <label for="username">Username</label>
-                        <input type="text" id="username" value="CurrentUsername">
+            <div class="settings-grid mt-4">
+                <!-- Profile Settings -->
+                <div class="settings-card">
+                    <h3>Profile Information</h3>
+                    <form id="profile-form">
+                        <div class="form-group">
+                            <label for="settings-username">Username</label>
+                            <input type="text" id="settings-username" placeholder="Your username">
+                        </div>
+                        <div class="form-group">
+                            <label for="settings-email">Email Address</label>
+                            <input type="email" id="settings-email" placeholder="Your email" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label for="settings-profile-pic">Profile Picture</label>
+                            <input type="file" id="settings-profile-pic" accept="image/*">
+                            <small class="text-muted">Maximum file size: 2MB</small>
+                        </div>
+                        <button type="submit" class="btn">Update Profile</button>
+                    </form>
+                </div>
+                
+                <!-- Security Settings -->
+                <div class="settings-card">
+                    <h3>Security Settings</h3>
+                    <div class="security-options">
+                        <div class="security-item">
+                            <h4>Password</h4>
+                            <p>Last changed: Never</p>
+                            <button class="btn btn-secondary" onclick="changePassword()">Change Password</button>
+                        </div>
+                        <div class="security-item">
+                            <h4>Two-Factor Authentication</h4>
+                            <p>Status: Disabled</p>
+                            <button class="btn btn-secondary">Enable 2FA</button>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="profile-pic">Profile Picture</label>
-                        <input type="file" id="profile-pic" accept="image/*">
+                </div>
+                
+                <!-- Appearance Settings -->
+                <div class="settings-card">
+                    <h3>Appearance</h3>
+                    <div class="appearance-options">
+                        <div class="theme-selector">
+                            <h4>Theme</h4>
+                            <button id="theme-toggle" class="btn btn-secondary">Switch to Dark Mode</button>
+                            <p class="text-muted">Current theme: Light</p>
+                        </div>
                     </div>
-                    <button type="submit" class="btn">Update Profile</button>
-                </form>
-            </div>
-            
-            <div class="card mt-4">
-                <h3>Appearance</h3>
-                <button id="theme-toggle" class="btn btn-secondary mt-3">Toggle Dark Mode</button>
-            </div>
-            
-            <div class="card mt-4">
-                <h3>Danger Zone</h3>
-                <button class="btn btn-danger mt-3" onclick="confirmDeleteAccount()">Delete Account</button>
+                </div>
+                
+                <!-- Account Actions -->
+                <div class="settings-card danger-zone">
+                    <h3>Danger Zone</h3>
+                    <div class="danger-actions">
+                        <div class="danger-item">
+                            <h4>Delete Account</h4>
+                            <p>Permanently delete your account and all data</p>
+                            <button class="btn btn-danger" onclick="confirmDeleteAccount()">Delete Account</button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <script src="js/main.js"></script>
     <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Prefill user data
+            const userData = localStorage.getItem('userData');
+            if (userData) {
+                const user = JSON.parse(userData);
+                document.getElementById('settings-username').value = user.username;
+                document.getElementById('settings-email').value = user.email || '';
+                if (user.profilePic && user.profilePic !== 'images/User.png') {
+                    document.getElementById('user-avatar').src = user.profilePic;
+                }
+            }
+            
+            // Theme toggle
+            const themeToggle = document.getElementById('theme-toggle');
+            if (themeToggle) {
+                const currentTheme = localStorage.getItem('theme') || 'light';
+                themeToggle.textContent = currentTheme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode';
+            }
+        });
+        
+        function changePassword() {
+            alert('Password change functionality would open a modal or redirect to a password change page');
+        }
+        
         function confirmDeleteAccount() {
             if (confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
-                // Call API to delete account
-                alert('Account deletion request sent.');
+                alert('Account deletion process would be initiated. This is a destructive action.');
             }
         }
     </script>

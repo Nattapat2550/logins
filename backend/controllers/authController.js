@@ -1,146 +1,260 @@
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { createUser , findUserByEmail } = require('../models/userModel');
-const { sendVerificationCode } = require('../config/smtp');
-require('dotenv').config();
+const bcrypt = require('bcryptjs');
+const { sendVerificationCode, verificationCodes } = require('../config/passport');
+const { 
+  findUserByEmail, 
+  createUser , 
+  updateUser , 
+  comparePassword 
+} = require('../models/userModel');
 
-const generateVerificationCode = () => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+// Generate random 6-digit code
+const generateCode = () => Math.floor(100000 + Math.random() * 900000).toString();
+
+// Check if email exists (for real-time validation)
+const checkEmail = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: 'Email required' });
+    }
+
+    const existingUser  = await findUserByEmail(email);
+    res.json({ 
+      exists: !!existingUser , 
+      message: existingUser  ? 'Email already registered' : 'Email available' 
+    });
+  } catch (err) {
+    console.error('Check email error:', err);
+    res.status(500).json({ message: 'Server error checking email' });
+  }
 };
 
+// Register - send verification code
 const register = async (req, res) => {
   try {
     const { email } = req.body;
-    if (!email) return res.status(400).json({ message: 'Email required' });
-
-    const existingUser  = await findUserByEmail(email);
-    if (existingUser ) return res.status(400).json({ message: 'Email already registered' });
-
-    const code = generateVerificationCode();
-
-    // Store code in memory or DB - for demo, use in-memory (better to use Redis or DB)
-    req.app.locals.verificationCodes = req.app.locals.verificationCodes || {};
-    req.app.locals.verificationCodes[email] = code;
-
-    await sendVerificationCode(email, code);
-
-    res.json({ message: 'Verification code sent' });
-  } catch (err) {
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
-const verifyCode = (req, res) => {
-  const { email, code } = req.body;
-  const storedCode = req.app.locals.verificationCodes?.[email];
-  if (storedCode && storedCode === code) {
-    // Code verified, remove it
-    delete req.app.locals.verificationCodes[email];
-    res.json({ message: 'Code verified' });
-  } else {
-    res.status(400).json({ message: 'Invalid verification code' });
-  }
-};
-
-const completeRegistration = async (req, res) => {
-  try {
-    const { email, username, password, hashPassword } = req.body;
-    if (!email || !username || !password) return res.status(400).json({ message: 'Missing fields' });
-
-    const existingUser  = await findUserByEmail(email);
-    if (existingUser ) return res.status(400).json({ message: 'Email already registered' });
-
-    let passwordHash = password;
-    if (hashPassword) {
-      const salt = await bcrypt.genSalt(10);
-      passwordHash = await bcrypt.hash(password, salt);
+    if (!email) {
+      return res.status(400).json({ message: 'Email required' });
     }
 
-    const user = await createUser (email, passwordHash, username);
+    // Check for existing user
+    const existingUser  = await findUserByEmail(email);
+    if (existingUser ) {
+      return res.status(400).json({ message: 'Email already registered' });
+    }
 
-    res.json({ message: 'User  created', userId: user.id });
+    // Generate and store code (10 min expiry)
+    const code = generateCode();
+    const expires = Date.now() + 10 * 60 * 1000; // 10 minutes
+    verificationCodes.set(email, { code, expires });
+
+    // Send email
+    await sendVerificationCode(email, code);
+    res.json({ message: 'Verification code sent to your email' });
   } catch (err) {
-    res.status(500).json({ message: 'Server error' });
+    console.error('Register error:', err);
+    res.status(500).json({ message: 'Failed to send verification code' });
   }
 };
 
+// Verify verification code
+const verifyCode = async (req, res) => {
+  try {
+    const { email, code } = req.body;
+    if (!email || !code) {
+      return res.status(400).json({ message: 'Email and code required' });
+    }
+
+    const stored = verificationCodes.get(email);
+    if (!stored || stored.expires < Date.now()) {
+      verificationCodes.delete(email);
+      return res.status(400).json({ message: 'Invalid or expired code' });
+    }
+
+    if (stored.code !== code) {
+      return res.status(400).json({ message: 'Invalid code' });
+    }
+
+    // Code valid, remove from store
+    verificationCodes.delete(email);
+    res.json({ message: 'Code verified successfully' });
+  } catch (err) {
+    console.error('Verify code error:', err);
+    res.status(500).json({ message: 'Verification failed' });
+  }
+};
+
+// Complete registration (for email or Google users)
+const completeRegistration = async (req, res) => {
+  try {
+    const { email, username, password, hashPassword, googleId } = req.body;
+    if (!email || !username) {
+      return res.status(400).json({ message: 'Email and username required' });
+    }
+
+    // Handle password (optional for Google users)
+    let passwordHash = null;
+    if (password) {
+      if (hashPassword) {
+        const salt = await bcrypt.genSalt(10);
+        passwordHash = await bcrypt.hash(password, salt);
+      } else {
+        passwordHash = password; // Plain text (not recommended for production)
+      }
+    }
+
+    const existingUser  = await findUserByEmail(email);
+    let user;
+
+    if (existingUser  && googleId && existingUser .google_id === googleId) {
+      // Update existing Google user
+      user = await updateUser (existingUser .id, { 
+        username, 
+        password: passwordHash 
+      });
+    } else if (existingUser ) {
+      // Email already exists (not Google)
+      return res.status(400).json({ message: 'Email already registered' });
+    } else {
+      // Create new user
+      user = await createUser (email, passwordHash, username, googleId);
+    }
+
+    // Generate JWT
+    const token = jwt.sign(
+      { id: user.id, email: user.email }, 
+      process.env.JWT_SECRET, 
+      { expiresIn: '1d' }
+    );
+
+    res.json({ 
+      message: 'Profile completed successfully', 
+      token, 
+      username: user.username, 
+      profilePic: user.profile_pic 
+    });
+  } catch (err) {
+    console.error('Complete registration error:', err);
+    res.status(500).json({ message: 'Registration failed' });
+  }
+};
+
+// Login with email/password
 const login = async (req, res) => {
   try {
     const { email, password, hashPassword } = req.body;
-    if (!email || !password) return res.status(400).json({ message: 'Missing fields' });
-
-    const user = await findUserByEmail(email);
-    if (!user) return res.status(400).json({ message: 'Invalid credentials' });
-
-    let isMatch = false;
-    if (hashPassword) {
-      isMatch = await bcrypt.compare(password, user.password);
-    } else {
-      isMatch = password === user.password;
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Email and password required' });
     }
 
-    if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
+    const user = await findUserByEmail(email);
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
 
-    const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
-      expiresIn: '1d',
+    // Compare password (handle hashed or plain)
+    let passwordMatch;
+    if (hashPassword) {
+      // Assume hashed
+      passwordMatch = await comparePassword(password, user.password);
+    } else {
+      // Plain text
+      passwordMatch = user.password === password;
+    }
+
+    if (!passwordMatch) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    // Generate JWT
+    const token = jwt.sign(
+      { id: user.id, email: user.email }, 
+      process.env.JWT_SECRET, 
+      { expiresIn: '1d' }
+    );
+
+    res.json({ 
+      message: 'Login successful', 
+      token, 
+      username: user.username, 
+      profilePic: user.profile_pic 
     });
-
-    res.json({ token, username: user.username, profilePic: user.profile_pic });
   } catch (err) {
-    res.status(500).json({ message: 'Server error' });
+    console.error('Login error:', err);
+    res.status(500).json({ message: 'Login failed' });
   }
 };
 
+// Forgot password - send reset code
 const forgetPassword = async (req, res) => {
   try {
     const { email } = req.body;
-    if (!email) return res.status(400).json({ message: 'Email required' });
-
-    const user = await findUserByEmail(email);
-    if (!user) return res.status(400).json({ message: 'Email not found' });
-
-    const code = generateVerificationCode();
-    req.app.locals.resetCodes = req.app.locals.resetCodes || {};
-    req.app.locals.resetCodes[email] = code;
-
-    await sendVerificationCode(email, code);
-
-    res.json({ message: 'Reset code sent' });
-  } catch (err) {
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
-const resetPassword = async (req, res) => {
-  try {
-    const { email, code, newPassword, hashPassword } = req.body;
-    const storedCode = req.app.locals.resetCodes?.[email];
-    if (!storedCode || storedCode !== code) return res.status(400).json({ message: 'Invalid reset code' });
-
-    let passwordHash = newPassword;
-    if (hashPassword) {
-      const salt = await bcrypt.genSalt(10);
-      passwordHash = await bcrypt.hash(newPassword, salt);
+    if (!email) {
+      return res.status(400).json({ message: 'Email required' });
     }
 
     const user = await findUserByEmail(email);
-    if (!user) return res.status(400).json({ message: 'User  not found' });
+    if (!user) {
+      return res.status(404).json({ message: 'User  not found' });
+    }
 
-    await require('../models/userModel').updateUser (user.id, { password: passwordHash });
+    // Generate and store reset code (same as verification)
+    const code = generateCode();
+    const expires = Date.now() + 10 * 60 * 1000;
+    verificationCodes.set(email, { code, expires }); // Reuse verification store
 
-    delete req.app.locals.resetCodes[email];
+    await sendVerificationCode(email, code); // Reuse email function (adapt subject if needed)
+    res.json({ message: 'Password reset code sent to your email' });
+  } catch (err) {
+    console.error('Forget password error:', err);
+    res.status(500).json({ message: 'Failed to send reset code' });
+  }
+};
+
+// Reset password
+const resetPassword = async (req, res) => {
+  try {
+    const { email, code, newPassword, hashPassword } = req.body;
+    if (!email || !code || !newPassword) {
+      return res.status(400).json({ message: 'Email, code, and new password required' });
+    }
+
+    // Verify code (reuse verification logic)
+    const stored = verificationCodes.get(email);
+    if (!stored || stored.expires < Date.now() || stored.code !== code) {
+      verificationCodes.delete(email);
+      return res.status(400).json({ message: 'Invalid or expired reset code' });
+    }
+
+    // Hash new password
+    let passwordHash = null;
+    if (hashPassword) {
+      const salt = await bcrypt.genSalt(10);
+      passwordHash = await bcrypt.hash(newPassword, salt);
+    } else {
+      passwordHash = newPassword;
+    }
+
+    // Update user
+    const user = await updateUser ((await findUserByEmail(email)).id, { password: passwordHash });
+
+    // Clean up code
+    verificationCodes.delete(email);
 
     res.json({ message: 'Password reset successful' });
   } catch (err) {
-    res.status(500).json({ message: 'Server error' });
+    console.error('Reset password error:', err);
+    res.status(500).json({ message: 'Password reset failed' });
   }
 };
 
 module.exports = {
+  checkEmail,
   register,
   verifyCode,
   completeRegistration,
   login,
   forgetPassword,
-  resetPassword,
+  resetPassword
 };

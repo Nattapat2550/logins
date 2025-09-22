@@ -3,41 +3,86 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Complete Registration - Auth System</title>
+    <title>Complete Profile - Auth System</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <div class="container">
         <div class="page">
             <div class="card page-card">
-                <h2 class="text-center">Complete Registration</h2>
+                <div class="text-center">
+                    <img src="https://placeholder-image-service.onrender.com/image/100x100?prompt=User%20profile%20setup%20icon%20with%20user%20and%20gear&id=profile-icon" 
+                         alt="User profile setup icon with user and gear" 
+                         class="mb-3">
+                    <h2>Complete Your Profile</h2>
+                    <p class="mb-4">Please set up your username and password to complete registration</p>
+                </div>
                 
                 <form id="complete-form">
                     <div class="form-group">
-                        <label for="email">Email</label>
-                        <input type="email" id="email" required>
+                        <label for="form-username">Username</label>
+                        <input type="text" id="form-username" placeholder="Choose a username" required>
+                        <small class="text-muted">This will be your display name</small>
                     </div>
                     <div class="form-group">
-                        <label for="username">Username</label>
-                        <input type="text" id="username" required>
+                        <label for="form-email">Email Address</label>
+                        <input type="email" id="form-email" placeholder="Your email address" required readonly>
                     </div>
                     <div class="form-group">
-                        <label for="password">Password</label>
-                        <input type="password" id="password" required>
+                        <label for="form-password">Password</label>
+                        <input type="password" id="form-password" placeholder="Create a password" required>
+                        <small class="text-muted">Minimum 8 characters</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="form-confirm-password">Confirm Password</label>
+                        <input type="password" id="form-confirm-password" placeholder="Confirm your password" required>
                     </div>
                     <div class="form-group">
                         <label>
-                            <input type="checkbox" id="hash-password">
-                            Hash Password
+                            <input type="checkbox" id="form-hash-password">
+                            Enable password hashing for extra security
                         </label>
                     </div>
                     <button type="submit" class="btn">Complete Registration</button>
                 </form>
+                
+                <div class="mt-4 text-center">
+                    <p>By completing registration, you agree to our <a href="#">Terms</a> and <a href="#">Privacy Policy</a></p>
+                </div>
             </div>
         </div>
     </div>
 
     <script src="js/main.js"></script>
     <script src="js/auth.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Prefill email if available
+            const pendingEmail = localStorage.getItem('pendingEmail');
+            const googleEmail = localStorage.getItem('googleEmail');
+            const emailField = document.getElementById('form-email');
+            
+            if (pendingEmail) {
+                emailField.value = pendingEmail;
+            } else if (googleEmail) {
+                emailField.value = googleEmail;
+            }
+            
+            // Password confirmation validation
+            const passwordField = document.getElementById('form-password');
+            const confirmField = document.getElementById('form-confirm-password');
+            
+            function validatePassword() {
+                if (passwordField.value !== confirmField.value) {
+                    confirmField.setCustomValidity("Passwords don't match");
+                } else {
+                    confirmField.setCustomValidity('');
+                }
+            }
+            
+            passwordField.addEventListener('change', validatePassword);
+            confirmField.addEventListener('keyup', validatePassword);
+        });
+    </script>
 </body>
 </html>

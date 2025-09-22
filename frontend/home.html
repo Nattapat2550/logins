@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home - Auth System</title>
+    <title>Dashboard - Auth System</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -16,7 +16,7 @@
             <a href="contact.html" class="nav-link">Contact</a>
             
             <div id="auth-buttons" class="hidden">
-                <a href="index.html" class="btn">Login</a>
+                <a href="login.html" class="btn">Login</a>
             </div>
             
             <div id="user-menu" class="user-menu hidden">
@@ -32,11 +32,57 @@
 
     <div class="container">
         <div class="page">
-            <h1>Welcome to AuthSystem</h1>
-            <p>This is your home page. You can navigate to different sections using the menu above.</p>
+            <div class="welcome-banner">
+                <h1>Welcome back, <span id="welcome-username">User</span>!</h1>
+                <p>You have successfully logged in to your AuthSystem account.</p>
+            </div>
+            
+            <div class="dashboard-grid mt-5">
+                <div class="dashboard-card">
+                    <h3>Account Security</h3>
+                    <p>Your account is protected with advanced security features</p>
+                    <a href="settings.html" class="btn btn-secondary mt-3">Security Settings</a>
+                </div>
+                
+                <div class="dashboard-card">
+                    <h3>Profile Management</h3>
+                    <p>Update your profile information and preferences</p>
+                    <a href="settings.html" class="btn btn-secondary mt-3">Edit Profile</a>
+                </div>
+                
+                <div class="dashboard-card">
+                    <h3>Get Help</h3>
+                    <p>Find answers to common questions and contact support</p>
+                    <a href="contact.html" class="btn btn-secondary mt-3">Support Center</a>
+                </div>
+            </div>
+            
+            <div class="recent-activity mt-5">
+                <h2>Recent Activity</h2>
+                <div class="activity-list">
+                    <div class="activity-item">
+                        <strong>Successful login</strong>
+                        <span>Just now</span>
+                    </div>
+                    <div class="activity-item">
+                        <strong>Account created</strong>
+                        <span>Today</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <script src="js/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Update welcome message with username
+            const userData = localStorage.getItem('userData');
+            if (userData) {
+                const user = JSON.parse(userData);
+                document.getElementById('welcome-username').textContent = user.username;
+            }
+        });
+    </script>
 </body>
 </html>
