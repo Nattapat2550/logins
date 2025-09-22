@@ -54,7 +54,7 @@ async function handleRegister(e) {
     
     try {
         // Send request to backend
-        const response = await fetch('http://localhost:5000/auth/register', {
+        const response = await fetch('https://backendlogins.onrender.com/auth/register', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -85,7 +85,7 @@ async function handleVerification(e) {
     const code = document.getElementById('code').value;
     
     try {
-        const response = await fetch('http://localhost:5000/auth/verify-code', {
+        const response = await fetch('https://backendlogins.onrender.com/auth/verify-code', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -116,7 +116,7 @@ async function handleCompleteRegistration(e) {
     const hashPassword = document.getElementById('hash-password').checked;
     
     try {
-        const response = await fetch('http://localhost:5000/auth/complete-registration', {
+        const response = await fetch('https://backendlogins.onrender.com/auth/complete-registration', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -149,7 +149,7 @@ async function handleLogin(e) {
     const hashPassword = document.getElementById('hash-password').checked;
     
     try {
-        const response = await fetch('http://localhost:5000/auth/login', {
+        const response = await fetch('https://backendlogins.onrender.com/auth/login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -184,7 +184,7 @@ async function handleForgotPassword(e) {
     const email = document.getElementById('email').value;
     
     try {
-        const response = await fetch('http://localhost:5000/auth/forget-password', {
+        const response = await fetch('https://backendlogins.onrender.com/auth/forget-password', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -217,7 +217,7 @@ async function handleResetPassword(e) {
     const hashPassword = document.getElementById('hash-password').checked;
     
     try {
-        const response = await fetch('http://localhost:5000/auth/reset-password', {
+        const response = await fetch('https://backendlogins.onrender.com/auth/reset-password', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -258,7 +258,7 @@ function checkUrlParams() {
 // Fetch user data after OAuth login
 async function fetchUserData(token) {
     try {
-        const response = await fetch('http://localhost:5000/user/profile', {
+        const response = await fetch('https://backendlogins.onrender.com/user/profile', {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`
@@ -277,5 +277,5 @@ async function fetchUserData(token) {
 
 // Google OAuth login
 function loginWithGoogle() {
-    window.location.href = 'http://localhost:5000/auth/google';
+    window.location.href = 'https://backendlogins.onrender.com/auth/google';
 }
