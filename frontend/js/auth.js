@@ -1,4 +1,6 @@
+// API base URL for production (Render) - Update if your backend URL changes
 const API_BASE_URL = 'https://backendlogins.onrender.com';
+
 // Authentication functions
 document.addEventListener('DOMContentLoaded', function() {
     // Setup form submissions
@@ -28,22 +30,73 @@ function setupAuthForms() {
         completeForm.addEventListener('submit', handleCompleteRegistration);
     }
     
-    // Login form
+    // Login form (add if you have one on index.html)
     const loginForm = document.getElementById('login-form');
     if (loginForm) {
         loginForm.addEventListener('submit', handleLogin);
     }
     
-    // Forgot password form
+    // Forgot password form (add if implemented)
     const forgotForm = document.getElementById('forgot-form');
     if (forgotForm) {
         forgotForm.addEventListener('submit', handleForgotPassword);
     }
     
-    // Reset password form
+    // Reset password form (add if implemented)
     const resetForm = document.getElementById('reset-form');
     if (resetForm) {
         resetForm.addEventListener('submit', handleResetPassword);
+    }
+}
+
+// Generic fetch helper with better error handling
+async function apiFetch(url, options = {}) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout for Render cold starts
+    
+    try {
+        const response = await fetch(url, {
+            ...options,
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        // Log response details for debugging
+        console.log('API Response Status:', response.status);
+        console.log('API Response Headers:', [...response.headers.entries()]);
+        
+        // Check if response is ok
+        if (!response.ok) {
+            let errorData;
+            try {
+                errorData = await response.json();
+            } catch (jsonErr) {
+                // If not JSON, try text to see what it is
+                const text = await response.text();
+                console.error('Non-JSON response body:', text);
+                errorData = { message: `Server error: ${response.status} - ${text.substring(0, 200)}` };
+            }
+            throw new Error(errorData.message || `HTTP ${response.status}`);
+        }
+        
+        // Try to parse JSON, fallback to text
+        let data;
+        try {
+            data = await response.json();
+        } catch (jsonErr) {
+            const text = await response.text();
+            console.error('JSON parse failed, raw response:', text);
+            throw new Error('Server returned invalid JSON');
+        }
+        
+        return data;
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            throw new Error('Request timed out - try again in a moment (Render may be waking up)');
+        }
+        console.error('API Fetch Error:', error);
+        throw error;
     }
 }
 
@@ -51,11 +104,16 @@ function setupAuthForms() {
 async function handleRegister(e) {
     e.preventDefault();
     
-    const email = document.getElementById('email').value;
+    const email = document.getElementById('email').value.trim();
+    if (!email) {
+        showAlert('Email is required', 'error');
+        return;
+    }
     
     try {
-        // Send request to backend
-        const response = await fetch('${API_BASE_URL}/auth/register', {
+        showAlert('Sending verification code...', 'info');
+        
+        const data = await apiFetch(`${API_BASE_URL}/auth/register`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -63,18 +121,15 @@ async function handleRegister(e) {
             body: JSON.stringify({ email })
         });
         
-        const data = await response.json();
-        
-        if (response.ok) {
-            // Store email for next step
-            localStorage.setItem('pendingEmail', email);
+        // Store email for next step
+        localStorage.setItem('pendingEmail', email);
+        showAlert(data.message || 'Verification code sent! Check your email.', 'success');
+        setTimeout(() => {
             window.location.href = 'check.html';
-        } else {
-            showAlert(data.message || 'Registration failed', 'error');
-        }
+        }, 1500);
     } catch (error) {
         console.error('Registration error:', error);
-        showAlert('An error occurred. Please try again.', 'error');
+        showAlert(error.message || 'Registration failed. Please try again.', 'error');
     }
 }
 
@@ -82,11 +137,18 @@ async function handleRegister(e) {
 async function handleVerification(e) {
     e.preventDefault();
     
-    const email = document.getElementById('email').value;
-    const code = document.getElementById('code').value;
+    const email = document.getElementById('email').value.trim();
+    const code = document.getElementById('code').value.trim();
+    
+    if (!email || !code || code.length !== 6) {
+        showAlert('Please enter a valid email and 6-digit code', 'error');
+        return;
+    }
     
     try {
-        const response = await fetch('https://backendlogins.onrender.com/auth/verify-code', {
+        showAlert('Verifying code...', 'info');
+        
+        const data = await apiFetch(`${API_BASE_URL}/auth/verify-code`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -94,16 +156,13 @@ async function handleVerification(e) {
             body: JSON.stringify({ email, code })
         });
         
-        const data = await response.json();
-        
-        if (response.ok) {
+        showAlert(data.message || 'Code verified! Redirecting...', 'success');
+        setTimeout(() => {
             window.location.href = 'form.html';
-        } else {
-            showAlert(data.message || 'Invalid verification code', 'error');
-        }
+        }, 1500);
     } catch (error) {
         console.error('Verification error:', error);
-        showAlert('An error occurred. Please try again.', 'error');
+        showAlert(error.message || 'Invalid verification code', 'error');
     }
 }
 
@@ -111,13 +170,20 @@ async function handleVerification(e) {
 async function handleCompleteRegistration(e) {
     e.preventDefault();
     
-    const email = document.getElementById('email').value;
-    const username = document.getElementById('username').value;
+    const email = document.getElementById('email').value.trim();
+    const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value;
-    const hashPassword = document.getElementById('hash-password').checked;
+    const hashPassword = document.getElementById('hash-password')?.checked || false;
+    
+    if (!email || !username || !password || password.length < 6) {
+        showAlert('Please fill all fields with a password of at least 6 characters', 'error');
+        return;
+    }
     
     try {
-        const response = await fetch('https://backendlogins.onrender.com/auth/complete-registration', {
+        showAlert('Completing registration...', 'info');
+        
+        const data = await apiFetch(`${API_BASE_URL}/auth/complete-registration`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -125,32 +191,33 @@ async function handleCompleteRegistration(e) {
             body: JSON.stringify({ email, username, password, hashPassword })
         });
         
-        const data = await response.json();
-        
-        if (response.ok) {
-            showAlert('Registration successful! Please login.', 'success');
-            setTimeout(() => {
-                window.location.href = 'index.html';
-            }, 2000);
-        } else {
-            showAlert(data.message || 'Registration failed', 'error');
-        }
+        showAlert(data.message || 'Registration successful! Redirecting to login...', 'success');
+        setTimeout(() => {
+            window.location.href = 'index.html';
+        }, 2000);
     } catch (error) {
         console.error('Complete registration error:', error);
-        showAlert('An error occurred. Please try again.', 'error');
+        showAlert(error.message || 'Registration failed', 'error');
     }
 }
 
-// Handle login
+// Handle login (if you add a login form to index.html)
 async function handleLogin(e) {
     e.preventDefault();
     
-    const email = document.getElementById('email').value;
+    const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
-    const hashPassword = document.getElementById('hash-password').checked;
+    const hashPassword = document.getElementById('hash-password')?.checked || false;
+    
+    if (!email || !password) {
+        showAlert('Email and password required', 'error');
+        return;
+    }
     
     try {
-        const response = await fetch('${API_BASE_URL}/auth/login', {
+        showAlert('Logging in...', 'info');
+        
+        const data = await apiFetch(`${API_BASE_URL}/auth/login`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -158,34 +225,38 @@ async function handleLogin(e) {
             body: JSON.stringify({ email, password, hashPassword })
         });
         
-        const data = await response.json();
+        // Store auth token and user data
+        localStorage.setItem('authToken', data.token);
+        localStorage.setItem('userData', JSON.stringify({
+            username: data.username,
+            profilePic: data.profilePic || 'images/User.png'
+        }));
         
-        if (response.ok) {
-            // Store auth token and user data
-            localStorage.setItem('authToken', data.token);
-            localStorage.setItem('userData', JSON.stringify({
-                username: data.username,
-                profilePic: data.profilePic
-            }));
-            
+        showAlert('Login successful! Redirecting...', 'success');
+        setTimeout(() => {
             window.location.href = 'home.html';
-        } else {
-            showAlert(data.message || 'Login failed', 'error');
-        }
+        }, 1500);
     } catch (error) {
         console.error('Login error:', error);
-        showAlert('An error occurred. Please try again.', 'error');
+        showAlert(error.message || 'Login failed', 'error');
     }
 }
 
-// Handle forgot password
+// Handle forgot password (if implemented)
 async function handleForgotPassword(e) {
     e.preventDefault();
     
-    const email = document.getElementById('email').value;
+    const email = document.getElementById('email').value.trim();
+    
+    if (!email) {
+        showAlert('Email required', 'error');
+        return;
+    }
     
     try {
-        const response = await fetch('https://backendlogins.onrender.com/auth/forget-password', {
+        showAlert('Sending reset instructions...', 'info');
+        
+        const data = await apiFetch(`${API_BASE_URL}/auth/forget-password`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -193,32 +264,32 @@ async function handleForgotPassword(e) {
             body: JSON.stringify({ email })
         });
         
-        const data = await response.json();
-        
-        if (response.ok) {
-            // Store email for reset process
-            localStorage.setItem('resetEmail', email);
-            showAlert('Reset instructions sent to your email', 'success');
-        } else {
-            showAlert(data.message || 'Password reset failed', 'error');
-        }
+        localStorage.setItem('resetEmail', email);
+        showAlert(data.message || 'Reset instructions sent to your email', 'success');
     } catch (error) {
         console.error('Forgot password error:', error);
-        showAlert('An error occurred. Please try again.', 'error');
+        showAlert(error.message || 'Password reset failed', 'error');
     }
 }
 
-// Handle reset password
+// Handle reset password (if implemented)
 async function handleResetPassword(e) {
     e.preventDefault();
     
-    const email = document.getElementById('email').value;
-    const code = document.getElementById('code').value;
+    const email = document.getElementById('email').value.trim();
+    const code = document.getElementById('code').value.trim();
     const newPassword = document.getElementById('new-password').value;
-    const hashPassword = document.getElementById('hash-password').checked;
+    const hashPassword = document.getElementById('hash-password')?.checked || false;
+    
+    if (!email || !code || !newPassword || newPassword.length < 6) {
+        showAlert('Please fill all fields with a new password of at least 6 characters', 'error');
+        return;
+    }
     
     try {
-        const response = await fetch('https://backendlogins.onrender.com/auth/reset-password', {
+        showAlert('Resetting password...', 'info');
+        
+        const data = await apiFetch(`${API_BASE_URL}/auth/reset-password`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -226,23 +297,17 @@ async function handleResetPassword(e) {
             body: JSON.stringify({ email, code, newPassword, hashPassword })
         });
         
-        const data = await response.json();
-        
-        if (response.ok) {
-            showAlert('Password reset successful! Please login.', 'success');
-            setTimeout(() => {
-                window.location.href = 'index.html';
-            }, 2000);
-        } else {
-            showAlert(data.message || 'Password reset failed', 'error');
-        }
+        showAlert(data.message || 'Password reset successful! Redirecting to login...', 'success');
+        setTimeout(() => {
+            window.location.href = 'index.html';
+        }, 2000);
     } catch (error) {
         console.error('Reset password error:', error);
-        showAlert('An error occurred. Please try again.', 'error');
+        showAlert(error.message || 'Password reset failed', 'error');
     }
 }
 
-// Check URL parameters for auth callbacks
+// Check URL parameters for auth callbacks (e.g., Google OAuth)
 function checkUrlParams() {
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
@@ -250,33 +315,35 @@ function checkUrlParams() {
     if (token) {
         // Handle Google OAuth callback
         localStorage.setItem('authToken', token);
-        
-        // Fetch user data (you might need to adjust this based on your backend)
         fetchUserData(token);
+        // Clear URL params to clean up
+        window.history.replaceState({}, document.title, window.location.pathname);
     }
 }
 
 // Fetch user data after OAuth login
 async function fetchUserData(token) {
     try {
-        const response = await fetch('${API_BASE_URL}/user/profile', {
+        const data = await apiFetch(`${API_BASE_URL}/user/profile`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`
             }
         });
         
-        if (response.ok) {
-            const userData = await response.json();
-            localStorage.setItem('userData', JSON.stringify(userData));
-            window.location.href = 'home.html';
-        }
+        localStorage.setItem('userData', JSON.stringify({
+            username: data.user.username,
+            profilePic: data.user.profile_pic || 'images/User.png'
+        }));
+        window.location.href = 'home.html';
     } catch (error) {
         console.error('Failed to fetch user data:', error);
+        showAlert('Login successful, but profile load failed. Please refresh.', 'warning');
+        window.location.href = 'home.html';
     }
 }
 
 // Google OAuth login
 function loginWithGoogle() {
-    window.location.href = '${API_BASE_URL}/auth/google';
+    window.location.href = `${API_BASE_URL}/auth/google`;
 }

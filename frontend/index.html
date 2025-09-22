@@ -9,25 +9,40 @@
 <body>
     <div class="container">
         <div class="page">
-            <div class="card page-card">
-                <h2 class="text-center">Create Account</h2>
-                <form id="register-form" class="mt-4">
-                    <div class="form-group">
-                        <label for="email">Email</label>
-                        <input type="email" id="email" required>
-                    </div>
-                    <button type="submit" class="btn">Send Verification Code</button>
-                </form>
-                
-                <div class="text-center mt-4">
-                    <p>Already have an account? <a href="#" onclick="window.location.href='index.html?login=true'">Login</a></p>
-                    <button class="btn btn-secondary mt-3" onclick="loginWithGoogle()">Login with Google</button>
-                </div>
-            </div>
+            <div class="card page-card mt-5">
+       <h2 class="text-center">Login</h2>
+       <form id="login-form" class="mt-4">
+           <div class="form-group">
+               <label for="email">Email</label>
+               <input type="email" id="email" required>
+           </div>
+           <div class="form-group">
+               <label for="password">Password</label>
+               <input type="password" id="password" required>
+           </div>
+           <div class="form-group">
+               <label>
+                   <input type="checkbox" id="hash-password">
+                   Hash Password (for security)
+               </label>
+           </div>
+           <button type="submit" class="btn">Login</button>
+       </form>
+       <div class="text-center mt-3">
+           <button class="btn btn-secondary" onclick="loginWithGoogle()">Login with Google</button>
+           <p class="mt-2"><a href="#" onclick="showForgotPassword()">Forgot Password?</a></p>
+       </div>
+   </div>
         </div>
     </div>
 
     <script src="js/main.js"></script>
     <script src="js/auth.js"></script>
+    <script>
+       function showForgotPassword() {
+           // You can add a forgot password modal or redirect
+           alert('Forgot password functionality can be added here.');
+       }
+   </script>
 </body>
 </html>
