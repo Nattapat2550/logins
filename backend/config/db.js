@@ -1,5 +1,5 @@
 const { Pool } = require('pg');
-require('dotenv').config();
+// Remove: require('dotenv').config(); - Already loaded in server.js
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -13,7 +13,7 @@ pool.connect((err, client, release) => {
   if (err) {
     console.error('Database connection error:', err.stack);
   } else {
-    console.log('Connected to PostgreSQL database');
+    console.log('✅ Connected to PostgreSQL database');
     release();
   }
 });

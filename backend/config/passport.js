@@ -1,7 +1,7 @@
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const pool = require('./db');
-require('dotenv').config();
+// Remove: require('dotenv').config(); - Already loaded in server.js
 
 // In-memory store for verification codes (use Redis in production)
 const verificationCodes = new Map(); // { email: { code, expires } }

@@ -1,5 +1,5 @@
 const nodemailer = require('nodemailer');
-require('dotenv').config();
+// Remove: require('dotenv').config(); - Already loaded in server.js
 
 // Create transporter
 const transporter = nodemailer.createTransporter({
@@ -15,12 +15,12 @@ const transporter = nodemailer.createTransporter({
   }
 });
 
-// Test transporter (optional, run once)
+// Test transporter (logs once on startup)
 transporter.verify((error, success) => {
   if (error) {
-    console.error('SMTP connection error:', error);
+    console.error('❌ SMTP connection error:', error);
   } else {
-    console.log('SMTP server is ready to send emails');
+    console.log('✅ SMTP server is ready to send emails');
   }
 });
 
@@ -43,10 +43,10 @@ async function sendVerificationCode(email, code) {
 
   try {
     const info = await transporter.sendMail(mailOptions);
-    console.log('Verification email sent:', info.messageId);
+    console.log('📧 Verification email sent:', info.messageId);
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error('Error sending email:', error);
+    console.error('❌ Error sending email:', error);
     throw new Error('Failed to send verification email');
   }
 }
