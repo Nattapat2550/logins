@@ -15,31 +15,44 @@ exports.register = async (req, res) => {
   }
   
   const trimmedEmail = email.trim().toLowerCase();
+  console.log('Register: Processing email', trimmedEmail);
   
   try {
-    // Check if full user already exists (still block duplicates)
+    // Step 1: Check full user duplicate
+    console.log('Register: Checking for existing user...');
     const existingUser  = await db.query('SELECT * FROM users WHERE email = $1', [trimmedEmail]);
     if (existingUser .rows.length > 0) {
       console.log('Register error: Duplicate email in users table', trimmedEmail);
       return res.status(400).json({ error: 'Email already registered. Try logging in.' });
     }
+    console.log('Register: No existing user found');
 
-    // Check/clean old temp (optional: prevent spam)
+    // Step 2: Clean old temp
+    console.log('Register: Cleaning old temp verifications...');
     await db.query('DELETE FROM temp_verifications WHERE email = $1 OR expires_at < CURRENT_TIMESTAMP', [trimmedEmail]);
-    
+    console.log('Register: Temp cleanup done');
+
+    // Step 3: Generate and insert temp code
     const code = generateCode();
+    console.log('Register: Generated code', code, 'for', trimmedEmail);
     await db.query(
       'INSERT INTO temp_verifications (email, code) VALUES ($1, $2)',
       [trimmedEmail, code]
     );
     console.log('Register success: Temp code inserted for', trimmedEmail);
     
+    // Step 4: Send email (this is likely crashing)
+    console.log('Register: Starting email send...');
     await sendVerification(trimmedEmail, code);
     console.log('Register: Verification email sent to', trimmedEmail);
     
     res.json({ message: 'Verification code sent to your email. Check spam if not received.' });
   } catch (err) {
-    console.error('Register error:', err.message);
+    console.error('Register error (full details):', {
+      message: err.message,
+      stack: err.stack,
+      email: trimmedEmail
+    });
     res.status(500).json({ error: 'Server error during registration. Try again.' });
   }
 };
