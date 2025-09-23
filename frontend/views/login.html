@@ -32,45 +32,43 @@
     <p style="margin-top: 20px;">Don't have an account? <a href="register.html">Register here</a></p>
   </main>
 
-  <script src="../public/js/main.js"></script>
+  <script src="../public/js/main.js"></script>  <!-- Your shared utilities -->
+  <script src="../public/js/auth.js"></script>  <!-- FIXED: Source auth.js -->
   <script>
-    // Toggle password visibility
+    // Toggle password visibility (from main.js)
     togglePasswordVisibility('hidePassword', 'password');
 
-    document.getElementById('loginForm').onsubmit = async (e) => {
-      e.preventDefault();
-
-      const email = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value;
-
-      if (!email || !password) return alert('Please fill all fields.');
-
-      try {
-        const res = await fetch(`${apiUrl}/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
-          credentials: 'include',
-        });
-        const data = await res.json();
-        if (res.ok) {
-          alert('Login successful! Redirecting...');
-          if (data.user.role === 'admin') {
-            window.location.href = 'admin.html';
-          } else {
-            window.location.href = 'home.html';
+    // FIXED: Use auth.js functions (line ~128 was likely here)
+    document.addEventListener('DOMContentLoaded', () => {
+      // Optional: Auto-check email on blur (if you want real-time validation)
+      const emailInput = document.getElementById('email');
+      emailInput.addEventListener('blur', async () => {
+        const email = emailInput.value.trim();
+        if (email) {
+          try {
+            await checkEmailExists(email);  // From auth.js
+            // If exists, maybe show "Email found" or proceed
+          } catch (error) {
+            // Ignore if not registering
           }
-        } else {
-          alert(data.message || 'Login failed.');
         }
-      } catch (err) {
-        alert('Error during login.');
-      }
-    };
+      });
 
-    document.getElementById('googleLoginBtn').onclick = () => {
-      window.location.href = `${apiUrl}/auth/google`;
-    };
+      // Login form submit
+      document.getElementById('loginForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+        if (!email || !password) {
+          showAlert('Please fill all fields.', 'error');  // From auth.js
+          return;
+        }
+        await handleLogin(email, password);  // From auth.js
+      };
+
+      // Google login
+      document.getElementById('googleLoginBtn').onclick = handleGoogleLogin;  // From auth.js
+    });
   </script>
 </body>
 </html>

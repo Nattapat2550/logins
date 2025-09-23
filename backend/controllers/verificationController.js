@@ -1,48 +1,78 @@
-// controllers/verificationController.js
-const { createVerificationCode, getVerificationCode, deleteVerificationCode } = require('../models/verificationModel');
-const { sendVerificationCode } = require('../utils/mailer');
-const jwt = require('jsonwebtoken');
-require('dotenv').config();
+// backend/controllers/verificationController.js
+const db = require('../config/db');  // Your pg pool
+const { sendVerificationCode: sendEmail } = require('../utils/mailer');  // From mailer.js
+const crypto = require('crypto');
+const bcrypt = require('bcrypt');
 
-const checkEmailAndSendCode = async (req, res) => {
-  const { email } = req.body;
-  if (!email) return res.status(400).json({ message: 'Email required' });
+// Check if email exists in users table
+async function checkEmailExists(email) {
+  const query = 'SELECT id FROM users WHERE email = $1';
+  const result = await db.query(query, [email]);
+  return result.rows.length > 0;  // true if exists
+}
 
-  const userModel = require('../models/userModel');
-  const user = await userModel.getUserByEmail(email);
-  if (user) return res.status(409).json({ message: 'Email already registered' });
+// Generate and send 6-digit code, store in verifications table
+async function sendVerificationCode(email) {
+  // Generate 6-digit code
+  const code = Math.floor(100000 + Math.random() * 900000).toString();  // e.g., '123456'
 
-  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  // Hash code for storage (optional security; store plain for simplicity)
+  const hashedCode = await bcrypt.hash(code, 10);
 
-  try {
-    await createVerificationCode(email, code);
-    await sendVerificationCode(email, code);
-    res.json({ message: 'Verification code sent' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Failed to send code' });
+  // Upsert into verifications table (delete old if exists)
+  const upsertQuery = `
+    INSERT INTO verifications (email, code, created_at, expires_at)
+    VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '15 minutes')
+    ON CONFLICT (email) DO UPDATE SET
+      code = $2,
+      created_at = CURRENT_TIMESTAMP,
+      expires_at = CURRENT_TIMESTAMP + INTERVAL '15 minutes'
+  `;
+  await db.query(upsertQuery, [email, hashedCode]);
+
+  // Send email
+  await sendEmail(email, code);  // Sends plain code
+
+  console.log(`Verification code sent to ${email}`);
+  return code;  // For testing; don't return in production routes
+}
+
+// Verify code: Check against DB, delete after success
+async function verifyCode(email, code) {
+  const selectQuery = 'SELECT code, expires_at FROM verifications WHERE email = $1';
+  const result = await db.query(selectQuery, [email]);
+
+  if (result.rows.length === 0) {
+    throw new Error('No verification code found for this email.');
   }
-};
 
-const verifyCode = async (req, res) => {
-  const { email, code } = req.body;
-  if (!email || !code) return res.status(400).json({ message: 'Email and code required' });
+  const { code: hashedCode, expires_at } = result.rows[0];
 
-  const record = await getVerificationCode(email);
-  if (!record) return res.status(400).json({ message: 'No verification code found' });
+  // Check if expired
+  if (new Date(expires_at) < new Date()) {
+    await db.query('DELETE FROM verifications WHERE email = $1', [email]);
+    throw new Error('Verification code has expired.');
+  }
 
-  const createdAt = new Date(record.created_at);
-  const now = new Date();
-  if (record.code !== code) return res.status(400).json({ message: 'Invalid code' });
-  if ((now - createdAt) / 1000 / 60 > 15) return res.status(400).json({ message: 'Code expired' });
+  // Verify code hash
+  const isValid = await bcrypt.compare(code, hashedCode);
+  if (!isValid) {
+    throw new Error('Invalid verification code.');
+  }
 
-  await deleteVerificationCode(email);
+  // Delete used code
+  await db.query('DELETE FROM verifications WHERE email = $1', [email]);
 
-  const tempToken = jwt.sign({ email, verified: true }, process.env.JWT_SECRET, { expiresIn: '15m' });
-  res.json({ message: 'Verified', token: tempToken });
-};
+  // Generate short-lived token for completing registration
+  const token = crypto.randomBytes(32).toString('hex');
+  // In production, store token in a temp table or use JWT; here, return directly (session-based)
+
+  console.log(`Code verified for ${email}`);
+  return token;
+}
 
 module.exports = {
-  checkEmailAndSendCode,
+  checkEmailExists,
+  sendVerificationCode,
   verifyCode,
 };

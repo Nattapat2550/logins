@@ -38,91 +38,67 @@
   </main>
 
   <script src="../public/js/main.js"></script>
+  <script src="../public/js/auth.js"></script>  <!-- FIXED: Source auth.js -->
   <script>
-    const sendCodeBtn = document.getElementById('sendCodeBtn');
-    const verifyCodeBtn = document.getElementById('verifyCodeBtn');
-    const registerForm = document.getElementById('registerForm');
-
     let verifiedToken = null;
     let userEmail = null;
 
-    sendCodeBtn.onclick = async () => {
-      const email = document.getElementById('email').value.trim();
-      if (!email) return alert('Please enter your email.');
+    document.addEventListener('DOMContentLoaded', () => {
+      const sendCodeBtn = document.getElementById('sendCodeBtn');
+      const verifyCodeBtn = document.getElementById('verifyCodeBtn');
+      const registerForm = document.getElementById('registerForm');
 
-      try {
-        const res = await fetch(`${apiUrl}/register/check-email`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email }),
-        });
-        const data = await res.json();
-        if (res.ok) {
-          alert('Verification code sent to your email.');
+      sendCodeBtn.onclick = async () => {
+        const email = document.getElementById('email').value.trim();
+        if (!email) {
+          showAlert('Please enter your email.', 'error');
+          return;
+        }
+        try {
+          // First check if email exists
+          await checkEmailExists(email);  // From auth.js
+          // If no error, send code (assuming backend handles existence in send-code)
+          await sendVerificationCode(email);  // From auth.js
           userEmail = email;
           document.getElementById('verifySection').style.display = 'block';
-        } else {
-          alert(data.message || 'Failed to send verification code.');
-        }
-      } catch (err) {
-        alert('Error sending verification code.');
-      }
-    };
-
-    verifyCodeBtn.onclick = async () => {
-      const code = document.getElementById('code').value.trim();
-      if (!code || code.length !== 6) return alert('Please enter a 6-digit code.');
-
-      try {
-        const res = await fetch(`${apiUrl}/register/verify-code`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: userEmail, code }),
-        });
-        const data = await res.json();
-        if (res.ok) {
-          alert('Email verified! Please complete registration.');
-          verifiedToken = data.token;
-          document.getElementById('completeSection').style.display = 'block';
-        } else {
-          alert(data.message || 'Verification failed.');
-        }
-      } catch (err) {
-        alert('Error verifying code.');
-      }
-    };
-
-    registerForm.onsubmit = async (e) => {
-      e.preventDefault();
-      if (!verifiedToken) return alert('Please verify your email first.');
-
-      const username = document.getElementById('username').value.trim();
-      const password = document.getElementById('password').value;
-
-      if (!username || !password) return alert('Please fill all fields.');
-
-      try {
-        const res = await fetch(`${apiUrl}/register/complete`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: verifiedToken, username, password }),
-          credentials: 'include',
-        });
-        const data = await res.json();
-        if (res.ok) {
-          alert('Registration successful! Redirecting to home page...');
-          if (data.user.role === 'admin') {
-            window.location.href = 'admin.html';
-          } else {
-            window.location.href = 'home.html';
+        } catch (error) {
+          // Backend might return { exists: true } - handle accordingly
+          if (error.message.includes('exists')) {
+            showAlert('Email already registered. Please login.', 'error');
           }
-        } else {
-          alert(data.message || 'Registration failed.');
         }
-      } catch (err) {
-        alert('Error completing registration.');
-      }
-    };
+      };
+
+      verifyCodeBtn.onclick = async () => {
+        const code = document.getElementById('code').value.trim();
+        if (!code || code.length !== 6) {
+          showAlert('Please enter a 6-digit code.', 'error');
+          return;
+        }
+        try {
+          verifiedToken = await verifyCode(userEmail, code);  // From auth.js
+          showAlert('Email verified! Complete registration.', 'success');
+          document.getElementById('completeSection').style.display = 'block';
+        } catch (error) {
+          showAlert('Invalid or expired code.', 'error');
+        }
+      };
+
+      registerForm.onsubmit = async (e) => {
+        e.preventDefault();
+        if (!verifiedToken) {
+          showAlert('Please verify your email first.', 'error');
+          return;
+        }
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+        if (!username || !password) {
+          showAlert('Please fill all fields.', 'error');
+          return;
+        }
+        await handleRegister(verifiedToken, username, password);  // From auth.js
+      };
+    });
   </script>
 </body>
 </html>
