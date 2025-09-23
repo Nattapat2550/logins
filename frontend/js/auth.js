@@ -1,5 +1,5 @@
 // API Base URL - UPDATE FOR PRODUCTION (e.g., 'https://backendlogins.onrender.com/api')
-const API_BASE = 'http://localhost:5000/api';  // Local dev; change to your Render backend
+const API_BASE = 'https://backendlogins.onrender.com/api';  // Local dev; change to your Render backend
 
 // Helper to make authenticated requests
 async function apiRequest(endpoint, options = {}) {
