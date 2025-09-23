@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login</title>
+  <link rel="stylesheet" href="../public/css/style.css">
+</head>
+<body>
+  <main class="container">
+    <h2>Login</h2>
+    <form id="loginForm">
+      <label for="email">Email:</label>
+      <input type="email" id="email" placeholder="Enter your email" required />
+
+      <label for="password">Password:</label>
+      <input type="password" id="password" placeholder="Enter your password" required />
+
+      <label>
+        <input type="checkbox" id="hidePassword" checked />
+        Hide Password
+      </label>
+
+      <button type="submit">Login</button>
+    </form>
+
+    <hr />
+
+    <h3>Or Login with Google</h3>
+    <button id="googleLoginBtn">Login with Google</button>
+
+    <p style="margin-top: 20px;">Don't have an account? <a href="register.html">Register here</a></p>
+  </main>
+
+  <script src="../public/js/main.js"></script>
+  <script>
+    // Toggle password visibility
+    togglePasswordVisibility('hidePassword', 'password');
+
+    document.getElementById('loginForm').onsubmit = async (e) => {
+      e.preventDefault();
+
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      if (!email || !password) return alert('Please fill all fields.');
+
+      try {
+        const res = await fetch(`${apiUrl}/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+          credentials: 'include',
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert('Login successful! Redirecting...');
+          if (data.user.role === 'admin') {
+            window.location.href = 'admin.html';
+          } else {
+            window.location.href = 'home.html';
+          }
+        } else {
+          alert(data.message || 'Login failed.');
+        }
+      } catch (err) {
+        alert('Error during login.');
+      }
+    };
+
+    document.getElementById('googleLoginBtn').onclick = () => {
+      window.location.href = `${apiUrl}/auth/google`;
+    };
+  </script>
+</body>
+</html>

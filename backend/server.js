@@ -1,77 +1,105 @@
+// server.js
+require('dotenv').config();
 const express = require('express');
+const session = require('express-session');
 const cors = require('cors');
+const passport = require('passport');
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const cookieParser = require('cookie-parser');
-const passport = require('./config/passport');
+const path = require('path');
+
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const verificationRoutes = require('./routes/verificationRoutes');
 
-// Load dotenv ONLY once here (remove from all other files!)
-require('dotenv').config({ debug: false }); // Suppress dotenv tips
+const { getUserByEmail, getUserById, createUser  } = require('./models/userModel');
 
 const app = express();
 
-// CORS configuration for your frontend
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true
-}));
-
-app.use(express.json({ limit: '10mb' })); // For file uploads
-app.use(express.urlencoded({ extended: true }));
+// Middleware
+app.use(express.json());
 app.use(cookieParser());
 
-// Initialize Passport
+// CORS setup - adjust origin to your frontend URL
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  credentials: true,
+}));
+
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'fallback-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+  },
+}));
+
 app.use(passport.initialize());
+app.use(passport.session());
 
-// Serve uploaded images
-app.use('/uploads', express.static('uploads'));
+// Passport Google OAuth setup
+passport.use(new GoogleStrategy({
+  clientID: process.env.GOOGLE_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  callbackURL: process.env.GOOGLE_CALLBACK_URL, // e.g., https://backendlogins.onrender.com/api/auth/google/callback
+}, async (accessToken, refreshToken, profile, done) => {
+  try {
+    const email = profile.emails[0].value;
+    let user = await getUserByEmail(email);
+    if (!user) {
+      user = await createUser (email, null, 'user', profile.displayName, profile.photos[0]?.value || null);
+    }
+    done(null, user);
+  } catch (err) {
+    console.error('Google OAuth error:', err);
+    done(err, null);
+  }
+}));
 
-// API Routes (before 404 handler)
-app.use('/auth', authRoutes);
-app.use('/user', userRoutes);
-
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'production',
-    port: process.env.PORT || 5000
-  });
+passport.serializeUser ((user, done) => {
+  done(null, user.id);
 });
 
-// 404 Handler: Standard Express pattern (NO PATH - avoids path-to-regexp entirely)
-app.use((req, res, next) => {
-  // Log the unmatched route for debugging
-  console.log(`404: Unmatched route - ${req.method} ${req.originalUrl}`);
-  res.status(404).json({ message: 'Route not found' });
+passport.deserializeUser (async (id, done) => {
+  try {
+    const user = await getUserById(id);
+    done(null, user);
+  } catch (err) {
+    console.error('Deserialize error:', err);
+    done(err, null);
+  }
 });
 
-// Global Error Handler (after 404)
+// API Routes (all prefixed with /api)
+app.use('/api', verificationRoutes);
+app.use('/api', authRoutes);
+app.use('/api', userRoutes);
+app.use('/api/admin', adminRoutes);
+
+// Optional: Serve frontend static files from backend (uncomment if frontend is in /public folder)
+// app.use(express.static(path.join(__dirname, '../frontend/public')));
+// app.get('*', (req, res) => {
+//   res.sendFile(path.join(__dirname, '../frontend/views/index.html'));
+// });
+
+// Health check and default route
+app.get('/', (req, res) => {
+  res.json({ message: 'Backend API is running! Visit /api for endpoints.' });
+});
+
+// Error handling middleware
 app.use((err, req, res, next) => {
-  console.error('Server Error Details:', {
-    message: err.message,
-    stack: err.stack,
-    url: req.originalUrl,
-    method: req.method
-  });
+  console.error(err.stack);
   res.status(500).json({ message: 'Something went wrong!' });
 });
 
-// Start server with explicit port binding
+// Start server
 const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔗 Frontend URL: ${process.env.FRONTEND_URL || 'Not set'}`);
-});
-
-// Graceful shutdown for Render
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully');
-  server.close(() => {
-    console.log('Server closed');
-    process.exit(0);
-  });
+app.listen(PORT, () => {
+  console.log(`Backend server running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Google Callback URL: ${process.env.GOOGLE_CALLBACK_URL}`);
 });

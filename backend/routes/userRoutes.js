@@ -1,13 +1,12 @@
+// routes/userRoutes.js
 const express = require('express');
-const authenticateToken = require('../middlewares/authMiddleware');
-const { getProfile, updateProfile, upload } = require('../controllers/userController');
-
 const router = express.Router();
+const { authenticateJWT } = require('../middlewares/authMiddleware');
+const { getProfile, updateProfile, changePassword, deleteAccount } = require('../controllers/userController');
 
-// Get user profile (protected)
-router.get('/profile', authenticateToken, getProfile);
-
-// Update user profile (protected, with file upload)
-router.put('/profile', authenticateToken, upload.single('profilePic'), updateProfile);
+router.get('/me', authenticateJWT, getProfile);
+router.put('/me', authenticateJWT, updateProfile);
+router.put('/me/password', authenticateJWT, changePassword);
+router.delete('/me', authenticateJWT, deleteAccount);
 
 module.exports = router;

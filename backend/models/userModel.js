@@ -1,113 +1,50 @@
-const pool = require('../config/db');
-const bcrypt = require('bcryptjs');
+// models/userModel.js
+const pool = require('../db');
 
-// Find user by email
-async function findUserByEmail(email) {
-  try {
-    if (!email) {
-      throw new Error('Email parameter is required');
-    }
-    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    console.log(`DB Query: findUser ByEmail for ${email} - Found: ${result.rows.length} rows`);
-    return result.rows[0];
-  } catch (err) {
-    console.error('DB Error in findUser ByEmail:', err.message);
-    throw new Error(`Database query failed: ${err.message}`);
-  }
-}
+const createUser  = async (email, passwordHash, role = 'user', username = null, picture = null) => {
+  const result = await pool.query(
+    `INSERT INTO users (email, password_hash, role, username, picture) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [email, passwordHash, role, username, picture]
+  );
+  return result.rows[0];
+};
 
-// Find user by ID
-async function findUserById(id) {
-  try {
-    if (!id) {
-      throw new Error('ID parameter is required');
-    }
-    const result = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
-    console.log(`DB Query: findUser ById for ${id} - Found: ${result.rows.length} rows`);
-    return result.rows[0];
-  } catch (err) {
-    console.error('DB Error in findUser ById:', err.message);
-    throw new Error(`Database query failed: ${err.message}`);
-  }
-}
+const getUserByEmail = async (email) => {
+  const result = await pool.query(`SELECT * FROM users WHERE email = $1`, [email]);
+  return result.rows[0];
+};
 
-// Create user
-async function createUser (email, password, username, googleId = null, profilePic = null) {
-  try {
-    if (!email || !username) {
-      throw new Error('Email and username are required');
-    }
-    const result = await pool.query(
-      'INSERT INTO users (email, password, username, google_id, profile_pic) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [email, password, username, googleId, profilePic]
-    );
-    console.log(`DB: Created user ${username} with email ${email}`);
-    return result.rows[0];
-  } catch (err) {
-    console.error('DB Error in createUser :', err.message);
-    if (err.code === '23505') { // Unique violation
-      throw new Error('Email already exists');
-    }
-    throw new Error(`Database insert failed: ${err.message}`);
-  }
-}
+const getUserById = async (id) => {
+  const result = await pool.query(`SELECT * FROM users WHERE id = $1`, [id]);
+  return result.rows[0];
+};
 
-// Update user
-async function updateUser (id, updates) {
-  try {
-    if (!id || !updates) {
-      throw new Error('ID and updates are required');
-    }
-    const fields = [];
-    const values = [];
-    let index = 1;
+const updateUser  = async (id, fields) => {
+  const keys = Object.keys(fields);
+  const values = Object.values(fields);
+  if (keys.length === 0) return null;
+  const setString = keys.map((k, i) => `${k} = $${i + 1}`).join(', ');
+  const result = await pool.query(
+    `UPDATE users SET ${setString} WHERE id = $${keys.length + 1} RETURNING *`,
+    [...values, id]
+  );
+  return result.rows[0];
+};
 
-    for (const [key, value] of Object.entries(updates)) {
-      fields.push(`${key} = $${index++}`);
-      values.push(value);
-    }
-    values.push(id);
+const deleteUser  = async (id) => {
+  await pool.query(`DELETE FROM users WHERE id = $1`, [id]);
+};
 
-    const query = `UPDATE users SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = $${index} RETURNING *`;
-    const result = await pool.query(query, values);
-    console.log(`DB: Updated user ${id} with fields:`, Object.keys(updates));
-    return result.rows[0];
-  } catch (err) {
-    console.error('DB Error in updateUser :', err.message);
-    throw new Error(`Database update failed: ${err.message}`);
-  }
-}
-
-// Delete user
-async function deleteUser (id) {
-  try {
-    const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING *', [id]);
-    console.log(`DB: Deleted user ${id}`);
-    return result.rows[0];
-  } catch (err) {
-    console.error('DB Error in deleteUser :', err.message);
-    throw new Error(`Database delete failed: ${err.message}`);
-  }
-}
-
-// Compare password (if hashed)
-async function comparePassword(plainPassword, hashedPassword) {
-  try {
-    if (!hashedPassword) return false;
-    const match = await bcrypt.compare(plainPassword, hashedPassword);
-    console.log('Password comparison result:', match ? 'match' : 'no match');
-    return match;
-  } catch (err) {
-    console.error('Password compare error:', err.message);
-    throw new Error(`Password comparison failed: ${err.message}`);
-  }
-}
+const getAllUsers = async () => {
+  const result = await pool.query(`SELECT id, email, username, role, picture FROM users`);
+  return result.rows;
+};
 
 module.exports = {
-  findUserByEmail,
-  findUserById,
   createUser ,
+  getUserByEmail,
+  getUserById,
   updateUser ,
   deleteUser ,
-  comparePassword
+  getAllUsers,
 };

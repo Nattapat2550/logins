@@ -1,73 +1,37 @@
+// routes/authRoutes.js
 const express = require('express');
-const passport = require('passport');
-const jwt = require('jsonwebtoken');
-const { 
-  checkEmail, 
-  register, 
-  verifyCode, 
-  completeRegistration, 
-  login, 
-  forgetPassword, 
-  resetPassword 
-} = require('../controllers/authController');
-
 const router = express.Router();
+const passport = require('passport');
+const { completeRegistration, login, logout } = require('../controllers/authController');
 
-// Enable Passport sessions for Google OAuth
-router.use(passport.session());
-
-// Check if email exists
-router.post('/check-email', checkEmail);
-
-// Register - send verification code
-router.post('/register', register);
-
-// Verify verification code
-router.post('/verify-code', verifyCode);
-
-// Complete registration
-router.post('/complete-registration', completeRegistration);
-
-// Login with email/password
+// Regular auth routes
+router.post('/register/complete', completeRegistration);
 router.post('/login', login);
+router.post('/logout', logout);
 
-// Google OAuth - initiate login
-router.get('/google', 
-  passport.authenticate('google', { 
-    scope: ['profile', 'email'] 
-  })
+// Google OAuth routes (prefixed with /api/auth/)
+router.get('/auth/google',
+  passport.authenticate('google', { scope: ['profile', 'email'] })
 );
 
-// Google OAuth callback
-router.get('/google/callback',
-  passport.authenticate('google', { 
-    failureRedirect: `${process.env.FRONTEND_URL}/login.html` 
-  }),
+router.get('/auth/google/callback',
+  passport.authenticate('google', { failureRedirect: `${process.env.FRONTEND_URL}/login.html` }),
   (req, res) => {
     // Successful authentication
-    const token = jwt.sign(
-      { id: req.user.id, email: req.user.email },
+    const jwt = require('jsonwebtoken');
+    const user = req.user;
+    const authToken = jwt.sign(
+      { id: user.id, email: user.email, role: user.role, username: user.username },
       process.env.JWT_SECRET,
-      { expiresIn: '1d' }
+      { expiresIn: '7d' }
     );
-
-    // Check if user needs to complete profile (no username/password)
-    if (!req.user.username) {
-      // New Google user - redirect to form.html
-      const redirectUrl = `${process.env.FRONTEND_URL}/form.html?token=${token}&google=true&email=${encodeURIComponent(req.user.email)}`;
-      res.redirect(redirectUrl);
+    res.cookie('token', authToken, { httpOnly: true, sameSite: 'lax' });
+    if (user.role === 'admin') {
+      res.redirect(`${process.env.FRONTEND_URL}/admin.html`);
     } else {
-      // Existing user - redirect to home
-      const redirectUrl = `${process.env.FRONTEND_URL}/home.html?token=${token}`;
-      res.redirect(redirectUrl);
+      res.redirect(`${process.env.FRONTEND_URL}/home.html`);
     }
   }
 );
-
-// Forgot password
-router.post('/forget-password', forgetPassword);
-
-// Reset password
-router.post('/reset-password', resetPassword);
 
 module.exports = router;

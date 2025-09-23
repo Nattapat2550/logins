@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register</title>
+  <link rel="stylesheet" href="../public/css/style.css">
+</head>
+<body>
+  <main class="container">
+    <h2>Register</h2>
+    <form id="registerForm">
+      <label for="email">Email:</label>
+      <input type="email" id="email" placeholder="Enter your email" required />
+
+      <button type="button" id="sendCodeBtn">Send Verification Code</button>
+
+      <div id="verifySection" style="display:none; margin-top: 15px;">
+        <label for="code">Verification Code:</label>
+        <input type="text" id="code" maxlength="6" placeholder="Enter 6-digit code" required />
+        <button type="button" id="verifyCodeBtn">Verify Code</button>
+      </div>
+
+      <div id="completeSection" style="display:none; margin-top: 15px;">
+        <label for="username">Username:</label>
+        <input type="text" id="username" placeholder="Choose a username" required />
+
+        <label for="password">Password:</label>
+        <input type="password" id="password" placeholder="Choose a password" required />
+
+        <button type="submit">Complete Registration</button>
+      </div>
+    </form>
+
+    <hr />
+
+    <p>Already have an account? <a href="login.html">Login here</a></p>
+  </main>
+
+  <script src="../public/js/main.js"></script>
+  <script>
+    const sendCodeBtn = document.getElementById('sendCodeBtn');
+    const verifyCodeBtn = document.getElementById('verifyCodeBtn');
+    const registerForm = document.getElementById('registerForm');
+
+    let verifiedToken = null;
+    let userEmail = null;
+
+    sendCodeBtn.onclick = async () => {
+      const email = document.getElementById('email').value.trim();
+      if (!email) return alert('Please enter your email.');
+
+      try {
+        const res = await fetch(`${apiUrl}/register/check-email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert('Verification code sent to your email.');
+          userEmail = email;
+          document.getElementById('verifySection').style.display = 'block';
+        } else {
+          alert(data.message || 'Failed to send verification code.');
+        }
+      } catch (err) {
+        alert('Error sending verification code.');
+      }
+    };
+
+    verifyCodeBtn.onclick = async () => {
+      const code = document.getElementById('code').value.trim();
+      if (!code || code.length !== 6) return alert('Please enter a 6-digit code.');
+
+      try {
+        const res = await fetch(`${apiUrl}/register/verify-code`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: userEmail, code }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert('Email verified! Please complete registration.');
+          verifiedToken = data.token;
+          document.getElementById('completeSection').style.display = 'block';
+        } else {
+          alert(data.message || 'Verification failed.');
+        }
+      } catch (err) {
+        alert('Error verifying code.');
+      }
+    };
+
+    registerForm.onsubmit = async (e) => {
+      e.preventDefault();
+      if (!verifiedToken) return alert('Please verify your email first.');
+
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+
+      if (!username || !password) return alert('Please fill all fields.');
+
+      try {
+        const res = await fetch(`${apiUrl}/register/complete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: verifiedToken, username, password }),
+          credentials: 'include',
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert('Registration successful! Redirecting to home page...');
+          if (data.user.role === 'admin') {
+            window.location.href = 'admin.html';
+          } else {
+            window.location.href = 'home.html';
+          }
+        } else {
+          alert(data.message || 'Registration failed.');
+        }
+      } catch (err) {
+        alert('Error completing registration.');
+      }
+    };
+  </script>
+</body>
+</html>

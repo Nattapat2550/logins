@@ -1,71 +1,43 @@
-const { findUserById } = require('../models/userModel');
-const multer = require('multer');
-const path = require('path');
+// controllers/userController.js
+const { getUserById, updateUser , deleteUser  } = require('../models/userModel');
+const bcrypt = require('bcrypt');
 
-// Configure Multer for file uploads (profile pics)
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/');
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
-  }
-});
-
-const upload = multer({
-  storage,
-  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only image files allowed'), false);
-    }
-  }
-});
-
-// Get user profile (protected)
 const getProfile = async (req, res) => {
-  try {
-    const user = await findUserById(req.user.id);
-    if (!user) {
-      return res.status(404).json({ message: 'User  not found' });
-    }
-
-    // Exclude sensitive fields
-    const { password, ...userProfile } = user;
-    res.json({ user: userProfile });
-  } catch (err) {
-    console.error('Get profile error:', err);
-    res.status(500).json({ message: 'Failed to fetch profile' });
-  }
+  const user = await getUserById(req.user.id);
+  if (!user) return res.status(404).json({ message: 'User  not found' });
+  res.json({ email: user.email, username: user.username, role: user.role, picture: user.picture });
 };
 
-// Update user profile (protected, with optional file upload)
 const updateProfile = async (req, res) => {
-  try {
-    const updates = req.body;
-    let profilePic = req.file ? `/uploads/${req.file.filename}` : undefined;
-
-    if (profilePic) {
-      updates.profile_pic = profilePic;
-    }
-
-    const user = await updateUser (req.user.id, updates);
-    if (!user) {
-      return res.status(404).json({ message: 'User  not found' });
-    }
-
-    // Exclude sensitive fields
-    const { password, ...userProfile } = user;
-    res.json({ 
-      message: 'Profile updated successfully', 
-      user: userProfile 
-    });
-  } catch (err) {
-    console.error('Update profile error:', err);
-    res.status(500).json({ message: 'Failed to update profile' });
-  }
+  const { username, picture } = req.body;
+  const updatedUser   = await updateUser (req.user.id, { username, picture });
+  res.json({ message: 'Profile updated', user: updatedUser   });
 };
 
-module.exports = { getProfile, updateProfile, upload };
+const changePassword = async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+  if (!oldPassword || !newPassword) return res.status(400).json({ message: 'Missing fields' });
+
+  const user = await getUserById(req.user.id);
+  if (!user.password_hash) return res.status(400).json({ message: 'Password login not set' });
+
+  const match = await bcrypt.compare(oldPassword, user.password_hash);
+  if (!match) return res.status(401).json({ message: 'Old password incorrect' });
+
+  const newHash = await bcrypt.hash(newPassword, 10);
+  await updateUser (req.user.id, { password_hash: newHash });
+  res.json({ message: 'Password changed' });
+};
+
+const deleteAccount = async (req, res) => {
+  await deleteUser (req.user.id);
+  res.clearCookie('token');
+  res.json({ message: 'Account deleted' });
+};
+
+module.exports = {
+  getProfile,
+  updateProfile,
+  changePassword,
+  deleteAccount,
+};
