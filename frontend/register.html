@@ -17,14 +17,19 @@
         <a href="login.html">Already registered? Login</a>
     </div>
     <script src="js/auth.js"></script>
+    <script src="js/ui.js"></script>  <!-- THIS FIXES showMessage ERROR -->
     <script>
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('email').value;
-            const response = await register(email);
-            showMessage(response.message || response.error, response.success);
-            if (response.success) {
-                setTimeout(() => window.location.href = 'check.html?email=' + encodeURIComponent(email), 2000);
+            try {
+                const response = await register(email);
+                showMessage(response.message || response.error || 'Unknown error', response.success || false);
+                if (response.success) {
+                    setTimeout(() => window.location.href = 'check.html?email=' + encodeURIComponent(email), 2000);
+                }
+            } catch (err) {
+                showMessage('Network error - try again', false);
             }
         });
     </script>

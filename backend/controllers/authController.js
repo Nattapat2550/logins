@@ -35,12 +35,13 @@ module.exports = {
             res.json({ message: 'Verification code sent. Check your email (including spam).' });
         } catch (err) {
     console.error('Register error:', err.message);
-    if (err.message.includes('SMTP') || err.message.includes('email')) {
-        // Graceful: DB saved code, but email failed - user can retry
-        res.status(200).json({ message: 'Registration started. Check email or try again (email send may have failed).', success: true });
-    } else {
-        res.status(500).json({ error: 'Registration failed. Try again later.' });
+    let status = 500;
+    let message = 'Registration failed. Try again later.';
+    if (err.message.includes('SMTP') || err.message.includes('email') || err.message.includes('Transporter')) {
+        status = 200;  // Success for DB part
+        message = 'Registration started! Code saved, but email send failed (check logs or retry).';
     }
+    res.status(status).json({ message, success: status === 200 });
 }
     },
 
