@@ -14,17 +14,22 @@
             <button type="submit" class="btn btn-primary">Send Verification Code</button>
         </form>
         <p>Or</p>
-        <a href="https://backendlogins.onrender.com/api/auth/google" class="btn btn-google">Register with Google</a> <!-- Update backend URL -->
+        <a href="https://backendlogins.onrender.com/api/auth/google" class="btn btn-google">Register with Google</a> <!-- Update backend URL if needed -->
         <div id="message"></div>
     </div>
     <script src="js/auth.js"></script>
+    <script src="js/ui.js"></script>  <!-- ADDED: For showMessage -->
     <script>
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('email').value;
-            const result = await register(email);
-            showMessage(result.message, result.success);
-            if (result.success) window.location.href = 'check.html?email=' + encodeURIComponent(email);
+            try {
+                const result = await register(email);
+                showMessage(result.message, result.success);  // Now defined
+                if (result.success) window.location.href = 'check.html?email=' + encodeURIComponent(email);
+            } catch (err) {
+                showMessage(err.message, false);
+            }
         });
     </script>
 </body>
