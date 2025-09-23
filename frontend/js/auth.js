@@ -1,209 +1,113 @@
-// API Base URL - UPDATE FOR PRODUCTION (e.g., 'https://your-backend.onrender.com/api')
-const API_BASE = 'https://backendlogins.onrender.com/api';  // Local; change for Render
+// Backend URL (set in README for Render; local dev: http://localhost:5000)
+const BACKEND_URL = 'https://backendlogins.onrender.com';  // Replace with your Render backend URL after deploy
 
-// Helper for authenticated requests
-async function apiRequest(endpoint, options = {}) {
+// Helper to make authenticated fetch calls
+async function apiCall(endpoint, options = {}) {
     const token = localStorage.getItem('token');
-    const config = {
-        headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-            ...options.headers
-        },
-        ...options
+    const headers = {
+        'Content-Type': 'application/json',
+        ...options.headers
     };
-    try {
-        const response = await fetch(`${API_BASE}${endpoint}`, config);
-        if (!response.ok) {
-            const data = await response.json().catch(() => ({}));
-            throw new Error(data.error || `HTTP ${response.status}`);
-        }
-        return await response.json();
-    } catch (err) {
-        throw new Error(err.message || 'Network error');
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
     }
+
+    const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+        ...options,
+        headers
+    });
+
+    const data = await response.json();
+    data.success = response.ok;
+    return data;
 }
 
-// Registration (email)
+// Register: Send verification code
 async function register(email) {
-    try {
-        const response = await fetch(`${API_BASE}/auth/register`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: email.trim() })
-        });
-        const data = await response.json();
-        
-        if (response.ok) {
-            return { success: true, message: data.message };
-        } else {
-            console.error('Register API error:', data.error, 'Status:', response.status);
-            return { success: false, error: data.error || 'Registration failed.' };
-        }
-    } catch (err) {
-        console.error('Register network error:', err);
-        return { success: false, error: 'Network error. Check backend.' };
-    }
+    return apiCall('/api/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({ email })
+    });
 }
 
-// Verification
+// Verify code
 async function verify(email, code) {
-    try {
-        const response = await fetch(`${API_BASE}/auth/verify`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, code })
-        });
-        const data = await response.json();
-        return response.ok ? { success: true, message: data.message } : { success: false, error: data.error };
-    } catch (err) {
-        return { success: false, error: err.message };
-    }
+    return apiCall('/api/auth/verify', {
+        method: 'POST',
+        body: JSON.stringify({ email, code })
+    });
 }
 
-// Complete profile (email flow)
+// Complete profile
 async function completeProfile(email, username, password) {
-    try {
-        const response = await fetch(`${API_BASE}/auth/complete`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, username, password })
-        });
-        const data = await response.json();
-        return response.ok ? { success: true, token: data.token, user: data.user } : { success: false, error: data.error };
-    } catch (err) {
-        return { success: false, error: err.message };
-    }
+    return apiCall('/api/auth/complete', {
+        method: 'POST',
+        body: JSON.stringify({ email, username, password })
+    });
 }
 
-// Login (email)
+// Login
 async function login(email, password) {
-    try {
-        const response = await fetch(`${API_BASE}/auth/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
-        });
-        const data = await response.json();
-        return response.ok ? { success: true, token: data.token, user: data.user } : { success: false, error: data.error };
-    } catch (err) {
-        return { success: false, error: err.message };
-    }
+    return apiCall('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password })
+    });
 }
 
 // Forgot password
 async function forgotPassword(email) {
-    try {
-        const response = await fetch(`${API_BASE}/auth/forgot`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email })
-        });
-        const data = await response.json();
-        return response.ok ? { success: true, message: data.message } : { success: false, error: data.error };
-    } catch (err) {
-        return { success: false, error: err.message };
-    }
+    return apiCall('/api/auth/forgot', {
+        method: 'POST',
+        body: JSON.stringify({ email })
+    });
 }
 
 // Reset password
 async function resetPassword(token, password) {
-    try {
-        const response = await fetch(`${API_BASE}/auth/reset`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token, password })
-        });
-        const data = await response.json();
-        return response.ok ? { success: true, message: data.message } : { success: false, error: data.error };
-    } catch (err) {
-        return { success: false, error: err.message };
-    }
+    return apiCall('/api/auth/reset', {
+        method: 'POST',
+        body: JSON.stringify({ token, password })
+    });
 }
 
-// Fetch home content
-async function fetchHomeContent() {
-    return await apiRequest('/user/home-content').then(data => data.content);
+// Get home content
+async function getHomeContent() {
+    return apiCall('/api/user/home');
 }
 
-// Update home content (admin)
+// Update home content
 async function updateHomeContent(content) {
-    try {
-        const data = await apiRequest('/admin/home-content', {
-            method: 'PUT',
-            body: JSON.stringify({ content })
-        });
-        return { success: true, message: data.message };
-    } catch (err) {
-        return { success: false, error: err.message };
-    }
+    return apiCall('/api/user/home', {
+        method: 'POST',
+        body: JSON.stringify({ content })
+    });
 }
 
-// Update profile (FormData for file)
-async function updateProfile(formData) {
-    try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE}/user/update`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },  // No Content-Type for FormData
-            body: formData
-        });
-        const data = await response.json();
-        return response.ok ? { success: true, user: data.user, token: data.token } : { success: false, error: data.error };
-    } catch (err) {
-        return { success: false, error: err.message };
-    }
+// Get settings
+async function getSettings() {
+    return apiCall('/api/user/settings');
 }
 
-// Delete account
-async function deleteAccount() {
-    try {
-        const data = await apiRequest('/user/delete', { method: 'DELETE' });
-        return { success: true, message: data.message };
-    } catch (err) {
-        return { success: false, error: err.message };
-    }
+// Update settings
+async function updateSettings(username, profilePic) {
+    const updates = {};
+    if (username) updates.username = username;
+    if (profilePic) updates.profilePic = profilePic;
+    return apiCall('/api/user/settings', {
+        method: 'PUT',
+        body: JSON.stringify(updates)
+    });
 }
 
-// Admin: Get users
-async function getAdminUsers() {
-    return await apiRequest('/admin/users');
+// Get admin dashboard
+async function getAdminDashboard() {
+    return apiCall('/api/admin/dashboard');
 }
 
-// Admin: Update user
-async function updateUser (id, updates) {
-    try {
-        const data = await apiRequest(`/admin/users/${id}`, {
-            method: 'PUT',
-            body: JSON.stringify(updates)
-        });
-        return { success: true, message: data.message };
-    } catch (err) {
-        return { success: false, error: err.message };
-    }
+// Get all users (admin)
+async function getAllUsers() {
+    return apiCall('/api/admin/users');
 }
 
-// Admin: Delete user
-async function deleteAdminUser (id) {
-    try {
-        const data = await apiRequest(`/admin/users/${id}`, { method: 'DELETE' });
-        return { success: true, message: data.message };
-    } catch (err) {
-        return { success: false, error: err.message };
-    }
-}
-
-// Expose all functions globally for HTML <script> and onclick
-window.register = register;
-window.verify = verify;
-window.completeProfile = completeProfile;
-window.login = login;
-window.forgotPassword = forgotPassword;
-window.resetPassword = resetPassword;
-window.fetchHomeContent = fetchHomeContent;
-window.updateHomeContent = updateHomeContent;
-window.updateProfile = updateProfile;
-window.deleteAccount = deleteAccount;
-window.getAdminUsers = getAdminUsers;
-window.updateUser  = updateUser ;
-window.deleteAdminUser  = deleteAdminUser ;
+// Export all functions for use in HTML scripts
+window.api = { register, verify, completeProfile, login, forgotPassword, resetPassword, getHomeContent, updateHomeContent, getSettings, updateSettings, getAdminDashboard, getAllUsers };

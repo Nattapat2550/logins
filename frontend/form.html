@@ -9,73 +9,35 @@
 <body>
     <div class="container">
         <h2>Complete Your Profile</h2>
-        <form id="profileForm">
+        <p id="emailDisplay"></p>
+        <form id="completeForm">
             <input type="text" id="username" placeholder="Username" required>
-            <input type="password" id="password" placeholder="Password" required>
-            <label><input type="checkbox" id="showPassword"> Show Password</label>
-            <button type="submit">Complete Registration</button>
+            <input type="password" id="password" placeholder="Password (min 6 chars)" required>
+            <button type="submit" class="btn btn-primary">Complete Registration</button>
         </form>
-        <div id="message"></div>
+        <p id="message"></p>
+        <a href="login.html">Back to Login</a>
     </div>
     <script src="js/auth.js"></script>
-    <script src="js/ui.js"></script>
     <script>
-        // Check for Google auto-login (URL params)
         const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get('token');
-    const userStr = urlParams.get('user');
-    if (token && userStr) {
-        try {
-            const user = JSON.parse(decodeURIComponent(userStr));
-            localStorage.setItem('token', token);
-            localStorage.setItem('user', JSON.stringify(user));
-            console.log('Google auto-login: Skipping form, redirecting to', user.role === 'admin' ? 'admin.html' : 'home.html');
-            if (user.role === 'admin') {
-                window.location.href = 'admin.html';
-            } else {
-                window.location.href = 'home.html';
-            }
-            return;  // Exit script - don't show form
-        } catch (err) {
-            console.error('Google param parse error:', err);
-            showMessage('Invalid Google login. Please try again.', true);
+        const email = urlParams.get('email');
+        if (email) {
+            document.getElementById('emailDisplay').textContent = `Email: ${email}`;
         }
-    }
 
-        // Password toggle
-        document.getElementById('showPassword').addEventListener('change', (e) => {
-            const pw = document.getElementById('password');
-            pw.type = e.target.checked ? 'text' : 'password';
-        });
-
-        // Form submit (email complete)
-        document.getElementById('profileForm').addEventListener('submit', async (e) => {
+        document.getElementById('completeForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const email = localStorage.getItem('tempEmail');
-    if (!email) {
-        showMessage('No email found. Please register again.', true);
-        window.location.href = 'register.html';
-        return;
-    }
-    document.getElementById('email').value = email;  // Pre-fill (readonly)
-
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
-            const result = await completeProfile(email, username, password);
-            showMessage(result.message || result.error, !result.success);
-            if (result.success) {
-                localStorage.setItem('token', result.token);
-                localStorage.setItem('user', JSON.stringify(result.user));
-                localStorage.removeItem('tempEmail');
-                if (result.user.role === 'admin') {
-                    window.location.href = 'admin.html';
-                } else {
-                    window.location.href = 'home.html';
-                }
+            const response = await completeProfile(email, username, password);
+            showMessage(response.message || response.error, response.success);
+            if (response.success) {
+                localStorage.setItem('token', response.token);
+                localStorage.setItem('user', JSON.stringify(response.user));
+                setTimeout(() => window.location.href = 'home.html', 2000);
             }
         });
-
-        initUI();
     </script>
 </body>
 </html>

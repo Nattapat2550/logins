@@ -7,51 +7,17 @@
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <nav class="navbar">
-        <div class="nav-left">Website Name</div>
-        <div class="nav-center">
-            <a href="home.html">Home</a>
-            <a href="about.html">About</a>
-        </div>
-        <div class="nav-right" id="profileNav">
-            <!-- Profile added if logged in via JS -->
-        </div>
-    </nav>
     <div class="container">
         <h1>Contact Us</h1>
-        <p>Email: contact@example.com</p>
-        <form id="contactForm">
-            <input type="text" placeholder="Your Name" required>
-            <input type="email" placeholder="Your Email" required>
-            <textarea placeholder="Your Message" rows="5" required></textarea>
-            <button type="submit">Send Message</button>
+        <p>For support, email: support@example.com</p>
+        <form>
+            <input type="text" placeholder="Your Name">
+            <input type="email" placeholder="Your Email">
+            <textarea placeholder="Message"></textarea>
+            <button type="submit" class="btn btn-primary">Send</button>
         </form>
+        <a href="index.html" class="btn btn-secondary">Home</a>
     </div>
-    <script src="js/auth.js"></script>
     <script src="js/ui.js"></script>
-    <script>
-        // Add profile to nav if logged in (same as about.html)
-        if (localStorage.getItem('token') && localStorage.getItem('user')) {
-            const user = JSON.parse(localStorage.getItem('user'));
-            const baseUrl = API_BASE.replace('/api', '');
-            const navRight = document.getElementById('profileNav');
-            navRight.innerHTML = `
-                <img id="profileImg" src="${baseUrl}/uploads/${user.profile_pic || 'user.png'}" alt="Profile" onclick="toggleDropdown()">
-                <div id="dropdown" class="dropdown" style="display:none;">
-                    <a href="settings.html">Settings</a>
-                    <a href="#" onclick="logout()">Logout</a>
-                </div>
-            `;
-            document.getElementById('profileImg').title = user.username || user.email;
-        }
-
-        // Basic contact form (no backend; just demo)
-        document.getElementById('contactForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            alert('Message sent! (Demo - no backend integration)');
-        });
-
-        initUI();
-    </script>
 </body>
 </html>

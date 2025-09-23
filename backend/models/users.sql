@@ -1,25 +1,24 @@
--- Create users table (for full user profiles, auth, etc.)
+-- Users table
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
     username VARCHAR(255),
-    password VARCHAR(255),  -- Hashed password (bcrypt)
-    verification_code VARCHAR(6),  -- For email verification (legacy, but kept for compatibility)
+    password VARCHAR(255),  -- Bcrypt hashed
     verified BOOLEAN DEFAULT false,
     role VARCHAR(50) DEFAULT 'user',  -- 'user' or 'admin'
-    profile_pic VARCHAR(255) DEFAULT 'user.png',  -- Google photo URL or default
+    profile_pic VARCHAR(255) DEFAULT 'user.png',
     reset_token VARCHAR(255),
     reset_expires TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Create home_content table (for dynamic homepage content)
+-- Home content table
 CREATE TABLE IF NOT EXISTS home_content (
     id SERIAL PRIMARY KEY,
     content TEXT DEFAULT 'Welcome to our website!'
 );
 
--- Create temp_verifications table (for registration verification codes - expires in 10 min)
+-- Temp verifications table (for registration codes)
 CREATE TABLE IF NOT EXISTS temp_verifications (
     id SERIAL PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
@@ -28,16 +27,16 @@ CREATE TABLE IF NOT EXISTS temp_verifications (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Insert default home content (only if not exists)
+-- Insert default home content
 INSERT INTO home_content (id, content) 
 VALUES (1, 'Welcome to our website!') 
 ON CONFLICT (id) DO NOTHING;
 
--- Optional: Add indexes for performance (faster queries on email/role)
+-- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users (role);
 CREATE INDEX IF NOT EXISTS idx_temp_email ON temp_verifications (email);
 CREATE INDEX IF NOT EXISTS idx_temp_expires ON temp_verifications (expires_at);
 
--- Log success (psql output)
-SELECT 'Database schema initialized successfully!' AS status;
+-- Success message (psql output)
+SELECT 'Database schema initialized!' AS status;

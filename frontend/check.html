@@ -7,86 +7,33 @@
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <nav class="navbar">
-        <div class="nav-left">Website Name</div>
-        <div class="nav-center">
-            <a href="register.html">Back to Register</a>
-        </div>
-        <div class="nav-right" id="profileNav">
-            <!-- Empty -->
-        </div>
-    </nav>
     <div class="container">
-        <h1>Verify Your Email</h1>
+        <h2>Verify Your Email</h2>
         <p id="emailDisplay"></p>
         <form id="verifyForm">
             <input type="text" id="code" placeholder="Enter 6-digit code" maxlength="6" required>
-            <button type="submit">Verify Code</button>
+            <button type="submit" class="btn btn-primary">Verify Code</button>
         </form>
-        <div id="message"></div>
+        <p id="message"></p>
+        <a href="register.html">Back to Register</a>
     </div>
     <script src="js/auth.js"></script>
-    <script src="js/ui.js"></script>
     <script>
-        // Retrieve email from localStorage (set in register.html)
-        const email = localStorage.getItem('tempEmail');
-        if (!email) {
-            showMessage('No email found. Please start registration again.', true);
-            setTimeout(() => {
-                window.location.href = 'register.html';
-            }, 3000);
-            document.getElementById('emailDisplay').textContent = 'No email session.';
-            return;
+        const urlParams = new URLSearchParams(window.location.search);
+        const email = urlParams.get('email');
+        if (email) {
+            document.getElementById('emailDisplay').textContent = `Code sent to: ${email}`;
         }
-        
-        // Display email for user confirmation
-        document.getElementById('emailDisplay').textContent = `Verification code sent to: ${email}`;
-        
-        // Verify form submit
+
         document.getElementById('verifyForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
-            const code = document.getElementById('code').value.trim();
-            console.log('Verify submit: Code entered for', email);  // Debug
-            
-            if (code.length !== 6 || !/^\d+$/.test(code)) {
-                showMessage('Please enter a valid 6-digit code.', true);
-                return;
-            }
-            
-            const submitBtn = e.target.querySelector('button[type="submit"]');
-            const originalText = submitBtn.textContent;
-            submitBtn.textContent = 'Verifying...';
-            submitBtn.disabled = true;
-            
-            try {
-                const result = await verify(email, code);  // Call auth.js verify()
-                console.log('Verify API response:', result);  // Debug
-                
-                if (result.success) {
-                    showMessage(result.message, false);  // Green
-                    console.log('Verify success: Redirecting to form.html');
-                    
-                    // Keep tempEmail for form.html
-                    localStorage.setItem('tempEmail', email);  // Persist for next step
-                    
-                    setTimeout(() => {
-                        window.location.href = 'form.html';
-                    }, 2000);
-                } else {
-                    showMessage(result.error, true);  // Red, e.g., "Invalid code"
-                    console.log('Verify error:', result.error);
-                }
-            } catch (err) {
-                console.error('Verify network error:', err);
-                showMessage('Network error. Please try again.', true);
-            } finally {
-                submitBtn.textContent = originalText;
-                submitBtn.disabled = false;
+            const code = document.getElementById('code').value;
+            const response = await verify(email, code);
+            showMessage(response.message || response.error, response.success);
+            if (response.success) {
+                setTimeout(() => window.location.href = 'form.html?email=' + encodeURIComponent(email), 2000);
             }
         });
-
-        initUI();
     </script>
 </body>
 </html>

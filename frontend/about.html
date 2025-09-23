@@ -7,38 +7,11 @@
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <nav class="navbar">
-        <div class="nav-left">Website Name</div>
-        <div class="nav-center">
-            <a href="home.html">Home</a>
-            <a href="contact.html">Contact</a>
-        </div>
-        <div class="nav-right" id="profileNav">
-            <!-- Profile added if logged in via JS -->
-        </div>
-    </nav>
     <div class="container">
         <h1>About Us</h1>
-        <p>This is the about page with general information about the website. We provide secure user authentication and management features.</p>
+        <p>This is a full-stack authentication app built with Node.js, Express, PostgreSQL, and vanilla JS. Features include email verification, Google OAuth, role-based access, and more.</p>
+        <p>Deployed on Render for easy hosting.</p>
+        <a href="index.html" class="btn btn-primary">Home</a>
     </div>
-    <script src="js/auth.js"></script>
-    <script src="js/ui.js"></script>
-    <script>
-        // Add profile to nav if logged in
-        if (localStorage.getItem('token') && localStorage.getItem('user')) {
-            const user = JSON.parse(localStorage.getItem('user'));
-            const baseUrl = API_BASE.replace('/api', '');
-            const navRight = document.getElementById('profileNav');
-            navRight.innerHTML = `
-                <img id="profileImg" src="${baseUrl}/uploads/${user.profile_pic || 'user.png'}" alt="Profile" onclick="toggleDropdown()">
-                <div id="dropdown" class="dropdown" style="display:none;">
-                    <a href="settings.html">Settings</a>
-                    <a href="#" onclick="logout()">Logout</a>
-                </div>
-            `;
-            document.getElementById('profileImg').title = user.username || user.email;
-        }
-        initUI();
-    </script>
 </body>
 </html>

@@ -1,21 +1,18 @@
 const express = require('express');
-const multer = require('multer');
-const upload = multer({ dest: 'uploads/' });
 const authMiddleware = require('../middlewares/authMiddleware');
 const userController = require('../controllers/userController');
-
 const router = express.Router();
 
-router.use(authMiddleware);  // All require auth
+module.exports = (db, userController) => {
+    // Get home content (auth required)
+    router.get('/home', authMiddleware.verifyToken, userController.getHome.bind(null, db));
 
-router.get('/profile', userController.getProfile);
-router.get('/home-content', userController.getHomeContent);
+    // Update home content (user can edit)
+    router.post('/home', authMiddleware.verifyToken, userController.updateHome.bind(null, db));
 
-router.post('/update', upload.single('profilePic'), (req, res) => {
-  req.body.profilePic = req.file ? req.file.filename : null;
-  userController.updateProfile(req, res);
-});
+    // Settings (user profile)
+    router.get('/settings', authMiddleware.verifyToken, userController.getSettings.bind(null, db));
+    router.put('/settings', authMiddleware.verifyToken, userController.updateSettings.bind(null, db));
 
-router.delete('/delete', userController.deleteAccount);
-
-module.exports = router;
+    return router;
+};

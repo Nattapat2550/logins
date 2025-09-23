@@ -1,105 +1,30 @@
-/* Base styles */
-body {
-    font-family: Arial, sans-serif;
+* {
     margin: 0;
     padding: 0;
-    background-color: #f4f4f4;
-    color: #333;
-    transition: background-color 0.3s, color 0.3s;
+    box-sizing: border-box;
 }
 
-body.dark {
-    background-color: #333;
-    color: #f4f4f4;
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    color: #333;
+    line-height: 1.6;
 }
 
 .container {
-    max-width: 800px;
-    margin: 20px auto;
+    max-width: 600px;
+    margin: 50px auto;
     padding: 20px;
     background: white;
     border-radius: 8px;
     box-shadow: 0 0 10px rgba(0,0,0,0.1);
 }
 
-body.dark .container {
-    background: #444;
-}
-
-/* Navbar */
-.navbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: #007bff;
-    color: white;
-    padding: 10px 20px;
-}
-
-.nav-left {
-    font-size: 1.5em;
-    font-weight: bold;
-}
-
-.nav-center {
-    display: flex;
-    gap: 15px;
-}
-
-.nav-center a {
-    color: white;
-    text-decoration: none;
-}
-
-.nav-center a:hover {
-    text-decoration: underline;
-}
-
-.nav-right {
-    position: relative;
-}
-
-#profileImg {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    cursor: pointer;
-    border: 2px solid white;
-}
-
-.dropdown {
-    position: absolute;
-    right: 0;
-    top: 100%;
-    background: white;
+h1, h2, h3 {
     color: #333;
-    border-radius: 5px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    min-width: 120px;
-    z-index: 1000;
+    margin-bottom: 20px;
 }
 
-body.dark .dropdown {
-    background: #444;
-    color: #f4f4f4;
-}
-
-.dropdown a {
-    display: block;
-    padding: 10px;
-    text-decoration: none;
-    color: inherit;
-}
-
-.dropdown a:hover {
-    background: #eee;
-}
-
-body.dark .dropdown a:hover {
-    background: #555;
-}
-
-/* Forms */
 form {
     display: flex;
     flex-direction: column;
@@ -113,125 +38,100 @@ input, textarea, button {
     font-size: 16px;
 }
 
-body.dark input, body.dark textarea {
-    background: #555;
-    color: #f4f4f4;
-    border-color: #666;
-}
-
-input[type="file"] {
-    padding: 5px;
-}
-
 button {
-    background: #007bff;
+    background-color: #007bff;
     color: white;
-    cursor: pointer;
     border: none;
-    padding: 10px;
-    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.3s;
 }
 
 button:hover {
-    background: #0056b3;
+    background-color: #0056b3;
 }
 
-button[type="submit"] {
-    font-weight: bold;
+.btn {
+    display: inline-block;
+    text-decoration: none;
+    text-align: center;
+    padding: 10px 20px;
+    margin: 5px;
+    border-radius: 4px;
+    transition: background 0.3s;
 }
 
-/* Messages */
+.btn-primary { background: #007bff; color: white; }
+.btn-primary:hover { background: #0056b3; }
+.btn-secondary { background: #6c757d; color: white; }
+.btn-secondary:hover { background: #545b62; }
+.btn-info { background: #17a2b8; color: white; }
+.btn-info:hover { background: #117a8b; }
+
 #message {
     margin-top: 10px;
     padding: 10px;
     border-radius: 4px;
-    background: #d4edda;
-    color: #155724;
-    border: 1px solid #c3e6cb;
-    display: none; /* Hidden by default; shown via JS */
 }
 
-#message.error {
-    background: #f8d7da;
-    color: #721c24;
-    border-color: #f5c6cb;
+.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #ddd;
 }
 
-body.dark #message {
-    background: #28a745;
-    color: #fff;
+.links {
+    margin-top: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
-body.dark #message.error {
-    background: #dc3545;
+#homeContent, #adminContent, #settingsContent {
+    margin: 20px 0;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 4px;
 }
 
-/* Lists and other elements */
+textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
 ul {
     list-style: none;
     padding: 0;
 }
 
-li {
-    padding: 10px;
-    border-bottom: 1px solid #ddd;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+ul li {
+    padding: 5px 0;
+    border-bottom: 1px solid #eee;
 }
 
-body.dark li {
-    border-color: #666;
+img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 50%;
 }
 
-h1, h2, h3 {
-    color: inherit;
-}
-
-textarea {
-    resize: vertical;
-}
-
-/* Loading and error classes */
-.loading {
-    text-align: center;
-    color: #666;
-    font-style: italic;
-}
-
-body.dark .loading {
-    color: #ccc;
-}
-
-.error {
-    color: #dc3545;
-}
-
-/* Responsive design */
 @media (max-width: 600px) {
-    .navbar {
-        flex-direction: column;
-        gap: 10px;
-        padding: 10px;
-    }
-    
-    .nav-center {
-        order: 3;
-        flex-wrap: wrap;
-        justify-content: center;
-    }
-    
     .container {
-        margin: 10px;
+        margin: 20px;
         padding: 15px;
     }
     
-    input, textarea, button {
-        font-size: 18px; /* Better mobile input */
+    nav {
+        flex-direction: column;
+        gap: 10px;
     }
-}
-
-/* Hide/show utilities */
-[style*="display: none"] {
-    display: none !important;
+    
+    .links {
+        justify-content: center;
+    }
 }

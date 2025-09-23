@@ -1,57 +1,112 @@
-const db = require('../db');
-const jwt = require('jsonwebtoken');
+module.exports = {
+    async getHome(db, req, res) {
+        try {
+            const result = await db.query('SELECT content FROM home_content WHERE id = 1');
+            const content = result.rows[0]?.content || 'Welcome to our website!';
+            res.json({ content });
+        } catch (err) {
+            console.error('Get home error:', err);
+            res.status(500).json({ error: 'Failed to fetch home content' });
+        }
+    },
 
-exports.getProfile = async (req, res) => {
-  try {
-    const user = await db.query('SELECT id, email, username, profile_pic, role FROM users WHERE id = $1', [req.user.id]);
-    if (user.rows.length === 0) {
-      return res.status(404).json({ error: 'User  not found' });
+    async updateHome(db, req, res) {
+        const { content } = req.body;
+        const userRole = req.user.role;  // From authMiddleware
+
+        if (!content) {
+            return res.status(400).json({ error: 'Content required' });
+        }
+
+        try {
+            // Users can update if admin or user (basic edit)
+            if (userRole !== 'admin' && userRole !== 'user') {
+                return res.status(403).json({ error: 'Unauthorized to update content' });
+            }
+
+            await db.query('UPDATE home_content SET content = $1 WHERE id = 1', [content]);
+            res.json({ message: 'Home content updated successfully' });
+        } catch (err) {
+            console.error('Update home error:', err);
+            res.status(500).json({ error: 'Failed to update content' });
+        }
+    },
+
+    async getSettings(db, req, res) {
+        const userId = req.user.id;  // From authMiddleware
+        try {
+            const result = await db.query('SELECT id, email, username, role, profile_pic, created_at FROM users WHERE id = $1', [userId]);
+            if (result.rows.length === 0) {
+                return res.status(404).json({ error: 'User  not found' });
+            }
+            res.json({ user: result.rows[0] });
+        } catch (err) {
+            console.error('Get settings error:', err);
+            res.status(500).json({ error: 'Failed to fetch settings' });
+        }
+    },
+
+    async updateSettings(db, req, res) {
+        const userId = req.user.id;
+        const { username, profilePic } = req.body;  // profilePic: URL from upload or external
+
+        try {
+            const updates = [];
+            const values = [userId];
+            let paramIndex = 2;
+
+            if (username) {
+                updates.push(`username = $${paramIndex}`);
+                values.push(username);
+                paramIndex++;
+            }
+
+            if (profilePic) {
+                updates.push(`profile_pic = $${paramIndex}`);
+                values.push(profilePic);
+                paramIndex++;
+            }
+
+            if (updates.length === 0) {
+                return res.status(400).json({ error: 'No updates provided' });
+            }
+
+            const query = `UPDATE users SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING id, email, username, role, profile_pic`;
+            const result = await db.query(query, values);
+
+            if (result.rows.length === 0) {
+                return res.status(404).json({ error: 'User  not found' });
+            }
+
+            res.json({ message: 'Settings updated', user: result.rows[0] });
+        } catch (err) {
+            console.error('Update settings error:', err);
+            res.status(500).json({ error: 'Failed to update settings' });
+        }
+    },
+
+    async getAdminDashboard(db, req, res) {
+        try {
+            const homeResult = await db.query('SELECT content FROM home_content WHERE id = 1');
+            const usersResult = await db.query('SELECT id, email, username, role, verified, created_at FROM users ORDER BY created_at DESC LIMIT 10');
+            res.json({ 
+                message: 'Admin dashboard data', 
+                homeContent: homeResult.rows[0]?.content || 'No content',
+                recentUsers: usersResult.rows 
+            });
+        } catch (err) {
+            console.error('Admin dashboard error:', err);
+            res.status(500).json({ error: 'Failed to fetch dashboard' });
+        }
+    },
+
+    async getAllUsers(db, req, res) {
+        try {
+            const result = await db.query('SELECT id, email, username, role, verified, created_at FROM users ORDER BY created_at DESC');
+            res.json({ users: result.rows });
+        } catch (err) {
+            console.error('Get all users error:', err);
+            res.status(500).json({ error: 'Failed to fetch users' });
+        }
     }
-    res.json(user.rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error fetching profile' });
-  }
-};
-
-exports.updateProfile = async (req, res) => {
-  const { username } = req.body;
-  let profilePic = req.user.profile_pic;
-  if (req.file) {
-    profilePic = req.file.filename;
-  }
-
-  try {
-    await db.query(
-      'UPDATE users SET username = $1, profile_pic = $2 WHERE id = $3',
-      [username || null, profilePic, req.user.id]
-    );
-    const updated = await db.query('SELECT id, email, username, role, profile_pic FROM users WHERE id = $1', [req.user.id]);
-    const token = jwt.sign({ id: req.user.id, role: updated.rows[0].role }, process.env.JWT_SECRET);
-    res.json({ token, user: updated.rows[0] });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error updating profile' });
-  }
-};
-
-exports.deleteAccount = async (req, res) => {
-  try {
-    await db.query('DELETE FROM users WHERE id = $1', [req.user.id]);
-    res.json({ message: 'Account deleted successfully' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error deleting account' });
-  }
-};
-
-// Get home content (for users)
-exports.getHomeContent = async (req, res) => {
-  try {
-    const content = await db.query('SELECT content FROM home_content WHERE id = 1');
-    res.json(content.rows[0] || { content: 'Welcome to our website!' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error fetching home content' });
-  }
 };

@@ -7,70 +7,63 @@
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <nav class="navbar">
-        <div class="nav-left">Website Name - Admin</div>
-        <div class="nav-center">
-            <a href="home.html">Home</a>
-            <a href="about.html">About</a>
-            <a href="contact.html">Contact</a>
-        </div>
-        <div class="nav-right">
-            <img id="profileImg" src="" alt="Profile" onclick="toggleDropdown()">
-            <div id="dropdown" class="dropdown" style="display:none;">
-                <a href="settings.html">Settings</a>
-                <a href="#" onclick="logout()">Logout</a>
-            </div>
-        </div>
-    </nav>
     <div class="container">
-        <h2>Admin Panel</h2>
-        <h3>Manage Users</h3>
-        <div id="usersList">Loading users...</div>
-        <h3>Edit Home Content</h3>
-        <form id="homeContentForm">
-            <textarea id="homeContent" rows="5" placeholder="Home page content"></textarea>
-            <button type="submit">Update Content</button>
-        </form>
+        <nav id="navbar">
+            <h2>Admin Dashboard</h2>
+            <button id="logoutBtn" class="btn btn-secondary">Logout</button>
+        </nav>
+        <div id="adminContent">
+            <h3>Recent Users</h3>
+            <ul id="usersList"></ul>
+            <h3>Home Content</h3>
+            <p id="adminHomeContent"></p>
+            <form id="adminEditForm">
+                <textarea id="adminContentEdit" rows="5"></textarea>
+                <button type="submit" class="btn btn-primary">Update Content</button>
+            </form>
+        </div>
+        <p id="message"></p>
+        <a href="home.html" class="btn btn-info">Back to Home</a>
     </div>
-    <div id="message"></div>
     <script src="js/auth.js"></script>
     <script src="js/ui.js"></script>
     <script>
-        // Protected: admin only
-        if (!checkAuth('login.html', true)) return;
+        const token = localStorage.getItem('token');
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        if (!token || user.role !== 'admin') {
+            window.location.href = 'login.html';
+            return;
+        }
 
-        const user = JSON.parse(localStorage.getItem('user'));
-    const baseUrl = API_BASE.replace('/api', '');  // e.g., https://backendlogins.onrender.com
-    
-    let imgSrc;
-    if (user.profile_pic && user.profile_pic.startsWith('http')) {
-        // Google URL: Use directly (no /uploads)
-        imgSrc = user.profile_pic;
-    } else {
-        // Local upload: Prepend /uploads
-        imgSrc = `${baseUrl}/uploads/${user.profile_pic || 'user.png'}`;
-    }
-    
-    document.getElementById('profileImg').src = imgSrc;
-    document.getElementById('profileImg').title = user.username || user.email;
-
-        // Load users
-        loadAdminUsers();
-
-        // Load current home content
-        fetchHomeContent().then(content => {
-            document.getElementById('homeContent').value = content;
-        }).catch(err => showMessage(err.message, true));
-
-        // Update home content
-        document.getElementById('homeContentForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const content = document.getElementById('homeContent').value || 'Welcome to our website!';
-            const result = await updateHomeContent(content);
-            showMessage(result.message || result.error, !result.success);
+        // Load admin data
+        getAdminDashboard().then(response => {
+            if (response.success) {
+                document.getElementById('adminHomeContent').textContent = response.homeContent;
+                document.getElementById('adminContentEdit').value = response.homeContent;
+                const usersList = document.getElementById('usersList');
+                response.recentUsers.forEach(u => {
+                    const li = document.createElement('li');
+                    li.textContent = `${u.username || u.email} (${u.role}, ${u.verified ? 'Verified' : 'Pending'})`;
+                    usersList.appendChild(li);
+                });
+            }
         });
 
-        initUI();
+        document.getElementById('adminEditForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const content = document.getElementById('adminContentEdit').value;
+            const response = await updateHomeContent(content);  // Admin can update
+            showMessage(response.message || response.error, response.success);
+            if (response.success) {
+                document.getElementById('adminHomeContent').textContent = content;
+            }
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'index.html';
+        });
     </script>
 </body>
 </html>

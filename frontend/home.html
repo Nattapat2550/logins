@@ -7,55 +7,89 @@
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <nav class="navbar">
-        <div class="nav-left">Website Name</div>
-        <div class="nav-center">
+    <div class="container">
+        <nav id="navbar">
+            <h2 id="welcomeUser "></h2>
+            <button id="logoutBtn" class="btn btn-secondary">Logout</button>
+        </nav>
+        <div id="homeContent"></div>
+        <form id="editForm" style="display: none;">
+            <textarea id="contentEdit" rows="5" placeholder="Edit home content"></textarea>
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+            <button type="button" id="cancelEdit" class="btn btn-secondary">Cancel</button>
+        </form>
+        <div id="message"></div>
+        <div class="links">
+            <a href="settings.html" class="btn btn-info">Settings</a>
+            <a href="admin.html" id="adminLink" style="display: none;">Admin</a>
             <a href="about.html">About</a>
             <a href="contact.html">Contact</a>
         </div>
-        <div class="nav-right">
-            <img id="profileImg" src="" alt="Profile" onclick="toggleDropdown()">
-            <div id="dropdown" class="dropdown" style="display:none;">
-                <a href="settings.html">Settings</a>
-                <a href="#" onclick="logout()">Logout</a>
-            </div>
-        </div>
-    </nav>
-    <div class="container">
-        <h1>Home</h1>
-        <div id="homeContent">Loading...</div>
     </div>
-    <div id="message"></div>
     <script src="js/auth.js"></script>
     <script src="js/ui.js"></script>
     <script>
-        // Protected route
-        if (!checkAuth()) return;
+        // Handle Google OAuth redirect (token/user in query params)
+        const urlParams = new URLSearchParams(window.location.search);
+        const tokenFromUrl = urlParams.get('token');
+        const userFromUrl = urlParams.get('user');
+        if (tokenFromUrl && userFromUrl) {
+            localStorage.setItem('token', tokenFromUrl);
+            localStorage.setItem('user', userFromUrl);
+        }
 
-        const user = JSON.parse(localStorage.getItem('user'));
-    const baseUrl = API_BASE.replace('/api', '');  // e.g., https://backendlogins.onrender.com
-    
-    let imgSrc;
-    if (user.profile_pic && user.profile_pic.startsWith('http')) {
-        // Google URL: Use directly (no /uploads)
-        imgSrc = user.profile_pic;
-    } else {
-        // Local upload: Prepend /uploads
-        imgSrc = `${baseUrl}/uploads/${user.profile_pic || 'user.png'}`;
-    }
-    
-    document.getElementById('profileImg').src = imgSrc;
-    document.getElementById('profileImg').title = user.username || user.email;
+        const token = localStorage.getItem('token');
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        if (!token || !user.id) {
+            window.location.href = 'login.html';
+            return;
+        }
 
+        document.getElementById('welcomeUser ').textContent = `Welcome, ${user.username || user.email}!`;
+        if (user.role === 'admin') {
+            document.getElementById('adminLink').style.display = 'inline-block';
+        }
 
         // Load home content
-        fetchHomeContent().then(content => {
-            document.getElementById('homeContent').innerHTML = `<p>${content}</p>`;
-        }).catch(err => {
-            showMessage('Error loading content: ' + err.message, true);
+        getHomeContent().then(response => {
+            if (response.success) {
+                document.getElementById('homeContent').innerHTML = `<p>${response.content}</p>`;
+                document.getElementById('contentEdit').value = response.content;
+            }
         });
 
-        initUI();
+        // Edit functionality
+        document.getElementById('homeContent').addEventListener('click', () => {
+            if (user.role === 'user' || user.role === 'admin') {
+                document.getElementById('homeContent').style.display = 'none';
+                document.getElementById('editForm').style.display = 'block';
+            } else {
+                showMessage('You need user or admin role to edit', false);
+            }
+        });
+
+        document.getElementById('editForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const content = document.getElementById('contentEdit').value;
+            const response = await updateHomeContent(content);
+            showMessage(response.message || response.error, response.success);
+            if (response.success) {
+                document.getElementById('homeContent').innerHTML = `<p>${content}</p>`;
+                document.getElementById('homeContent').style.display = 'block';
+                document.getElementById('editForm').style.display = 'none';
+            }
+        });
+
+        document.getElementById('cancelEdit').addEventListener('click', () => {
+            document.getElementById('homeContent').style.display = 'block';
+            document.getElementById('editForm').style.display = 'none';
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'index.html';
+        });
     </script>
 </body>
 </html>

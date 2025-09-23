@@ -1,11 +1,11 @@
-const crypto = require('crypto');
-
+// Generate 6-digit verification code
 function generateCode() {
-  return crypto.randomInt(100000, 999999).toString();  // 6-digit random
+    return Math.floor(100000 + Math.random() * 900000).toString();  // 100000 to 999999
 }
 
-function generateToken() {
-  return crypto.randomBytes(32).toString('hex');  // For reset tokens
+// Generate random token (for resets, etc. - but using JWT in controllers)
+function generateRandomToken(length = 32) {
+    return require('crypto').randomBytes(length).toString('hex');
 }
 
-module.exports = { generateCode, generateToken };
+module.exports = { generateCode, generateRandomToken };

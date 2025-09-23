@@ -7,81 +7,64 @@
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <nav class="navbar">
-        <div class="nav-left">Website Name</div>
-        <div class="nav-center">
-            <a href="home.html">Home</a>
-            <a href="about.html">About</a>
-            <a href="contact.html">Contact</a>
-        </div>
-        <div class="nav-right">
-            <img id="profileImg" src="" alt="Profile" onclick="toggleDropdown()">
-            <div id="dropdown" class="dropdown" style="display:none;">
-                <a href="home.html">Home</a>
-                <a href="#" onclick="logout()">Logout</a>
-            </div>
-        </div>
-    </nav>
     <div class="container">
-        <h2>Settings</h2>
-        <form id="profileForm">
-            <input type="text" id="username" placeholder="Username">
-            <input type="file" id="profilePic" accept="image/*">
-            <button type="submit">Update Profile</button>
-        </form>
-        <button id="themeToggle" onclick="toggleTheme()">Toggle Dark/Light Mode</button>
-        <button id="deleteBtn" onclick="deleteAccount()">Delete Account</button>
+        <nav id="navbar">
+            <h2>Settings</h2>
+            <button id="logoutBtn" class="btn btn-secondary">Logout</button>
+        </nav>
+        <div id="settingsContent">
+            <h3>Profile</h3>
+            <p id="profileInfo"></p>
+            <form id="updateForm">
+                <input type="text" id="newUsername" placeholder="New Username">
+                <input type="url" id="profilePic" placeholder="Profile Pic URL (optional)">
+                <button type="submit" class="btn btn-primary">Update Profile</button>
+            </form>
+        </div>
+        <p id="message"></p>
+        <a href="home.html" class="btn btn-info">Back to Home</a>
     </div>
-    <div id="message"></div>
     <script src="js/auth.js"></script>
     <script src="js/ui.js"></script>
     <script>
-        // Protected
-        if (!checkAuth()) return;
+        const token = localStorage.getItem('token');
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        if (!token || !user.id) {
+            window.location.href = 'login.html';
+            return;
+        }
 
-        const user = JSON.parse(localStorage.getItem('user'));
-    const baseUrl = API_BASE.replace('/api', '');  // e.g., https://backendlogins.onrender.com
-    
-    let imgSrc;
-    if (user.profile_pic && user.profile_pic.startsWith('http')) {
-        // Google URL: Use directly (no /uploads)
-        imgSrc = user.profile_pic;
-    } else {
-        // Local upload: Prepend /uploads
-        imgSrc = `${baseUrl}/uploads/${user.profile_pic || 'user.png'}`;
-    }
-    
-    document.getElementById('profileImg').src = imgSrc;
-    document.getElementById('profileImg').title = user.username || user.email;
-        document.getElementById('username').value = user.username || '';
-
-        // Update profile (FormData for file)
-        document.getElementById('profileForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const username = document.getElementById('username').value;
-            const file = document.getElementById('profilePic').files[0];
-            const formData = new FormData();
-            if (username) formData.append('username', username);
-            if (file) formData.append('profilePic', file);
-
-            const result = await updateProfile(formData);
-            showMessage(result.message || result.error, !result.success);
-            if (result.success) {
-                localStorage.setItem('user', JSON.stringify(result.user));
-                document.getElementById('profileImg').src = `${baseUrl}/uploads/${result.user.profile_pic}`;
+        // Load settings
+        getSettings().then(response => {
+            if (response.success) {
+                const u = response.user;
+                document.getElementById('profileInfo').innerHTML = `
+                    <p>Email: ${u.email}</p>
+                    <p>Username: ${u.username || 'Not set'}</p>
+                    <p>Role: ${u.role}</p>
+                    <p>Joined: ${new Date(u.created_at).toLocaleDateString()}</p>
+                    ${u.profile_pic ? `<img src="${u.profile_pic}" alt="Profile" width="100">` : ''}
+                `;
             }
         });
 
-        // Delete account confirmation
-        window.deleteAccount = async () => {
-            if (confirm('Delete account? This cannot be undone.')) {
-                const result = await deleteAccount();
-                showMessage(result.message || result.error, !result.success);
-                if (result.success) logout();
+        document.getElementById('updateForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('newUsername').value;
+            const profilePic = document.getElementById('profilePic').value;
+            const response = await updateSettings(username, profilePic);
+            showMessage(response.message || response.error, response.success);
+            if (response.success) {
+                localStorage.setItem('user', JSON.stringify(response.user));
+                window.location.reload();
             }
-        };
+        });
 
-        initUI();
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'index.html';
+        });
     </script>
 </body>
 </html>
