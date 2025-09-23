@@ -97,8 +97,18 @@ db.query(`
     id SERIAL PRIMARY KEY,
     content TEXT DEFAULT 'Welcome to our website!'
   );
+  -- New: Temp table for verification codes (expires in 10 min)
+  CREATE TABLE IF NOT EXISTS temp_verifications (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    code VARCHAR(6) NOT NULL,
+    expires_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP + INTERVAL '10 minutes'),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
   INSERT INTO home_content (id, content) VALUES (1, 'Welcome to our website!') 
   ON CONFLICT (id) DO NOTHING;
-`).catch(err => console.error('DB init error:', err));
+`).then(() => {
+  console.log('DB tables initialized successfully (including temp_verifications)');
+}).catch(err => console.error('DB init error:', err));
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
