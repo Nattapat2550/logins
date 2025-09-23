@@ -9,25 +9,37 @@ function createTransporter() {
             return null;
         }
 
+        // FIXED: Use port 587 + STARTTLS (more reliable on Render/cloud hosts)
+        // Fallback to 465 if env var set, but 587 avoids timeouts
+        const port = parseInt(process.env.SMTP_PORT) || 587;  // Default to 587
+        const secure = port === 465;  // Only secure=true for 465
+
         const config = {
-            host: 'smtp.gmail.com',  // Fixed (not smtp.google.com)
-            port: parseInt(process.env.SMTP_PORT) || 465,
-            secure: true,
+            host: 'smtp.gmail.com',
+            port: port,
+            secure: secure,  // false for 587 (use tls below)
             auth: {
                 user: process.env.SMTP_USER,
                 pass: process.env.SMTP_PASS
             },
-            tls: { rejectUnauthorized: false }
+            // For port 587: Use STARTTLS
+            tls: {
+                rejectUnauthorized: false
+            },
+            // Add connection timeout (prevents long hangs)
+            connectionTimeout: 10000,  // 10s
+            greetingTimeout: 5000,
+            socketTimeout: 10000
         };
 
         try {
-            // FIXED: createTransport (not createTransporter)
             if (typeof nodemailer.createTransport !== 'function') {
                 throw new Error('createTransport not available');
             }
             transporter = nodemailer.createTransport(config);
-            console.log('Transporter created successfully');
+            console.log('Transporter created successfully (port:', port, ')');
 
+            // Verify with timeout
             transporter.verify((error, success) => {
                 if (error) {
                     console.error('SMTP verify failed:', error.message);
@@ -47,7 +59,7 @@ async function sendVerification(email, code) {
     const transporter = createTransporter();
     if (!transporter) {
         console.warn('No transporter - skipping email. Manual code:', code);
-        throw new Error('Email skipped - use manual code');
+        return { success: false, message: `Manual code: ${code} (email failed)` };
     }
 
     try {
@@ -66,10 +78,10 @@ async function sendVerification(email, code) {
 
         const info = await transporter.sendMail(mailOptions);
         console.log('Verification email sent successfully to:', email, 'ID:', info.messageId);
-        return info;
+        return { success: true, message: 'Email sent' };
     } catch (error) {
         console.error('Send verification failed:', error.message);
-        throw new Error(`Email send failed: ${error.message}`);
+        return { success: false, message: `Email failed: ${error.message}. Manual code: ${code}` };
     }
 }
 
@@ -77,7 +89,7 @@ async function sendReset(email, token) {
     const transporter = createTransporter();
     if (!transporter) {
         console.warn('No transporter - skipping reset email');
-        throw new Error('Reset email skipped');
+        return { success: false, message: 'Reset email skipped' };
     }
 
     try {
@@ -97,10 +109,10 @@ async function sendReset(email, token) {
 
         const info = await transporter.sendMail(mailOptions);
         console.log('Reset email sent successfully to:', email, 'ID:', info.messageId);
-        return info;
+        return { success: true, message: 'Reset email sent' };
     } catch (error) {
         console.error('Send reset failed:', error.message);
-        throw new Error(`Reset email failed: ${error.message}`);
+        return { success: false, message: `Reset email failed: ${error.message}` };
     }
 }
 

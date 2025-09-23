@@ -77,7 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Load user profile (fetch + apply pic/theme/username)
-async function loadUser () {
+async function loadUser  () {
     const token = localStorage.getItem('token');
     if (!token) return false;
 
@@ -117,7 +117,7 @@ function initNavbar() {
     }
 
     // Load user for pic/username
-    loadUser ().then((loaded) => {
+    loadUser  ().then((loaded) => {
         if (!loaded) return;
 
         navbar.innerHTML = `
@@ -166,10 +166,9 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Optional: Auto-wake backend on page load (reduces cold starts for faster API calls/redirects)
-// Update BACKEND_URL to match your Render backend (same as in auth.js)
-const BACKEND_URL = 'https://backendlogins.onrender.com';  // Change if your URL is different
+// FIXED: No redeclaration - uses BACKEND_URL from auth.js (loaded first)
 document.addEventListener('DOMContentLoaded', async () => {
-    if (document.querySelector('.container')) {  // Only on main pages (e.g., register, home)
+    if (document.querySelector('.container') && typeof BACKEND_URL !== 'undefined') {  // Only on main pages, if BACKEND_URL exists
         try {
             await fetch(`${BACKEND_URL}/`, { 
                 method: 'GET', 
