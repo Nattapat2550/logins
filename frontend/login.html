@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h2>Login</h2>
+        <form id="loginForm">
+            <input type="email" id="loginEmail" placeholder="Email" required>
+            <input type="password" id="loginPassword" placeholder="Password" required>
+            <label><input type="checkbox" id="showPassword"> Show Password</label>
+            <button type="submit">Login</button>
+        </form>
+        <button id="forgotBtn">Forgot Password?</button>
+        <button id="googleLogin">Login with Google</button>
+        <div id="message"></div>
+        <!-- Reset form (hidden initially) -->
+        <form id="resetForm" style="display:none;">
+            <input type="email" id="resetEmail" placeholder="Email for reset">
+            <button type="submit">Send Reset Link</button>
+        </form>
+        <form id="newPasswordForm" style="display:none;">
+            <input type="password" id="newPassword" placeholder="New Password">
+            <button type="submit">Reset Password</button>
+        </form>
+    </div>
+    <script src="js/auth.js"></script>
+    <script src="js/ui.js"></script>
+    <script>
+        // Password toggle
+        document.getElementById('showPassword').addEventListener('change', (e) => {
+            const pw = document.getElementById('loginPassword');
+            pw.type = e.target.checked ? 'text' : 'password';
+        });
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const result = await login(email, password);
+            if (result.success) {
+                localStorage.setItem('token', result.token);
+                localStorage.setItem('user', JSON.stringify(result.user));
+                if (result.user.role === 'admin') {
+                    window.location.href = 'admin.html';
+                } else {
+                    window.location.href = 'home.html';
+                }
+            } else {
+                document.getElementById('message').textContent = result.error;
+            }
+        });
+
+        document.getElementById('googleLogin').addEventListener('click', () => {
+            window.location.href = `${API_BASE}/auth/google`;
+        });
+
+        document.getElementById('forgotBtn').addEventListener('click', () => {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('resetForm').style.display = 'block';
+        });
+
+        document.getElementById('resetForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('resetEmail').value;
+            const result = await forgotPassword(email);
+            document.getElementById('message').textContent = result.message || result.error;
+            // Show new password form if token in URL
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('reset')) {
+                document.getElementById('resetForm').style.display = 'none';
+                document.getElementById('newPasswordForm').style.display = 'block';
+                document.getElementById('newPasswordForm').onsubmit = async (e) => {
+                    e.preventDefault();
+                    const password = document.getElementById('newPassword').value;
+                    const token = urlParams.get('reset');
+                    const res = await resetPassword(token, password);
+                    document.getElementById('message').textContent = res.message || res.error;
+                    if (res.success) window.location.href = 'login.html';
+                };
+            }
+        });
+    </script>
+</body>
+</html>

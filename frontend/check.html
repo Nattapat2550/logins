@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Email</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h2>Enter Verification Code</h2>
+        <form id="verifyForm">
+            <input type="text" id="code" placeholder="6-digit code" maxlength="6" required>
+            <button type="submit">Verify</button>
+        </form>
+        <div id="message"></div>
+    </div>
+    <script src="js/auth.js"></script>
+    <script>
+        document.getElementById('verifyForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = localStorage.getItem('tempEmail');
+            const code = document.getElementById('code').value;
+            const result = await verify(email, code);
+            if (result.success) {
+                window.location.href = 'form.html';
+            } else {
+                document.getElementById('message').textContent = result.error;
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,105 +1,84 @@
-// server.js
 require('dotenv').config();
 const express = require('express');
-const session = require('express-session');
 const cors = require('cors');
+const session = require('express-session');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const cookieParser = require('cookie-parser');
 const path = require('path');
-
-const authRoutes = require('./routes/authRoutes');
-const userRoutes = require('./routes/userRoutes');
-const adminRoutes = require('./routes/adminRoutes');
-const verificationRoutes = require('./routes/verificationRoutes');
-
-const { getUserByEmail, getUserById, createUser  } = require('./models/userModel');
+const db = require('./db');
+const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/user');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
+const PORT = process.env.PORT || 5000;
 
 // Middleware
+app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
 app.use(express.json());
-app.use(cookieParser());
-
-// CORS setup - adjust origin to your frontend URL
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true,
-}));
-
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'fallback-secret',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
-  },
-}));
-
+app.use(express.urlencoded({ extended: true }));
+app.use(session({ secret: process.env.SESSION_SECRET, resave: false, saveUninitialized: true }));
 app.use(passport.initialize());
 app.use(passport.session());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Passport Google OAuth setup
+// Passport Google Strategy
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: process.env.GOOGLE_CALLBACK_URL, // e.g., https://backendlogins.onrender.com/api/auth/google/callback
+  callbackURL: process.env.GOOGLE_CALLBACK_URL,
+  scope: ['profile', 'email']  // Added scopes to fix potential error
 }, async (accessToken, refreshToken, profile, done) => {
   try {
-    const email = profile.emails[0].value;
-    let user = await getUserByEmail(email);
-    if (!user) {
-      user = await createUser (email, null, 'user', profile.displayName, profile.photos[0]?.value || null);
+    let user = await db.query('SELECT * FROM users WHERE email = $1', [profile.emails[0].value]);
+    if (user.rows.length === 0) {
+      const newUser  = await db.query(
+        'INSERT INTO users (email, username, verified, role, profile_pic) VALUES ($1, $2, true, $3, $4) RETURNING *',
+        [profile.emails[0].value, profile.displayName, 'user', profile.photos[0]?.value || 'user.png']
+      );
+      return done(null, newUser .rows[0]);
     }
-    done(null, user);
+    return done(null, user.rows[0]);
   } catch (err) {
-    console.error('Google OAuth error:', err);
-    done(err, null);
+    done(err);
   }
 }));
 
-passport.serializeUser ((user, done) => {
-  done(null, user.id);
-});
-
+passport.serializeUser ((user, done) => done(null, user.id));
 passport.deserializeUser (async (id, done) => {
-  try {
-    const user = await getUserById(id);
-    done(null, user);
-  } catch (err) {
-    console.error('Deserialize error:', err);
-    done(err, null);
-  }
+  const user = await db.query('SELECT * FROM users WHERE id = $1', [id]);
+  done(null, user.rows[0]);
 });
 
-// API Routes (all prefixed with /api)
-app.use('/api', verificationRoutes);
-app.use('/api', authRoutes);
-app.use('/api', userRoutes);
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/user', userRoutes);
 app.use('/api/admin', adminRoutes);
 
-// Optional: Serve frontend static files from backend (uncomment if frontend is in /public folder)
-// app.use(express.static(path.join(__dirname, '../frontend/public')));
-// app.get('*', (req, res) => {
-//   res.sendFile(path.join(__dirname, '../frontend/views/index.html'));
-// });
+// Serve frontend in dev (optional)
+if (process.env.NODE_ENV === 'development') {
+  app.use(express.static(path.join(__dirname, '../frontend')));
+}
 
-// Health check and default route
-app.get('/', (req, res) => {
-  res.json({ message: 'Backend API is running! Visit /api for endpoints.' });
-});
+// Init DB tables (run once)
+db.query(`
+  CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    username VARCHAR(255),
+    password VARCHAR(255),
+    verified BOOLEAN DEFAULT false,
+    role VARCHAR(50) DEFAULT 'user',
+    profile_pic VARCHAR(255) DEFAULT 'user.png',
+    reset_token VARCHAR(255),
+    reset_expires TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS home_content (
+    id SERIAL PRIMARY KEY,
+    content TEXT DEFAULT 'Welcome to our website!'
+  );
+  INSERT INTO home_content (content) SELECT 'Welcome to our website!' WHERE NOT EXISTS (SELECT 1 FROM home_content);
+`).catch(console.error);
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: 'Something went wrong!' });
-});
-
-// Start server
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Backend server running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`Google Callback URL: ${process.env.GOOGLE_CALLBACK_URL}`);
-});
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

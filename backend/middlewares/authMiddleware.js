@@ -1,17 +1,16 @@
-// middlewares/authMiddleware.js
 const jwt = require('jsonwebtoken');
-require('dotenv').config();
+const db = require('../db');
 
-const authenticateJWT = (req, res, next) => {
-  const token = req.cookies.token;
-  if (!token) return res.status(401).json({ message: 'Unauthorized' });
+module.exports = async (req, res, next) => {
+  const token = req.header('Authorization')?.replace('Bearer ', '') || req.cookies.token;
+  if (!token) return res.status(401).json({ error: 'No token' });
+
   try {
-    const user = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = user;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await db.query('SELECT * FROM users WHERE id = $1', [decoded.id]);
+    req.user = user.rows[0];
     next();
-  } catch {
-    return res.status(401).json({ message: 'Invalid token' });
+  } catch (err) {
+    res.status(401).json({ error: 'Invalid token' });
   }
 };
-
-module.exports = { authenticateJWT };

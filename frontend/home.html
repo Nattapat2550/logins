@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-left">Website Name</div>
+        <div class="nav-center">
+            <a href="about.html">About</a>
+            <a href="contact.html">Contact</a>
+        </div>
+        <div class="nav-right">
+            <img id="profileImg" src="" alt="Profile" onclick="toggleDropdown()">
+            <div id="dropdown" class="dropdown" style="display:none;">
+                <a href="settings.html">Settings</a>
+                <a href="#" onclick="logout()">Logout</a>
+            </div>
+        </div>
+    </nav>
+    <div class="container">
+        <h1 id="homeTitle">Home</h1>
+        <div id="homeContent">Loading...</div>
+    </div>
+    <div id="message"></div>
+    <script src="js/auth.js"></script>
+    <script src="js/ui.js"></script>
+    <script>
+        // Protected: Check login
+        if (!localStorage.getItem('token') || !localStorage.getItem('user')) {
+            window.location.href = 'login.html';
+            return;
+        }
+        const user = JSON.parse(localStorage.getItem('user'));
+        document.getElementById('profileImg').src = `${API_BASE.replace('/api', '')}/uploads/${user.profile_pic || 'user.png'}`;
+        document.getElementById('profileImg').title = user.username || user.email;
+
+        // Load home content
+        fetchHomeContent().then(content => {
+            document.getElementById('homeContent').innerHTML = `<p>${content}</p>`;
+        }).catch(err => {
+            document.getElementById('message').textContent = 'Error loading content';
+        });
+
+        initUI();  // From ui.js: theme, etc.
+    </script>
+</body>
+</html>

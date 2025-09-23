@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-left">Website Name</div>
+        <div class="nav-center">
+            <a href="home.html">Home</a>
+            <a href="about.html">About</a>
+        </div>
+        <div class="nav-right" id="profileNav">
+            <!-- Profile only if logged in; handled in JS -->
+        </div>
+    </nav>
+    <div class="container">
+        <h1>Contact Us</h1>
+        <p>Contact information: email@example.com</p>
+        <form>
+            <input type="text" placeholder="Name">
+            <input type="email" placeholder="Email">
+            <textarea placeholder="Message"></textarea>
+            <button type="submit">Send</button>
+        </form>
+    </div>
+    <script src="js/auth.js"></script>
+    <script src="js/ui.js"></script>
+    <script>
+        // Same as about.html: Add profile if logged in
+        if (localStorage.getItem('token') && localStorage.getItem('user')) {
+            const user = JSON.parse(localStorage.getItem('user'));
+            const navRight = document.getElementById('profileNav');
+            navRight.innerHTML = `
+                <img id="profileImg" src="${API_BASE.replace('/api', '')}/uploads/${user.profile_pic || 'user.png'}" alt="Profile" onclick="toggleDropdown()">
+                <div id="dropdown" class="dropdown" style="display:none;">
+                    <a href="settings.html">Settings</a>
+                    <a href="#" onclick="logout()">Logout</a>
+                </div>
+            `;
+        }
+        initUI();
+    </script>
+</body>
+</html>

@@ -1,39 +1,29 @@
-CREATE TABLE users (
-    id SERIAL PRIMARY KEY,  -- Auto-incrementing integer ID
-    email VARCHAR(255) UNIQUE NOT NULL,  -- Unique email
-    password_hash VARCHAR(255),  -- Bcrypt hash (nullable for Google OAuth users)
-    role VARCHAR(50) DEFAULT 'user' CHECK (role IN ('user', 'admin')),  -- Role: user or admin
-    username VARCHAR(100),  -- Optional username
-    picture VARCHAR(500),  -- Profile picture URL (optional)
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+-- Run this script once in your Postgres DB (e.g., via psql or Render console)
+-- Note: server.js auto-creates if not exists, but this is explicit.
+
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    username VARCHAR(255),
+    password VARCHAR(255),
+    verification_code VARCHAR(6),
+    verified BOOLEAN DEFAULT false,
+    role VARCHAR(50) DEFAULT 'user',
+    profile_pic VARCHAR(255) DEFAULT 'user.png',
+    reset_token VARCHAR(255),
+    reset_expires TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Create 'verifications' table (for email verification codes)
-CREATE TABLE verifications (
-    id SERIAL PRIMARY KEY,  -- Auto-incrementing ID
-    email VARCHAR(255) PRIMARY KEY,  -- Email as unique key (one code per email)
-    code VARCHAR(6) NOT NULL,  -- 6-digit verification code
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP + INTERVAL '15 minutes')  -- Auto-expire after 15 min
+CREATE TABLE IF NOT EXISTS home_content (
+    id SERIAL PRIMARY KEY,
+    content TEXT DEFAULT 'Welcome to our website!'
 );
 
--- Indexes for performance
-CREATE INDEX idx_users_email ON users(email);  -- Fast email lookups
-CREATE INDEX idx_users_role ON users(role);    -- Fast role-based queries
-CREATE INDEX idx_verifications_email ON verifications(email);  -- Fast code checks
-CREATE INDEX idx_verifications_expires_at ON verifications(expires_at);  -- Cleanup expired codes
+-- Insert default content if empty
+INSERT INTO home_content (content) 
+SELECT 'Welcome to our website!' 
+WHERE NOT EXISTS (SELECT 1 FROM home_content);
 
--- Trigger to update 'updated_at' on user changes (optional)
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
-
-CREATE TRIGGER update_users_updated_at 
-    BEFORE UPDATE ON users 
-    FOR EACH ROW 
-    EXECUTE FUNCTION update_updated_at_column();
+-- Example: Set an admin (run manually after creating a user)
+-- UPDATE users SET role = 'admin' WHERE email = 'admin@example.com';

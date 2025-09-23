@@ -1,0 +1,209 @@
+/* Base styles */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f4;
+    color: #333;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+body.dark {
+    background-color: #333;
+    color: #f4f4f4;
+}
+
+.container {
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 20px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+body.dark .container {
+    background: #444;
+}
+
+/* Navbar */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #007bff;
+    color: white;
+    padding: 10px 20px;
+}
+
+.nav-left {
+    font-size: 1.5em;
+    font-weight: bold;
+}
+
+.nav-center a {
+    color: white;
+    margin: 0 15px;
+    text-decoration: none;
+}
+
+.nav-center a:hover {
+    text-decoration: underline;
+}
+
+.nav-right {
+    position: relative;
+}
+
+#profileImg {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid white;
+}
+
+.dropdown {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    background: white;
+    color: #333;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    min-width: 120px;
+    z-index: 1000;
+}
+
+body.dark .dropdown {
+    background: #444;
+    color: #f4f4f4;
+}
+
+.dropdown a {
+    display: block;
+    padding: 10px;
+    text-decoration: none;
+    color: inherit;
+}
+
+.dropdown a:hover {
+    background: #eee;
+}
+
+body.dark .dropdown a:hover {
+    background: #555;
+}
+
+/* Forms */
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+input, textarea, button {
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 16px;
+}
+
+body.dark input, body.dark textarea {
+    background: #555;
+    color: #f4f4f4;
+    border-color: #666;
+}
+
+input[type="file"] {
+    padding: 5px;
+}
+
+button {
+    background: #007bff;
+    color: white;
+    cursor: pointer;
+    border: none;
+}
+
+button:hover {
+    background: #0056b3;
+}
+
+button[type="submit"] {
+    font-weight: bold;
+}
+
+/* Messages */
+#message {
+    margin-top: 10px;
+    padding: 10px;
+    border-radius: 4px;
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+#message.error {
+    background: #f8d7da;
+    color: #721c24;
+    border-color: #f5c6cb;
+}
+
+body.dark #message {
+    background: #28a745;
+    color: #fff;
+}
+
+body.dark #message.error {
+    background: #dc3545;
+}
+
+/* Lists and other */
+ul {
+    list-style: none;
+    padding: 0;
+}
+
+li {
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+body.dark li {
+    border-color: #666;
+}
+
+h1, h2, h3 {
+    color: inherit;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .navbar {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .nav-center {
+        order: 3;
+    }
+    
+    .container {
+        margin: 10px;
+        padding: 15px;
+    }
+}
+
+/* Loading */
+.loading {
+    text-align: center;
+    color: #666;
+}
+
+body.dark .loading {
+    color: #ccc;
+}
