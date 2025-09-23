@@ -7,32 +7,82 @@
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
+    <nav class="navbar">
+        <div class="nav-left">Website Name</div>
+        <div class="nav-center">
+            <a href="login.html">Login</a>
+        </div>
+        <div class="nav-right" id="profileNav">
+            <!-- Empty: Not logged in -->
+        </div>
+    </nav>
     <div class="container">
-        <h2>Register</h2>
+        <h1>Register</h1>
         <form id="registerForm">
-            <input type="email" id="email" placeholder="Email" required>
+            <input type="email" id="email" placeholder="Enter your email" required>
             <button type="submit">Send Verification Code</button>
         </form>
-        <button id="googleRegister">Register with Google</button>
         <div id="message"></div>
+        <p>Or</p>
+        <button id="googleRegister" style="background: #4285f4; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer;">Register with Google</button>
     </div>
     <script src="js/auth.js"></script>
     <script src="js/ui.js"></script>
     <script>
+        // Form submit handler (robust: async, explicit redirect on success)
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            
             const email = document.getElementById('email').value;
-            const result = await register(email);
-            showMessage(result.message || result.error, !result.success);
-            if (result.success) {
-                localStorage.setItem('tempEmail', email);
-                window.location.href = 'check.html';
+            console.log('Register submit: Email entered:', email);  // Debug log
+            
+            if (!email || !email.includes('@')) {
+                showMessage('Please enter a valid email.', true);
+                return;
+            }
+            
+            // Show loading
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'Sending...';
+            submitBtn.disabled = true;
+            
+            try {
+                const result = await register(email);  // Call auth.js register()
+                console.log('Register API response:', result);  // Debug: Check success/error
+                
+                if (result.success) {
+                    // Success: Store email for check.html, show message, redirect
+                    localStorage.setItem('tempEmail', email);
+                    showMessage(result.message, false);  // Green success
+                    console.log('Register success: Redirecting to check.html in 2s');
+                    
+                    // Redirect after short delay (user sees message)
+                    setTimeout(() => {
+                        window.location.href = 'check.html';
+                    }, 2000);
+                } else {
+                    // Error: Show red message, stay on page
+                    showMessage(result.error, true);
+                    console.log('Register error:', result.error);
+                }
+            } catch (err) {
+                // Network/other error
+                console.error('Register network error:', err);
+                showMessage('Network error. Please check your connection and try again.', true);
+            } finally {
+                // Reset button
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
             }
         });
+
+        // Google Register (unchanged: direct to backend)
         document.getElementById('googleRegister').addEventListener('click', () => {
-        console.log('Starting Google register flow - will skip verification/form');  // Log
-        window.location.href = `${API_BASE}/auth/google`;
+            console.log('Google register clicked: Redirecting to auth/google');
+            window.location.href = `${API_BASE}/auth/google`;
         });
+
         initUI();
     </script>
 </body>

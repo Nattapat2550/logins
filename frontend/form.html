@@ -52,10 +52,13 @@
         document.getElementById('profileForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = localStorage.getItem('tempEmail');
-            if (!email) {
-                showMessage('No email found. Please register again.', true);
-                return;
-            }
+    if (!email) {
+        showMessage('No email found. Please register again.', true);
+        window.location.href = 'register.html';
+        return;
+    }
+    document.getElementById('email').value = email;  // Pre-fill (readonly)
+
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             const result = await completeProfile(email, username, password);
