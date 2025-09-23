@@ -6,19 +6,35 @@ const { generateCode, generateToken } = require('../utils/tokenGenerator');
 
 exports.register = async (req, res) => {
   const { email } = req.body;
+  
+  // Log request for debugging (visible in Render logs)
+  console.log('Register attempt:', { email: email ? 'provided' : 'missing' });
+  
+  // Validate input (prevents 400 on empty/missing email)
+  if (!email || typeof email !== 'string' || email.trim().length === 0) {
+    console.log('Register error: Invalid or missing email');
+    return res.status(400).json({ error: 'Email is required and must be valid' });
+  }
+  
+  const trimmedEmail = email.trim().toLowerCase();
+  
   try {
-    const existing = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+    const existing = await db.query('SELECT * FROM users WHERE email = $1', [trimmedEmail]);
     if (existing.rows.length > 0) {
-      return res.status(400).json({ error: 'Email already exists' });
+      console.log('Register error: Duplicate email', trimmedEmail);
+      return res.status(400).json({ error: 'Email already exists. Try logging in or use a different email.' });
     }
-
     const code = generateCode();
-    await db.query('INSERT INTO users (email, verification_code) VALUES ($1, $2)', [email, code]);
-    await sendVerification(email, code);
-    res.json({ message: 'Verification code sent to your email' });
+    await db.query('INSERT INTO users (email, verification_code) VALUES ($1, $2)', [trimmedEmail, code]);
+    console.log('Register success: Code generated for', trimmedEmail);  // Log before email send
+    
+    await sendVerification(trimmedEmail, code);
+    console.log('Register: Verification email sent to', trimmedEmail);
+    
+    res.json({ message: 'Verification code sent to your email. Check spam if not received.' });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error during registration' });
+    console.error('Register error:', err.message);  // Logs full error in Render
+    res.status(500).json({ error: 'Server error during registration. Check logs or try again.' });
   }
 };
 

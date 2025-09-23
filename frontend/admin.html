@@ -40,9 +40,19 @@
         if (!checkAuth('login.html', true)) return;
 
         const user = JSON.parse(localStorage.getItem('user'));
-        const baseUrl = API_BASE.replace('/api', '');
-        document.getElementById('profileImg').src = `${baseUrl}/uploads/${user.profile_pic || 'user.png'}`;
-        document.getElementById('profileImg').title = user.username || user.email;
+    const baseUrl = API_BASE.replace('/api', '');  // e.g., https://backendlogins.onrender.com
+    
+    let imgSrc;
+    if (user.profile_pic && user.profile_pic.startsWith('http')) {
+        // Google URL: Use directly (no /uploads)
+        imgSrc = user.profile_pic;
+    } else {
+        // Local upload: Prepend /uploads
+        imgSrc = `${baseUrl}/uploads/${user.profile_pic || 'user.png'}`;
+    }
+    
+    document.getElementById('profileImg').src = imgSrc;
+    document.getElementById('profileImg').title = user.username || user.email;
 
         // Load users
         loadAdminUsers();

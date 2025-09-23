@@ -30,12 +30,19 @@ async function register(email) {
         const response = await fetch(`${API_BASE}/auth/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email })
+            body: JSON.stringify({ email: email.trim() })  // Ensure trimmed
         });
         const data = await response.json();
-        return response.ok ? { success: true, message: data.message } : { success: false, error: data.error };
+        
+        if (response.ok) {
+            return { success: true, message: data.message };
+        } else {
+            console.error('Register API error:', data.error, 'Status:', response.status);  // Log for browser console
+            return { success: false, error: data.error || 'Registration failed. Try a different email.' };
+        }
     } catch (err) {
-        return { success: false, error: err.message };
+        console.error('Register network error:', err);
+        return { success: false, error: 'Network error. Check if backend is running.' };
     }
 }
 

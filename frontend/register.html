@@ -30,7 +30,8 @@
             }
         });
         document.getElementById('googleRegister').addEventListener('click', () => {
-            window.location.href = `${API_BASE}/auth/google`;
+        console.log('Starting Google register flow - will skip verification/form');  // Log
+        window.location.href = `${API_BASE}/auth/google`;
         });
         initUI();
     </script>
