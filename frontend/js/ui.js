@@ -164,3 +164,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     applySavedTheme();  // Always apply saved theme
 });
+
+// Optional: Auto-wake backend on page load (reduces cold starts for faster API calls/redirects)
+// Update BACKEND_URL to match your Render backend (same as in auth.js)
+const BACKEND_URL = 'https://backendlogins.onrender.com';  // Change if your URL is different
+document.addEventListener('DOMContentLoaded', async () => {
+    if (document.querySelector('.container')) {  // Only on main pages (e.g., register, home)
+        try {
+            await fetch(`${BACKEND_URL}/`, { 
+                method: 'GET', 
+                cache: 'no-cache',
+                mode: 'no-cors'  // Silent, no error if blocked
+            });
+            console.log('Backend auto-warmed (faster APIs ahead)');
+        } catch (err) {
+            // Ignore errors (normal if already awake or network issue)
+            console.log('Auto-wake skipped (backend likely already active)');
+        }
+    }
+});
