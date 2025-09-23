@@ -2,7 +2,10 @@ const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
 
 async function connect() {
     const client = await pool.connect();
@@ -22,12 +25,17 @@ async function query(text, params) {
 
 async function initTables() {
     try {
+        // Run SQL from models/users.sql
         const sqlPath = path.join(__dirname, 'models', 'users.sql');
-        const sql = fs.readFileSync(sqlPath, 'utf8');
-        await query(sql);
-        console.log('Tables initialized from SQL');
+        if (fs.existsSync(sqlPath)) {
+            const sql = fs.readFileSync(sqlPath, 'utf8');
+            await query(sql);
+            console.log('Tables initialized');
+        } else {
+            console.warn('models/users.sql not found - run manual SQL');
+        }
     } catch (err) {
-        console.error('Table init error (may already exist):', err.message);
+        console.log('Tables already exist or init skipped:', err.message);
     }
 }
 

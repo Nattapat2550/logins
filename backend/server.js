@@ -1,4 +1,4 @@
-require('dotenv').config();  // Load env vars from .env (or Render Environment)
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -6,80 +6,63 @@ const morgan = require('morgan');
 const path = require('path');
 
 // Routes
-const authRoutes = require('./routes/auth');  // Auth endpoints (public)
-const userRoutes = require('./routes/user');  // User endpoints (protected - placeholder)
-const adminRoutes = require('./routes/admin');  // Admin endpoints (protected - placeholder)
+const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/user');  // Placeholder - create if needed
+const adminRoutes = require('./routes/admin');  // Placeholder - create if needed
 
-// DB connection
-const db = require('./db');  // Assumes db.js with pg pool and initTables()
+// DB
+const db = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(helmet());  // Security headers (CSP, etc.)
+app.use(helmet());
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'https://frontendlogins.onrender.com',  // Your frontend URL
+    origin: process.env.FRONTEND_URL || 'https://frontendlogins.onrender.com',
     credentials: true
 }));
-app.use(morgan('combined'));  // Request logging (shows in Render logs)
-app.use(express.json({ limit: '10mb' }));  // Parse JSON bodies
-app.use(express.urlencoded({ extended: true }));  // Parse URL-encoded
+app.use(morgan('combined'));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
 
-// Serve static uploads (for profile pics - optional)
+// Static uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Health check endpoint (Render pings this)
+// Health check
 app.get('/', (req, res) => {
     res.json({ message: 'Backend running on Render!' });
 });
 
-// Mount routes
-app.use('/api/auth', authRoutes);  // Public auth: /api/auth/register, /login, etc.
-app.use('/api/user', userRoutes);  // Protected: /api/user/home, /settings (add JWT middleware in user.js)
-app.use('/api/admin', adminRoutes);  // Protected: /api/admin/dashboard, /users (add role check)
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/user', userRoutes);
+app.use('/api/admin', adminRoutes);
 
-// Google OAuth routes (if using Passport - optional, add if needed)
-// app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
-// app.get('/auth/google/callback', passport.authenticate('google'), (req, res) => {
-//     // Redirect to frontend with token
-//     const token = generateToken(req.user);
-//     res.redirect(`${process.env.FRONTEND_URL}/home.html?token=${token}`);
-// });
-
-// Global error handler (catches 404s and unhandled errors)
-app.use((req, res, next) => {
+// 404 handler
+app.use((req, res) => {
     res.status(404).json({ error: 'Endpoint not found', success: false });
 });
 
+// Global error handler
 app.use((err, req, res, next) => {
-    console.error('Global error:', err.stack);
+    console.error('Global error:', err.message);
     res.status(500).json({ error: 'Internal server error', success: false });
 });
 
-// Start server
+// Start
 async function startServer() {
     try {
-        // Connect DB and init tables
         await db.connect();
         console.log('DB connected');
-
-        // Initialize tables (runs models/users.sql - idempotent, safe to call every time)
         await db.initTables();
         console.log('DB tables initialized');
 
-        // Listen on port
         app.listen(PORT, () => {
-            const env = process.env.NODE_ENV || 'development';
-            console.log(`Server running on port ${PORT} in ${env} mode`);
-            if (env === 'production') {
-                console.log('Backend running on Render!');
-            }
+            console.log(`Server running on port ${PORT}`);
         });
 
-        // Graceful shutdown (for Render restarts)
         process.on('SIGTERM', async () => {
-            console.log('SIGTERM received - closing DB');
             await db.end();
             process.exit(0);
         });

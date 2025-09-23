@@ -1,23 +1,21 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const db = require('../db');  // Your db.js connection
-const { sendVerification, sendReset } = require('../utils/mailer');  // mailer.js
+const db = require('../db');
+const { sendVerification, sendReset } = require('../utils/mailer');
 
-// Helper: Generate 6-digit code
 function generateCode() {
     return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Helper: Generate JWT token
 function generateToken(user) {
     return jwt.sign(
         { id: user.id, email: user.email, role: user.role },
-        process.env.JWT_SECRET || 'fallback_secret',  // Use env; fallback for local
+        process.env.JWT_SECRET || 'fallback_secret',
         { expiresIn: '1h' }
     );
 }
 
-// Register: Send verification code (step 1)
+// Register (FIXED: Delete existing temp rows to avoid duplicate key)
 exports.register = async (req, res) => {
     const { email } = req.body;
     if (!email || !email.includes('@')) {
@@ -26,19 +24,17 @@ exports.register = async (req, res) => {
 
     const lowerEmail = email.toLowerCase();
     try {
-        // Check if already registered (completed)
+        // Check if already registered
         const existingUser  = await db.query('SELECT id FROM users WHERE email = $1', [lowerEmail]);
         if (existingUser .rows.length > 0) {
-            return res.status(400).json({ error: 'Email already registered. Try login or reset.', success: false });
+            return res.status(400).json({ error: 'Email already registered. Try login.', success: false });
         }
 
-        // Check if pending verification
-        const pending = await db.query('SELECT id FROM temp_verifications WHERE email = $1 AND expires_at > NOW()', [lowerEmail]);
-        if (pending.rows.length > 0) {
-            return res.status(400).json({ error: 'Verification code already sent. Check email or wait 10 min.', success: false });
-        }
+        // FIXED: Delete any existing temp_verifications (expired or pending) to prevent duplicate key
+        await db.query('DELETE FROM temp_verifications WHERE email = $1', [lowerEmail]);
+        console.log('Cleared old temp verification for', lowerEmail);
 
-        // Generate and save temp code (expires 10 min)
+        // Generate and insert new code (expires 10 min)
         const code = generateCode();
         await db.query(
             'INSERT INTO temp_verifications (email, code, expires_at) VALUES ($1, $2, NOW() + INTERVAL \'10 minutes\')',
@@ -56,25 +52,28 @@ exports.register = async (req, res) => {
         } catch (emailErr) {
             console.error('Email send error:', emailErr.message);
             if (emailErr.message.includes('skipped')) {
-                // Dev-friendly: Include manual code (remove in prod: just use the message below)
                 res.json({ 
-                    message: `Code saved! Email skipped (config issue). Manual code for testing: ${code}. Retry or check logs.`, 
+                    message: `Code saved! Email skipped. Manual code for testing: ${code}.`, 
                     success: true 
                 });
             } else {
                 res.json({ 
-                    message: 'Code saved, but email failed (possible network). Retry registration or contact support.', 
+                    message: 'Code saved, but email failed. Retry or use manual code from logs.', 
                     success: true 
                 });
             }
         }
     } catch (err) {
         console.error('Register error:', err.message);
-        res.status(500).json({ error: 'Registration failed. Try again later.', success: false });
+        if (err.code === '23505') {  // Unique violation (e.g., duplicate email in users)
+            res.status(400).json({ error: 'Email already in use. Try login or reset.', success: false });
+        } else {
+            res.status(500).json({ error: 'Registration failed. Try again.', success: false });
+        }
     }
 };
 
-// Verify Code (step 2)
+// Verify
 exports.verify = async (req, res) => {
     const { email, code } = req.body;
     if (!email || !code || code.length !== 6) {
@@ -83,7 +82,6 @@ exports.verify = async (req, res) => {
 
     const lowerEmail = email.toLowerCase();
     try {
-        // Check code validity
         const result = await db.query(
             'SELECT id FROM temp_verifications WHERE email = $1 AND code = $2 AND expires_at > NOW()',
             [lowerEmail, code]
@@ -93,18 +91,18 @@ exports.verify = async (req, res) => {
             return res.status(400).json({ error: 'Invalid or expired code. Request a new one.', success: false });
         }
 
-        // Delete temp code (one-time use)
+        // Delete used code
         await db.query('DELETE FROM temp_verifications WHERE email = $1 AND code = $2', [lowerEmail, code]);
 
         console.log('Code verified for', lowerEmail);
-        res.json({ message: 'Code verified! Proceed to complete your profile.', success: true });
+        res.json({ message: 'Code verified! Proceed to complete profile.', success: true });
     } catch (err) {
         console.error('Verify error:', err.message);
-        res.status(500).json({ error: 'Verification failed. Try again.', success: false });
+        res.status(500).json({ error: 'Verification failed.', success: false });
     }
 };
 
-// Complete Profile (step 3: set username/password after verify)
+// Complete Profile
 exports.complete = async (req, res) => {
     const { email, username, password } = req.body;
     if (!email || !username || !password || password.length < 6) {
@@ -113,21 +111,18 @@ exports.complete = async (req, res) => {
 
     const lowerEmail = email.toLowerCase();
     try {
-        // Check if verified (temp code was used)
+        // Check if verified (temp row exists - even expired, as verify deletes it)
         const pending = await db.query('SELECT id FROM temp_verifications WHERE email = $1', [lowerEmail]);
         if (pending.rows.length === 0) {
-            // Fallback: Check if user exists but incomplete
-            const user = await db.query('SELECT id FROM users WHERE email = $1', [lowerEmail]);
+            const user = await db.query('SELECT verified FROM users WHERE email = $1', [lowerEmail]);
             if (user.rows.length > 0 && user.rows[0].verified) {
-                return res.status(400).json({ error: 'Profile already complete. Try login.', success: false });
+                return res.status(400).json({ error: 'Profile already complete. Login instead.', success: false });
             }
-            return res.status(400).json({ error: 'Must verify email first.', success: false });
+            return res.status(400).json({ error: 'Verify email first.', success: false });
         }
 
-        // Hash password
         const hashedPassword = await bcrypt.hash(password, 12);
 
-        // Insert user (verified=true, role='user')
         const userResult = await db.query(
             'INSERT INTO users (email, username, password, verified, role) VALUES ($1, $2, $3, true, $4) RETURNING id, email, username, role, created_at',
             [lowerEmail, username, hashedPassword, 'user']
@@ -136,22 +131,22 @@ exports.complete = async (req, res) => {
         const user = userResult.rows[0];
         const token = generateToken(user);
 
-        // Clean up temp (if any left)
+        // Clean up temp
         await db.query('DELETE FROM temp_verifications WHERE email = $1', [lowerEmail]);
 
         console.log('Profile completed for', lowerEmail);
         res.json({
-            message: 'Registration complete! Welcome.',
+            message: 'Registration complete!',
             success: true,
             token,
-            user
+            user: { id: user.id, email: user.email, username: user.username, role: user.role }
         });
     } catch (err) {
         console.error('Complete error:', err.message);
-        if (err.code === '23505') {  // Unique violation (e.g., duplicate username/email)
-            res.status(400).json({ error: 'Username or email already taken.', success: false });
+        if (err.code === '23505') {
+            res.status(400).json({ error: 'Username or email taken.', success: false });
         } else {
-            res.status(500).json({ error: 'Completion failed. Try again.', success: false });
+            res.status(500).json({ error: 'Completion failed.', success: false });
         }
     }
 };
@@ -165,7 +160,6 @@ exports.login = async (req, res) => {
 
     const lowerEmail = email.toLowerCase();
     try {
-        // Find user
         const result = await db.query('SELECT * FROM users WHERE email = $1', [lowerEmail]);
         const user = result.rows[0];
 
@@ -173,7 +167,6 @@ exports.login = async (req, res) => {
             return res.status(400).json({ error: 'Invalid email or unverified account.', success: false });
         }
 
-        // Check password
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
             return res.status(400).json({ error: 'Invalid password.', success: false });
@@ -190,11 +183,11 @@ exports.login = async (req, res) => {
         });
     } catch (err) {
         console.error('Login error:', err.message);
-        res.status(500).json({ error: 'Login failed. Try again.', success: false });
+        res.status(500).json({ error: 'Login failed.', success: false });
     }
 };
 
-// Forgot Password: Send reset token
+// Forgot Password
 exports.forgot = async (req, res) => {
     const { email } = req.body;
     if (!email) {
@@ -203,30 +196,27 @@ exports.forgot = async (req, res) => {
 
     const lowerEmail = email.toLowerCase();
     try {
-        // Find user
         const result = await db.query('SELECT id FROM users WHERE email = $1', [lowerEmail]);
         if (result.rows.length === 0) {
             return res.status(400).json({ error: 'Email not found.', success: false });
         }
 
-        // Generate reset token (expires 1h)
         const resetToken = require('crypto').randomBytes(32).toString('hex');
-        const expires = new Date(Date.now() + 60 * 60 * 1000);  // 1 hour
+        const expires = new Date(Date.now() + 60 * 60 * 1000);
 
         await db.query(
             'UPDATE users SET reset_token = $1, reset_expires = $2 WHERE email = $3',
             [resetToken, expires, lowerEmail]
         );
 
-        // Send reset email
         await sendReset(lowerEmail, resetToken);
         console.log('Reset email sent to', lowerEmail);
 
-        res.json({ message: 'Reset link sent to your email.', success: true });
+        res.json({ message: 'Reset link sent to email.', success: true });
     } catch (err) {
         console.error('Forgot error:', err.message);
         if (err.message.includes('skipped') || err.message.includes('email')) {
-            res.json({ message: 'Reset token generated, but email failed. Check logs or retry.', success: true });
+            res.json({ message: 'Reset token generated, email failed. Retry.', success: true });
         } else {
             res.status(500).json({ error: 'Reset request failed.', success: false });
         }
@@ -237,11 +227,10 @@ exports.forgot = async (req, res) => {
 exports.reset = async (req, res) => {
     const { token, password } = req.body;
     if (!token || !password || password.length < 6) {
-        return res.status(400).json({ error: 'Valid token and password (min 6 chars) required', success: false });
+        return res.status(400).json({ error: 'Valid token and password required', success: false });
     }
 
     try {
-        // Find user with valid token
         const result = await db.query(
             'SELECT id, email FROM users WHERE reset_token = $1 AND reset_expires > NOW()',
             [token]
@@ -252,19 +241,17 @@ exports.reset = async (req, res) => {
             return res.status(400).json({ error: 'Invalid or expired token.', success: false });
         }
 
-        // Hash new password
         const hashedPassword = await bcrypt.hash(password, 12);
 
-        // Update password and clear token
         await db.query(
             'UPDATE users SET password = $1, reset_token = NULL, reset_expires = NULL WHERE id = $2',
             [hashedPassword, user.id]
         );
 
         console.log('Password reset for', user.email);
-        res.json({ message: 'Password reset successful! You can now login.', success: true });
+        res.json({ message: 'Password reset successful!', success: true });
     } catch (err) {
         console.error('Reset error:', err.message);
-        res.status(500).json({ error: 'Reset failed. Try again.', success: false });
+        res.status(500).json({ error: 'Reset failed.', success: false });
     }
 };

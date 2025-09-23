@@ -1,6 +1,5 @@
 const nodemailer = require('nodemailer');
 
-// Debug: Log exports on load
 console.log('Nodemailer exports:', Object.keys(nodemailer));
 console.log('nodemailer.createTransport type:', typeof nodemailer.createTransport);
 
@@ -8,7 +7,6 @@ let transporter = null;
 
 function createTransporter() {
     if (!transporter) {
-        // Early env check
         if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
             console.error('SMTP_USER or SMTP_PASS missing - emails disabled');
             return null;
@@ -26,19 +24,17 @@ function createTransporter() {
         };
 
         try {
-            // Correct: Use createTransport (not createTransporter)
             if (typeof nodemailer.createTransport !== 'function') {
-                throw new Error('createTransport not available - check nodemailer install');
+                throw new Error('createTransport not available');
             }
             transporter = nodemailer.createTransport(config);
-            console.log('Transporter created successfully with createTransport');
+            console.log('Transporter created successfully');
 
-            // Non-blocking verify
             transporter.verify((error, success) => {
                 if (error) {
-                    console.error('SMTP verify failed (emails may still work):', error.message);
+                    console.error('SMTP verify failed:', error.message);
                 } else {
-                    console.log('SMTP ready - emails enabled');
+                    console.log('SMTP ready');
                 }
             });
         } catch (err) {
@@ -53,7 +49,7 @@ async function sendVerification(email, code) {
     const transporter = createTransporter();
     if (!transporter) {
         console.warn('No transporter - skipping email. Manual code:', code);
-        return { skipped: true, manualCode: code };  // For controller to handle
+        throw new Error('Email skipped - use manual code');
     }
 
     try {
@@ -83,7 +79,7 @@ async function sendReset(email, token) {
     const transporter = createTransporter();
     if (!transporter) {
         console.warn('No transporter - skipping reset email');
-        return { skipped: true };
+        throw new Error('Reset email skipped');
     }
 
     try {
