@@ -77,7 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Load user profile (fetch + apply pic/theme/username)
-async function loadUser  () {
+async function loadUser () {
     const token = localStorage.getItem('token');
     if (!token) return false;
 
@@ -117,7 +117,7 @@ function initNavbar() {
     }
 
     // Load user for pic/username
-    loadUser  ().then((loaded) => {
+    loadUser ().then((loaded) => {
         if (!loaded) return;
 
         navbar.innerHTML = `
@@ -165,20 +165,5 @@ document.addEventListener('DOMContentLoaded', () => {
     applySavedTheme();  // Always apply saved theme
 });
 
-// Optional: Auto-wake backend on page load (reduces cold starts for faster API calls/redirects)
-// FIXED: No redeclaration - uses BACKEND_URL from auth.js (loaded first)
-document.addEventListener('DOMContentLoaded', async () => {
-    if (document.querySelector('.container') && typeof BACKEND_URL !== 'undefined') {  // Only on main pages, if BACKEND_URL exists
-        try {
-            await fetch(`${BACKEND_URL}/`, { 
-                method: 'GET', 
-                cache: 'no-cache',
-                mode: 'no-cors'  // Silent, no error if blocked
-            });
-            console.log('Backend auto-warmed (faster APIs ahead)');
-        } catch (err) {
-            // Ignore errors (normal if already awake or network issue)
-            console.log('Auto-wake skipped (backend likely already active)');
-        }
-    }
-});
+// REMOVED: Auto-wake fetch (causes CORS error on Render - optional feature disabled for simplicity)
+// If needed, manually visit backend URL (e.g., https://backendlogins.onrender.com) to warm it up

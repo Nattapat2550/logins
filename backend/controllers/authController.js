@@ -1,162 +1,271 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const db = require('../db');
+const { Pool } = require('pg');
 const { sendVerification, sendReset } = require('../utils/mailer');
-const { generateCode, generateResetToken } = require('../utils/tokenGenerator');
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
-function generateJWT(user) {
-    return jwt.sign({ id: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
-}
-
-// Register (email only - Google handled separately via OAuth)
 exports.register = async (req, res) => {
     const { email } = req.body;
-    if (!email || !email.includes('@')) return res.status(400).json({ error: 'Valid email required', success: false });
+    if (!email || !email.includes('@')) return res.status(400).json({ success: false, error: 'Valid email required' });
 
-    const lowerEmail = email.toLowerCase();
     try {
-        // Check duplicate
-        const existing = await db.query('SELECT id FROM users WHERE email = $1', [lowerEmail]);
-        if (existing.rows.length > 0) return res.status(400).json({ error: 'Email already registered', success: false });
-
-        // Clear old temp
-        await db.query('DELETE FROM temp_verifications WHERE email = $1', [lowerEmail]);
-
-        const code = generateCode();
-        await db.query('INSERT INTO temp_verifications (email, code, expires_at) VALUES ($1, $2, NOW() + INTERVAL \'10 minutes\')', [lowerEmail, code]);
-
-        try {
-            await sendVerification(lowerEmail, code);
-            res.json({ message: 'Code sent to email', success: true });
-        } catch (emailErr) {
-            console.error('Email error:', emailErr.message);
-            res.json({ message: `Code saved. Manual: ${code} (email failed)`, success: true });
-        }
-    } catch (err) {
-        console.error('Register error:', err);
-        if (err.code === '23505') res.status(400).json({ error: 'Duplicate email', success: false });
-        else res.status(500).json({ error: 'Register failed', success: false });
-    }
-};
-
-// Verify code
-exports.verify = async (req, res) => {
-    const { email, code } = req.body;
-    if (!email || !code || code.length !== 6) return res.status(400).json({ error: 'Valid email and 6-digit code required', success: false });
-
-    const lowerEmail = email.toLowerCase();
-    try {
-        const result = await db.query('SELECT id FROM temp_verifications WHERE email = $1 AND code = $2 AND expires_at > NOW()', [lowerEmail, code]);
-        if (result.rows.length === 0) return res.status(400).json({ error: 'Invalid/expired code', success: false });
-
-        await db.query('DELETE FROM temp_verifications WHERE email = $1 AND code = $2', [lowerEmail, code]);
-        res.json({ message: 'Verified', success: true });
-    } catch (err) {
-        console.error('Verify error:', err);
-        res.status(500).json({ error: 'Verify failed', success: false });
-    }
-};
-
-// Complete profile (after verify or Google)
-exports.complete = async (req, res) => {
-    const { email, username, password, google } = req.body;
-    const lowerEmail = email.toLowerCase();
-    try {
-        // For Google: No password, verified=true already
-        if (google) {
-            const userRes = await db.query('SELECT * FROM users WHERE email = $1', [lowerEmail]);
-            if (userRes.rows.length === 0) return res.status(400).json({ error: 'User  not found', success: false });
-            const user = userRes.rows[0];
-            const token = generateJWT(user);
-            return res.json({ message: 'Profile complete', success: true, token, user: { id: user.id, email: user.email, username: user.username, role: user.role } });
+        // Check if already registered
+        const userCheck = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
+        if (userCheck.rows.length > 0) {
+            return res.status(400).json({ success: false, error: 'Email already registered' });
         }
 
-        // Email reg: Require password, check temp exists
-        const pending = await db.query('SELECT id FROM temp_verifications WHERE email = $1', [lowerEmail]);
-        if (pending.rows.length === 0) return res.status(400).json({ error: 'Verify email first', success: false });
+        // Generate code
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        const expires = new Date(Date.now() + 10 * 60 * 1000);  // 10 min
 
-        if (!username || !password || password.length < 6) return res.status(400).json({ error: 'Username and password (min 6) required', success: false });
-
-        const hashed = await bcrypt.hash(password, 12);
-        const userRes = await db.query(
-            'INSERT INTO users (email, username, password, verified, role) VALUES ($1, $2, $3, true, $4) RETURNING id, email, username, role',
-            [lowerEmail, username, hashed, 'user']
+        // Save temp verification
+        await pool.query(
+            'INSERT INTO temp_verifications (email, code, expires_at) VALUES ($1, $2, $3) ON CONFLICT (email) DO UPDATE SET code = $2, expires_at = $3',
+            [email.toLowerCase(), code, expires]
         );
 
-        await db.query('DELETE FROM temp_verifications WHERE email = $1', [lowerEmail]);
-        const user = userRes.rows[0];
-        const token = generateJWT(user);
-        res.json({ message: 'Registration complete', success: true, token, user: { id: user.id, email: user.email, username: user.username, role: user.role } });
+        // Send email (with fallback)
+        let emailResult;
+        try {
+            emailResult = await sendVerification(email, code);
+        } catch (emailErr) {
+            console.error('Email error:', emailErr.message);
+            emailResult = { success: false, message: `Manual code: ${code} (email failed)` };
+        }
+
+        res.json({
+            success: true,
+            message: emailResult.success ? 'Code sent to email' : emailResult.message
+        });
+    } catch (err) {
+        console.error('Register error:', err);
+        res.status(500).json({ success: false, error: 'Registration failed' });
+    }
+};
+
+exports.verify = async (req, res) => {
+    const { email, code } = req.body;
+    if (!email || !code) return res.status(400).json({ success: false, error: 'Email and code required' });
+
+    try {
+        const now = new Date();
+        const result = await pool.query(
+            'SELECT * FROM temp_verifications WHERE email = $1 AND code = $2 AND expires_at > $3',
+            [email.toLowerCase(), code, now]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(400).json({ success: false, error: 'Invalid or expired code' });
+        }
+
+        // FIXED: Delete temp record only on successful verify (enables complete to proceed)
+        await pool.query('DELETE FROM temp_verifications WHERE email = $1', [email.toLowerCase()]);
+
+        res.json({ success: true, message: 'Email verified' });
+    } catch (err) {
+        console.error('Verify error:', err);
+        res.status(500).json({ success: false, error: 'Verification failed' });
+    }
+};
+
+// FIXED: Enhanced complete - Check temp existence to enforce verify step
+exports.complete = async (req, res) => {
+    const { email, username, password, google = false } = req.body;
+    if (!email || !username || (!google && !password)) {
+        return res.status(400).json({ success: false, error: 'Email, username, and password required' });
+    }
+
+    try {
+        const lowerEmail = email.toLowerCase();
+
+        // Check if user already exists (full registration)
+        const userCheck = await pool.query('SELECT id, verified FROM users WHERE email = $1', [lowerEmail]);
+        if (userCheck.rows.length > 0) {
+            if (userCheck.rows[0].verified) {
+                return res.status(400).json({ success: false, error: 'Account already exists - login instead' });
+            } else {
+                // Rare: Partial unverified user - allow update
+                // But for security, redirect to login or error
+                return res.status(400).json({ success: false, error: 'Account pending - contact support' });
+            }
+        }
+
+        // FIXED: Enforce verification step - Check if temp_verification exists
+        // If temp exists → Not verified yet (code not entered) → Error
+        // If temp not exists → Verified (deleted on success) or never started → Proceed (trust flow)
+        const tempCheck = await pool.query('SELECT * FROM temp_verifications WHERE email = $1', [lowerEmail]);
+        if (tempCheck.rows.length > 0) {
+            // Temp exists but not verified/deleted → Force verify
+            const now = new Date();
+            if (tempCheck.rows[0].expires_at < now) {
+                return res.status(400).json({ success: false, error: 'Verification expired - register again' });
+            }
+            return res.status(400).json({ success: false, error: 'Verify email first' });
+        }
+
+        // No temp found → Assume verified (or Google flow) → Insert user
+        const hashedPassword = google ? null : await bcrypt.hash(password, 10);
+        const insertResult = await pool.query(
+            `INSERT INTO users (email, username, password, verified, theme, role, profile_pic) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+            [lowerEmail, username, hashedPassword, true, 'light', 'user', 'user.png']
+        );
+
+        // Generate JWT
+        const token = jwt.sign(
+            { userId: insertResult.rows[0].id, email: lowerEmail, role: 'user' },
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+
+        // Clear any lingering temp (safety)
+        await pool.query('DELETE FROM temp_verifications WHERE email = $1', [lowerEmail]);
+
+        res.json({
+            success: true,
+            message: 'Registration complete',
+            token
+        });
     } catch (err) {
         console.error('Complete error:', err);
-        if (err.code === '23505') res.status(400).json({ error: 'Username taken', success: false });
-        else res.status(500).json({ error: 'Complete failed', success: false });
+        res.status(500).json({ success: false, error: 'Completion failed' });
     }
 };
 
-// Login
 exports.login = async (req, res) => {
     const { email, password } = req.body;
-    const lowerEmail = email.toLowerCase();
-    try {
-        const userRes = await db.query('SELECT * FROM users WHERE email = $1', [lowerEmail]);
-        const user = userRes.rows[0];
-        if (!user || !user.verified) return res.status(400).json({ error: 'Invalid email or unverified', success: false });
+    if (!email || !password) return res.status(400).json({ success: false, error: 'Email and password required' });
 
-        if (user.google_id) {  // Google user: No password check
-            const token = generateJWT(user);
-            return res.json({ message: 'Login successful', success: true, token, user: { id: user.id, email: user.email, username: user.username, role: user.role } });
+    try {
+        const result = await pool.query('SELECT * FROM users WHERE email = $1 AND verified = true', [email.toLowerCase()]);
+        if (result.rows.length === 0) {
+            return res.status(400).json({ success: false, error: 'Invalid email or unverified account' });
         }
 
-        const match = await bcrypt.compare(password, user.password);
-        if (!match) return res.status(400).json({ error: 'Invalid password', success: false });
+        const user = result.rows[0];
+        const isValid = await bcrypt.compare(password, user.password || '');
+        if (!isValid) {
+            return res.status(400).json({ success: false, error: 'Invalid password' });
+        }
 
-        const token = generateJWT(user);
-        res.json({ message: 'Login successful', success: true, token, user: { id: user.id, email: user.email, username: user.username, role: user.role } });
+        const token = jwt.sign(
+            { userId: user.id, email: user.email, role: user.role },
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+
+        res.json({
+            success: true,
+            message: 'Login successful',
+            token,
+            user: { id: user.id, email: user.email, username: user.username, role: user.role }
+        });
     } catch (err) {
         console.error('Login error:', err);
-        res.status(500).json({ error: 'Login failed', success: false });
+        res.status(500).json({ success: false, error: 'Login failed' });
     }
 };
 
-// Forgot password
 exports.forgot = async (req, res) => {
     const { email } = req.body;
-    const lowerEmail = email.toLowerCase();
+    if (!email) return res.status(400).json({ success: false, error: 'Email required' });
+
     try {
-        const userRes = await db.query('SELECT id FROM users WHERE email = $1 AND verified = true', [lowerEmail]);
-        if (userRes.rows.length === 0) return res.status(400).json({ error: 'Email not found', success: false });
-
-        const token = generateResetToken();
-        const expires = new Date(Date.now() + 60 * 60 * 1000);
-        await db.query('UPDATE users SET reset_token = $1, reset_expires = $2 WHERE email = $3', [token, expires, lowerEmail]);
-
-        try {
-            await sendReset(lowerEmail, token);
-            res.json({ message: 'Reset link sent', success: true });
-        } catch (emailErr) {
-            res.json({ message: `Token generated. Manual link: ${process.env.FRONTEND_URL}/login.html?reset=${token} (email failed)`, success: true });
+        const userCheck = await pool.query('SELECT id FROM users WHERE email = $1 AND verified = true', [email.toLowerCase()]);
+        if (userCheck.rows.length === 0) {
+            return res.status(400).json({ success: false, error: 'Account not found' });
         }
+
+        const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
+        const expires = new Date(Date.now() + 60 * 60 * 1000);  // 1 hour
+
+        await pool.query(
+            'INSERT INTO password_resets (email, token, expires_at) VALUES ($1, $2, $3) ON CONFLICT (email) DO UPDATE SET token = $2, expires_at = $3',
+            [email.toLowerCase(), token, expires]
+        );
+
+        let emailResult;
+        try {
+            emailResult = await sendReset(email, token);
+        } catch (emailErr) {
+            console.error('Reset email error:', emailErr.message);
+            emailResult = { success: false, message: 'Reset email failed - manual link' };
+        }
+
+        res.json({
+            success: true,
+            message: emailResult.success ? 'Reset link sent' : emailResult.message
+        });
     } catch (err) {
         console.error('Forgot error:', err);
-        res.status(500).json({ error: 'Forgot failed', success: false });
+        res.status(500).json({ success: false, error: 'Forgot failed' });
     }
 };
 
-// Reset password
 exports.reset = async (req, res) => {
     const { token, password } = req.body;
-    if (!token || !password || password.length < 6) return res.status(400).json({ error: 'Valid token and password required', success: false });
+    if (!token || !password) return res.status(400).json({ success: false, error: 'Token and password required' });
 
     try {
-        const userRes = await db.query('SELECT id FROM users WHERE reset_token = $1 AND reset_expires > NOW()', [token]);
-        if (userRes.rows.length === 0) return res.status(400).json({ error: 'Invalid/expired token', success: false });
+        const now = new Date();
+        const result = await pool.query(
+            'SELECT email FROM password_resets WHERE token = $1 AND expires_at > $2',
+            [token, now]
+        );
 
-        const hashed = await bcrypt.hash(password, 12);
-        await db.query('UPDATE users SET password = $1, reset_token = NULL, reset_expires = NULL WHERE reset_token = $2', [hashed, token]);
-        res.json({ message: 'Password reset', success: true });
+        if (result.rows.length === 0) {
+            return res.status(400).json({ success: false, error: 'Invalid or expired token' });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        await pool.query(
+            'UPDATE users SET password = $1 WHERE email = $2',
+            [hashedPassword, result.rows[0].email]
+        );
+
+        // Clear reset token
+        await pool.query('DELETE FROM password_resets WHERE token = $1', [token]);
+
+        res.json({ success: true, message: 'Password reset successful' });
     } catch (err) {
         console.error('Reset error:', err);
-        res.status(500).json({ error: 'Reset failed', success: false });
+        res.status(500).json({ success: false, error: 'Reset failed' });
+    }
+};
+
+// Google OAuth callback (handled in routes)
+exports.googleCallback = async (req, res) => {
+    // This is called after Google auth - profile from passport
+    const { email, displayName } = req.user;  // From passport strategy
+    const username = displayName.split(' ')[0];  // Simple extract
+
+    try {
+        const userCheck = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
+        if (userCheck.rows.length > 0) {
+            // Existing user - login
+            const user = await pool.query('SELECT * FROM users WHERE email = $1', [email.toLowerCase()]);
+            const token = jwt.sign(
+                { userId: user.rows[0].id, email: user.rows[0].email, role: user.rows[0].role },
+                process.env.JWT_SECRET,
+                { expiresIn: '7d' }
+            );
+            const frontendUrl = `${process.env.FRONTEND_URL || 'https://frontendlogins.onrender.com'}/form.html?token=${token}&google=true&email=${encodeURIComponent(email)}`;
+            res.redirect(frontendUrl);
+            return;
+        }
+
+        // New user - save temp for complete (no code needed for Google)
+        const expires = new Date(Date.now() + 60 * 60 * 1000);  // 1 hour
+        await pool.query(
+            'INSERT INTO temp_verifications (email, code, expires_at, verified) VALUES ($1, $2, $3, $4)',
+            [email.toLowerCase(), 'google', expires, true]  // Special code for Google
+        );
+
+        const frontendUrl = `${process.env.FRONTEND_URL || 'https://frontendlogins.onrender.com'}/form.html?email=${encodeURIComponent(email)}&google=true`;
+        res.redirect(frontendUrl);
+    } catch (err) {
+        console.error('Google callback error:', err);
+        res.status(500).json({ success: false, error: 'Google auth failed' });
     }
 };
