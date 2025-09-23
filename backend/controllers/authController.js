@@ -34,9 +34,14 @@ module.exports = {
 
             res.json({ message: 'Verification code sent. Check your email (including spam).' });
         } catch (err) {
-            console.error('Register error:', err.message);
-            res.status(500).json({ error: 'Registration failed. Try again later.' });
-        }
+    console.error('Register error:', err.message);
+    if (err.message.includes('SMTP') || err.message.includes('email')) {
+        // Graceful: DB saved code, but email failed - user can retry
+        res.status(200).json({ message: 'Registration started. Check email or try again (email send may have failed).', success: true });
+    } else {
+        res.status(500).json({ error: 'Registration failed. Try again later.' });
+    }
+}
     },
 
     async verify(db, req, res) {
