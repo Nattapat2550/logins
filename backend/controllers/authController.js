@@ -1,209 +1,270 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { sendVerification, sendReset } = require('../utils/mailer');
-const { generateCode } = require('../utils/tokenGenerator');
+const db = require('../db');  // Your db.js connection
+const { sendVerification, sendReset } = require('../utils/mailer');  // mailer.js
 
-module.exports = {
-    async register(db, req, res) {
-        const { email } = req.body;
-        console.log('Register attempt:', email);
-
-        if (!email || !email.includes('@')) {
-            return res.status(400).json({ error: 'Valid email required' });
-        }
-
-        const trimmedEmail = email.trim().toLowerCase();
-        try {
-            // Check existing user
-            const existing = await db.query('SELECT * FROM users WHERE email = $1', [trimmedEmail]);
-            if (existing.rows.length > 0) {
-                return res.status(400).json({ error: 'Email already registered. Try login.' });
-            }
-
-            // Clean old temp
-            await db.query('DELETE FROM temp_verifications WHERE email = $1 OR expires_at < CURRENT_TIMESTAMP', [trimmedEmail]);
-
-            // Insert temp code
-            const code = generateCode();
-            await db.query('INSERT INTO temp_verifications (email, code) VALUES ($1, $2)', [trimmedEmail, code]);
-            console.log('Temp code inserted for', trimmedEmail);
-
-            // Send email
-            await sendVerification(trimmedEmail, code);
-            console.log('Verification email sent to', trimmedEmail);
-
-            res.json({ message: 'Verification code sent. Check your email (including spam).' });
-        } catch (err) {
-    console.error('Register error:', err.message);
-    let status = 500;
-    let message = 'Registration failed. Try again later.';
-    if (err.message.includes('SMTP') || err.message.includes('email') || err.message.includes('Transporter')) {
-        status = 200;  // Success for DB part
-        message = 'Registration started! Code saved, but email send failed (check logs or retry).';
-    }
-    res.status(status).json({ message, success: status === 200 });
+// Helper: Generate 6-digit code
+function generateCode() {
+    return Math.floor(100000 + Math.random() * 900000).toString();
 }
-    },
 
-    async verify(db, req, res) {
-        const { email, code } = req.body;
+// Helper: Generate JWT token
+function generateToken(user) {
+    return jwt.sign(
+        { id: user.id, email: user.email, role: user.role },
+        process.env.JWT_SECRET || 'fallback_secret',  // Use env; fallback for local
+        { expiresIn: '1h' }
+    );
+}
+
+// Register: Send verification code (step 1)
+exports.register = async (req, res) => {
+    const { email } = req.body;
+    if (!email || !email.includes('@')) {
+        return res.status(400).json({ error: 'Valid email required', success: false });
+    }
+
+    const lowerEmail = email.toLowerCase();
+    try {
+        // Check if already registered (completed)
+        const existingUser  = await db.query('SELECT id FROM users WHERE email = $1', [lowerEmail]);
+        if (existingUser .rows.length > 0) {
+            return res.status(400).json({ error: 'Email already registered. Try login or reset.', success: false });
+        }
+
+        // Check if pending verification
+        const pending = await db.query('SELECT id FROM temp_verifications WHERE email = $1 AND expires_at > NOW()', [lowerEmail]);
+        if (pending.rows.length > 0) {
+            return res.status(400).json({ error: 'Verification code already sent. Check email or wait 10 min.', success: false });
+        }
+
+        // Generate and save temp code (expires 10 min)
+        const code = generateCode();
+        await db.query(
+            'INSERT INTO temp_verifications (email, code, expires_at) VALUES ($1, $2, NOW() + INTERVAL \'10 minutes\')',
+            [lowerEmail, code]
+        );
+
+        console.log('Register attempt:', lowerEmail);
+        console.log('Temp code inserted for', lowerEmail);
+
+        // Send email
         try {
-            const result = await db.query(
-                'SELECT * FROM temp_verifications WHERE email = $1 AND code = $2 AND expires_at > CURRENT_TIMESTAMP',
-                [email.toLowerCase(), code]
-            );
-
-            if (result.rows.length === 0) {
-                return res.status(400).json({ error: 'Invalid or expired code. Try registering again.' });
+            await sendVerification(lowerEmail, code);
+            console.log('Verification email sent to', lowerEmail);
+            res.json({ message: 'Verification code sent. Check your email (including spam).', success: true });
+        } catch (emailErr) {
+            console.error('Email send error:', emailErr.message);
+            if (emailErr.message.includes('skipped')) {
+                // Dev-friendly: Include manual code (remove in prod: just use the message below)
+                res.json({ 
+                    message: `Code saved! Email skipped (config issue). Manual code for testing: ${code}. Retry or check logs.`, 
+                    success: true 
+                });
+            } else {
+                res.json({ 
+                    message: 'Code saved, but email failed (possible network). Retry registration or contact support.', 
+                    success: true 
+                });
             }
-
-            // Create user stub (verified=false until complete)
-            await db.query(
-                'INSERT INTO users (email) VALUES ($1) ON CONFLICT (email) DO NOTHING',
-                [email.toLowerCase()]
-            );
-
-            await db.query('DELETE FROM temp_verifications WHERE email = $1', [email.toLowerCase()]);
-            res.json({ message: 'Code verified! Proceed to complete your profile.' });
-        } catch (err) {
-            console.error('Verify error:', err);
-            res.status(500).json({ error: 'Verification failed' });
         }
-    },
+    } catch (err) {
+        console.error('Register error:', err.message);
+        res.status(500).json({ error: 'Registration failed. Try again later.', success: false });
+    }
+};
 
-    async completeProfile(db, req, res) {
-        const { email, username, password } = req.body;
-        try {
-            if (!password || password.length < 6) {
-                return res.status(400).json({ error: 'Password must be at least 6 characters' });
-            }
+// Verify Code (step 2)
+exports.verify = async (req, res) => {
+    const { email, code } = req.body;
+    if (!email || !code || code.length !== 6) {
+        return res.status(400).json({ error: 'Valid email and 6-digit code required', success: false });
+    }
 
-            const hashedPassword = await bcrypt.hash(password, 10);
-            const result = await db.query(
-                'UPDATE users SET username = $1, password = $2, verified = true WHERE email = $3 RETURNING id, email, username, role',
-                [username, hashedPassword, email.toLowerCase()]
-            );
+    const lowerEmail = email.toLowerCase();
+    try {
+        // Check code validity
+        const result = await db.query(
+            'SELECT id FROM temp_verifications WHERE email = $1 AND code = $2 AND expires_at > NOW()',
+            [lowerEmail, code]
+        );
 
-            if (result.rows.length === 0) {
-                return res.status(400).json({ error: 'User  not found. Register again.' });
-            }
-            // Create user stub (verified=false until complete)
-            await db.query(
-                'INSERT INTO users (email) VALUES ($1) ON CONFLICT (email) DO NOTHING',
-                [email.toLowerCase()]
-            );
-            await db.query('DELETE FROM temp_verifications WHERE email = $1', [email.toLowerCase()]);
-            res.json({ message: 'Code verified! Proceed to complete your profile.' });
-        } catch (err) {
-            console.error('Verify error:', err);
-            res.status(500).json({ error: 'Verification failed' });
-        }
-    },
-    async completeProfile(db, req, res) {
-        const { email, username, password } = req.body;
-        try {
-            if (!password || password.length < 6) {
-                return res.status(400).json({ error: 'Password must be at least 6 characters' });
-            }
-            const hashedPassword = await bcrypt.hash(password, 10);
-            const result = await db.query(
-                'UPDATE users SET username = $1, password = $2, verified = true WHERE email = $3 RETURNING id, email, username, role',
-                [username, hashedPassword, email.toLowerCase()]
-            );
-            if (result.rows.length === 0) {
-                return res.status(400).json({ error: 'User  not found. Register again.' });
-            }
-
-            const user = result.rows[0];
-            const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
-            res.json({ 
-                message: 'Profile completed successfully! You are now logged in.', 
-                token, 
-                user: { id: user.id, email: user.email, username: user.username, role: user.role } 
-            });
-        } catch (err) {
-            console.error('Complete profile error:', err);
-            res.status(500).json({ error: 'Profile completion failed. Try again.' });
-        }
-    },
-
-    async login(db, req, res) {
-        const { email, password } = req.body;
-        if (!email || !password) {
-            return res.status(400).json({ error: 'Email and password required' });
+        if (result.rows.length === 0) {
+            return res.status(400).json({ error: 'Invalid or expired code. Request a new one.', success: false });
         }
 
-        try {
-            const result = await db.query('SELECT * FROM users WHERE email = $1 AND verified = true', [email.toLowerCase()]);
-            const user = result.rows[0];
+        // Delete temp code (one-time use)
+        await db.query('DELETE FROM temp_verifications WHERE email = $1 AND code = $2', [lowerEmail, code]);
 
-            if (!user || !(await bcrypt.compare(password, user.password))) {
-                return res.status(400).json({ error: 'Invalid email or password' });
+        console.log('Code verified for', lowerEmail);
+        res.json({ message: 'Code verified! Proceed to complete your profile.', success: true });
+    } catch (err) {
+        console.error('Verify error:', err.message);
+        res.status(500).json({ error: 'Verification failed. Try again.', success: false });
+    }
+};
+
+// Complete Profile (step 3: set username/password after verify)
+exports.complete = async (req, res) => {
+    const { email, username, password } = req.body;
+    if (!email || !username || !password || password.length < 6) {
+        return res.status(400).json({ error: 'Email, username, and password (min 6 chars) required', success: false });
+    }
+
+    const lowerEmail = email.toLowerCase();
+    try {
+        // Check if verified (temp code was used)
+        const pending = await db.query('SELECT id FROM temp_verifications WHERE email = $1', [lowerEmail]);
+        if (pending.rows.length === 0) {
+            // Fallback: Check if user exists but incomplete
+            const user = await db.query('SELECT id FROM users WHERE email = $1', [lowerEmail]);
+            if (user.rows.length > 0 && user.rows[0].verified) {
+                return res.status(400).json({ error: 'Profile already complete. Try login.', success: false });
             }
-
-            const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
-            res.json({ 
-                message: 'Login successful', 
-                token, 
-                user: { id: user.id, email: user.email, username: user.username, role: user.role } 
-            });
-        } catch (err) {
-            console.error('Login error:', err);
-            res.status(500).json({ error: 'Login failed. Try again.' });
-        }
-    },
-
-    async forgotPassword(db, req, res) {
-        const { email } = req.body;
-        if (!email) {
-            return res.status(400).json({ error: 'Email required' });
+            return res.status(400).json({ error: 'Must verify email first.', success: false });
         }
 
-        try {
-            const userResult = await db.query('SELECT * FROM users WHERE email = $1', [email.toLowerCase()]);
-            if (userResult.rows.length === 0) {
-                return res.status(400).json({ error: 'Email not found' });
-            }
+        // Hash password
+        const hashedPassword = await bcrypt.hash(password, 12);
 
-            const token = jwt.sign({ email: email.toLowerCase() }, process.env.JWT_SECRET, { expiresIn: '1h' });
-            await db.query(
-                'UPDATE users SET reset_token = $1, reset_expires = CURRENT_TIMESTAMP + INTERVAL \'1 hour\' WHERE email = $2',
-                [token, email.toLowerCase()]
-            );
+        // Insert user (verified=true, role='user')
+        const userResult = await db.query(
+            'INSERT INTO users (email, username, password, verified, role) VALUES ($1, $2, $3, true, $4) RETURNING id, email, username, role, created_at',
+            [lowerEmail, username, hashedPassword, 'user']
+        );
 
-            await sendReset(email.toLowerCase(), token);
-            res.json({ message: 'Password reset link sent to your email. Check spam if not received.' });
-        } catch (err) {
-            console.error('Forgot password error:', err);
-            res.status(500).json({ error: 'Failed to send reset email' });
+        const user = userResult.rows[0];
+        const token = generateToken(user);
+
+        // Clean up temp (if any left)
+        await db.query('DELETE FROM temp_verifications WHERE email = $1', [lowerEmail]);
+
+        console.log('Profile completed for', lowerEmail);
+        res.json({
+            message: 'Registration complete! Welcome.',
+            success: true,
+            token,
+            user
+        });
+    } catch (err) {
+        console.error('Complete error:', err.message);
+        if (err.code === '23505') {  // Unique violation (e.g., duplicate username/email)
+            res.status(400).json({ error: 'Username or email already taken.', success: false });
+        } else {
+            res.status(500).json({ error: 'Completion failed. Try again.', success: false });
         }
-    },
+    }
+};
 
-    async resetPassword(db, req, res) {
-        const { token, password } = req.body;
-        if (!token || !password || password.length < 6) {
-            return res.status(400).json({ error: 'Valid token and password (min 6 chars) required' });
+// Login
+exports.login = async (req, res) => {
+    const { email, password } = req.body;
+    if (!email || !password) {
+        return res.status(400).json({ error: 'Email and password required', success: false });
+    }
+
+    const lowerEmail = email.toLowerCase();
+    try {
+        // Find user
+        const result = await db.query('SELECT * FROM users WHERE email = $1', [lowerEmail]);
+        const user = result.rows[0];
+
+        if (!user || !user.verified) {
+            return res.status(400).json({ error: 'Invalid email or unverified account.', success: false });
         }
 
-        try {
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            const hashedPassword = await bcrypt.hash(password, 10);
-            const result = await db.query(
-                'UPDATE users SET password = $1, reset_token = NULL, reset_expires = NULL WHERE email = $2 AND reset_expires > CURRENT_TIMESTAMP RETURNING *',
-                [hashedPassword, decoded.email]
-            );
-
-            if (result.rows.length === 0) {
-                return res.status(400).json({ error: 'Invalid or expired reset token' });
-            }
-
-            res.json({ message: 'Password reset successful. You can now login.' });
-        } catch (err) {
-            console.error('Reset password error:', err);
-            if (err.name === 'JsonWebTokenError') {
-                return res.status(400).json({ error: 'Invalid token' });
-            }
-            res.status(500).json({ error: 'Reset failed. Try again.' });
+        // Check password
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ error: 'Invalid password.', success: false });
         }
+
+        const token = generateToken(user);
+        console.log('Login successful for', lowerEmail);
+
+        res.json({
+            message: 'Login successful!',
+            success: true,
+            token,
+            user: { id: user.id, email: user.email, username: user.username, role: user.role }
+        });
+    } catch (err) {
+        console.error('Login error:', err.message);
+        res.status(500).json({ error: 'Login failed. Try again.', success: false });
+    }
+};
+
+// Forgot Password: Send reset token
+exports.forgot = async (req, res) => {
+    const { email } = req.body;
+    if (!email) {
+        return res.status(400).json({ error: 'Email required', success: false });
+    }
+
+    const lowerEmail = email.toLowerCase();
+    try {
+        // Find user
+        const result = await db.query('SELECT id FROM users WHERE email = $1', [lowerEmail]);
+        if (result.rows.length === 0) {
+            return res.status(400).json({ error: 'Email not found.', success: false });
+        }
+
+        // Generate reset token (expires 1h)
+        const resetToken = require('crypto').randomBytes(32).toString('hex');
+        const expires = new Date(Date.now() + 60 * 60 * 1000);  // 1 hour
+
+        await db.query(
+            'UPDATE users SET reset_token = $1, reset_expires = $2 WHERE email = $3',
+            [resetToken, expires, lowerEmail]
+        );
+
+        // Send reset email
+        await sendReset(lowerEmail, resetToken);
+        console.log('Reset email sent to', lowerEmail);
+
+        res.json({ message: 'Reset link sent to your email.', success: true });
+    } catch (err) {
+        console.error('Forgot error:', err.message);
+        if (err.message.includes('skipped') || err.message.includes('email')) {
+            res.json({ message: 'Reset token generated, but email failed. Check logs or retry.', success: true });
+        } else {
+            res.status(500).json({ error: 'Reset request failed.', success: false });
+        }
+    }
+};
+
+// Reset Password
+exports.reset = async (req, res) => {
+    const { token, password } = req.body;
+    if (!token || !password || password.length < 6) {
+        return res.status(400).json({ error: 'Valid token and password (min 6 chars) required', success: false });
+    }
+
+    try {
+        // Find user with valid token
+        const result = await db.query(
+            'SELECT id, email FROM users WHERE reset_token = $1 AND reset_expires > NOW()',
+            [token]
+        );
+        const user = result.rows[0];
+
+        if (!user) {
+            return res.status(400).json({ error: 'Invalid or expired token.', success: false });
+        }
+
+        // Hash new password
+        const hashedPassword = await bcrypt.hash(password, 12);
+
+        // Update password and clear token
+        await db.query(
+            'UPDATE users SET password = $1, reset_token = NULL, reset_expires = NULL WHERE id = $2',
+            [hashedPassword, user.id]
+        );
+
+        console.log('Password reset for', user.email);
+        res.json({ message: 'Password reset successful! You can now login.', success: true });
+    } catch (err) {
+        console.error('Reset error:', err.message);
+        res.status(500).json({ error: 'Reset failed. Try again.', success: false });
     }
 };

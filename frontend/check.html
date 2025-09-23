@@ -18,7 +18,9 @@
         <a href="register.html">Back to Register</a>
     </div>
     <script src="js/auth.js"></script>
+    <script src="js/ui.js"></script>
     <script>
+        window.addEventListener('load', () => {
         const urlParams = new URLSearchParams(window.location.search);
         const email = urlParams.get('email');
         if (email) {
@@ -33,6 +35,7 @@
             if (response.success) {
                 setTimeout(() => window.location.href = 'form.html?email=' + encodeURIComponent(email), 2000);
             }
+        });
         });
     </script>
 </body>

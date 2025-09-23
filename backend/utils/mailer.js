@@ -1,9 +1,8 @@
 const nodemailer = require('nodemailer');
 
-// Ultimate Debug: Log full nodemailer export on load
-console.log('Nodemailer module loaded - full export:', JSON.stringify(Object.keys(nodemailer)));
-console.log('Nodemailer version:', require('nodemailer/package.json').version || 'Unknown');
-console.log('nodemailer.createTransporter type:', typeof nodemailer.createTransporter);
+// Debug: Log exports on load
+console.log('Nodemailer exports:', Object.keys(nodemailer));
+console.log('nodemailer.createTransport type:', typeof nodemailer.createTransport);
 
 let transporter = null;
 
@@ -12,7 +11,7 @@ function createTransporter() {
         // Early env check
         if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
             console.error('SMTP_USER or SMTP_PASS missing - emails disabled');
-            return null;  // Return null - skip email
+            return null;
         }
 
         const config = {
@@ -27,39 +26,24 @@ function createTransporter() {
         };
 
         try {
-            let createFunc;
-            // Fallback 1: Standard way
-            if (typeof nodemailer.createTransporter === 'function') {
-                createFunc = nodemailer.createTransporter;
-                console.log('Using standard createTransporter');
-            } else {
-                // Fallback 2: Dynamic require the function directly (bypasses module issues)
-                console.log('Standard failed - trying dynamic require');
-                const nodemailerLib = require('nodemailer/lib/nodemailer');
-                createFunc = nodemailerLib.createTransporter || nodemailerLib;
-                if (typeof createFunc !== 'function') {
-                    throw new Error('No valid create function found');
-                }
-                console.log('Dynamic require succeeded');
+            // Correct: Use createTransport (not createTransporter)
+            if (typeof nodemailer.createTransport !== 'function') {
+                throw new Error('createTransport not available - check nodemailer install');
             }
-
-            transporter = createFunc(config);
-            console.log('Transporter created successfully');
+            transporter = nodemailer.createTransport(config);
+            console.log('Transporter created successfully with createTransport');
 
             // Non-blocking verify
-            if (transporter.verify) {
-                transporter.verify((error, success) => {
-                    if (error) {
-                        console.error('SMTP verify failed (but emails may work):', error.message);
-                    } else {
-                        console.log('SMTP ready - emails enabled');
-                    }
-                });
-            }
+            transporter.verify((error, success) => {
+                if (error) {
+                    console.error('SMTP verify failed (emails may still work):', error.message);
+                } else {
+                    console.log('SMTP ready - emails enabled');
+                }
+            });
         } catch (err) {
-            console.error('All transporter fallbacks failed:', err.message);
-            console.error('Nodemailer exports:', Object.keys(nodemailer));  // Final debug
-            transporter = null;  // Disable emails
+            console.error('Transporter creation failed:', err.message);
+            transporter = null;
         }
     }
     return transporter;
@@ -68,54 +52,61 @@ function createTransporter() {
 async function sendVerification(email, code) {
     const transporter = createTransporter();
     if (!transporter) {
-        console.warn('No transporter - skipping email send. Code for manual test:', code);
-        // For dev: Log code so you can use it in verify step
-        return { messageId: 'skipped', warning: 'Email disabled - use code from logs' };
+        console.warn('No transporter - skipping email. Manual code:', code);
+        return { skipped: true, manualCode: code };  // For controller to handle
     }
 
     try {
-        console.log('Sending verification to:', email, 'code:', code);
+        console.log('Attempting to send verification to:', email, 'code:', code);
         const mailOptions = {
             from: `"Auth App" <${process.env.SMTP_USER}>`,
             to: email,
-            subject: 'Verification Code',
-            text: `Code: ${code} (expires 10 min)`,
-            html: `<h2>Code: <strong>${code}</strong></h2><p>Expires in 10 min.</p>`
+            subject: 'Your Verification Code',
+            text: `Your code is: ${code}. Expires in 10 minutes.`,
+            html: `
+                <h2>Verify Your Email</h2>
+                <p>Your code: <strong style="color: blue; font-size: 24px;">${code}</strong></p>
+                <p>Expires in 10 minutes. If not requested, ignore.</p>
+            `
         };
 
         const info = await transporter.sendMail(mailOptions);
-        console.log('Email sent! ID:', info.messageId);
+        console.log('Verification email sent successfully to:', email, 'ID:', info.messageId);
         return info;
     } catch (error) {
-        console.error('Email send failed:', error.message);
-        throw new Error(`Email failed: ${error.message}`);
+        console.error('Send verification failed:', error.message);
+        throw new Error(`Email send failed: ${error.message}`);
     }
 }
 
 async function sendReset(email, token) {
     const transporter = createTransporter();
     if (!transporter) {
-        console.warn('No transporter - reset email skipped');
-        return { messageId: 'skipped' };
+        console.warn('No transporter - skipping reset email');
+        return { skipped: true };
     }
 
     try {
-        console.log('Sending reset to:', email);
+        console.log('Attempting to send reset to:', email);
         const resetUrl = `${process.env.FRONTEND_URL || 'https://frontendlogins.onrender.com'}/login.html?reset=${token}`;
         const mailOptions = {
             from: `"Auth App" <${process.env.SMTP_USER}>`,
             to: email,
-            subject: 'Reset Password',
-            text: `Reset: ${resetUrl}`,
-            html: `<h2><a href="${resetUrl}">Reset Password</a></h2>`
+            subject: 'Password Reset',
+            text: `Reset link: ${resetUrl} (expires 1 hour)`,
+            html: `
+                <h2>Reset Password</h2>
+                <p><a href="${resetUrl}">Click to reset</a></p>
+                <p>Expires in 1 hour. If not requested, ignore.</p>
+            `
         };
 
         const info = await transporter.sendMail(mailOptions);
-        console.log('Reset email sent! ID:', info.messageId);
+        console.log('Reset email sent successfully to:', email, 'ID:', info.messageId);
         return info;
     } catch (error) {
-        console.error('Reset email failed:', error.message);
-        throw new Error(`Reset failed: ${error.message}`);
+        console.error('Send reset failed:', error.message);
+        throw new Error(`Reset email failed: ${error.message}`);
     }
 }
 

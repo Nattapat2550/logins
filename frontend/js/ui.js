@@ -1,5 +1,4 @@
-// UI Constants
-const BACKEND_URL = 'https://backendlogins.onrender.com';  // Same as auth.js - update post-deploy
+// UI Helpers (No BACKEND_URL - use from auth.js)
 
 // Show message (success/error)
 function showMessage(text, isSuccess = true) {
@@ -32,5 +31,6 @@ function formatDate(dateStr) {
     return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-// Export for global use
+// Export for global use (window.ui)
 window.ui = { showMessage, isValidEmail, formatDate };
+window.showMessage = showMessage;  // Global alias for direct use
