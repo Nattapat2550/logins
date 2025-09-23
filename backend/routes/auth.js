@@ -1,26 +1,29 @@
 const express = require('express');
-const passport = require('passport');
 const router = express.Router();
-const authController = require('../controllers/authController');
+const authController = require('../controllers/authController');  // Import from controllers
 
-module.exports = (db, authController) => {
-    // Register
-    router.post('/register', authController.register.bind(null, db));
+// POST /api/auth/register - Send verification code
+router.post('/register', authController.register);
 
-    // Verify code
-    router.post('/verify', authController.verify.bind(null, db));
+// POST /api/auth/verify - Verify the code
+router.post('/verify', authController.verify);
 
-    // Complete profile
-    router.post('/complete', authController.completeProfile.bind(null, db));
+// POST /api/auth/complete - Complete profile after verify
+router.post('/complete', authController.complete);
 
-    // Login
-    router.post('/login', authController.login.bind(null, db));
+// POST /api/auth/login - Login with email/password
+router.post('/login', authController.login);
 
-    // Forgot password
-    router.post('/forgot', authController.forgotPassword.bind(null, db));
+// POST /api/auth/forgot - Send password reset email
+router.post('/forgot', authController.forgot);
 
-    // Reset password
-    router.post('/reset', authController.resetPassword.bind(null, db));
+// POST /api/auth/reset - Reset password with token
+router.post('/reset', authController.reset);
 
-    return router;
-};
+// Error handling middleware for this router (optional, catches route errors)
+router.use((err, req, res, next) => {
+    console.error('Auth route error:', err.message);
+    res.status(500).json({ error: 'Internal auth error. Try again.', success: false });
+});
+
+module.exports = router;
