@@ -36,78 +36,29 @@
     <script src="js/auth.js"></script>
     <script src="js/ui.js"></script>
     <script>
-        // Protected: Check login and admin role
-        if (!localStorage.getItem('token') || !localStorage.getItem('user')) {
-            window.location.href = 'login.html';
-            return;
-        }
+        // Protected: admin only
+        if (!checkAuth('login.html', true)) return;
+
         const user = JSON.parse(localStorage.getItem('user'));
-        if (user.role !== 'admin') {
-            window.location.href = 'home.html';
-            return;
-        }
-        document.getElementById('profileImg').src = `${API_BASE.replace('/api', '')}/uploads/${user.profile_pic || 'user.png'}`;
+        const baseUrl = API_BASE.replace('/api', '');
+        document.getElementById('profileImg').src = `${baseUrl}/uploads/${user.profile_pic || 'user.png'}`;
         document.getElementById('profileImg').title = user.username || user.email;
 
         // Load users
         loadAdminUsers();
 
-        // Load and set current home content
+        // Load current home content
         fetchHomeContent().then(content => {
             document.getElementById('homeContent').value = content;
-        });
+        }).catch(err => showMessage(err.message, true));
 
         // Update home content
         document.getElementById('homeContentForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const content = document.getElementById('homeContent').value;
+            const content = document.getElementById('homeContent').value || 'Welcome to our website!';
             const result = await updateHomeContent(content);
-            document.getElementById('message').textContent = result.message || result.error;
+            showMessage(result.message || result.error, !result.success);
         });
-
-        // Load users function
-        async function loadAdminUsers() {
-            try {
-                const response = await fetch(`${API_BASE}/admin/users`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-                });
-                const users = await response.json();
-                let html = '<ul>';
-                users.forEach(u => {
-                    html += `
-                        <li>
-                            ${u.username || u.email} (ID: ${u.id}, Role: ${u.role}, Verified: ${u.verified})
-                            <button onclick="editUser (${u.id})">Edit</button>
-                            <button onclick="deleteUser (${u.id})">Delete</button>
-                        </li>
-                    `;
-                });
-                html += '</ul>';
-                document.getElementById('usersList').innerHTML = html;
-
-                // Add edit form dynamically (simple modal-like)
-                window.editUser  = async (id) => {
-                    const username = prompt('New username:');
-                    const role = prompt('New role (user/admin):');
-                    const verified = prompt('Verified (true/false):');
-                    if (username || role || verified) {
-                        const result = await updateUser (id, { username, role, verified: verified === 'true' });
-                        document.getElementById('message').textContent = result.message || result.error;
-                        loadAdminUsers();  // Reload
-                    }
-                };
-
-                window.deleteUser  = async (id) => {
-                    if (confirm('Delete user?')) {
-                        const result = await deleteAdminUser (id);
-                        document.getElementById('message').textContent = result.message || result.error;
-                        loadAdminUsers();  // Reload
-                    }
-                };
-            } catch (err) {
-                document.getElementById('usersList').innerHTML = 'Error loading users';
-            }
-        }
 
         initUI();
     </script>

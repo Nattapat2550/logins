@@ -1,26 +1,30 @@
-// API Base URL - UPDATE FOR PRODUCTION (e.g., 'https://backendlogins.onrender.com/api')
-const API_BASE = 'https://backendlogins.onrender.com/api';  // Local dev; change to your Render backend
+// API Base URL - UPDATE FOR PRODUCTION (e.g., 'https://your-backend.onrender.com/api')
+const API_BASE = 'http://localhost:5000/api';  // Local; change for Render
 
-// Helper to make authenticated requests
+// Helper for authenticated requests
 async function apiRequest(endpoint, options = {}) {
     const token = localStorage.getItem('token');
     const config = {
         headers: {
             'Content-Type': 'application/json',
-            ...(options.headers || {}),
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+            ...options.headers
         },
         ...options
     };
-    const response = await fetch(`${API_BASE}${endpoint}`, config);
-    const data = await response.json();
-    if (!response.ok) {
-        throw new Error(data.error || 'Request failed');
+    try {
+        const response = await fetch(`${API_BASE}${endpoint}`, config);
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(data.error || `HTTP ${response.status}`);
+        }
+        return await response.json();
+    } catch (err) {
+        throw new Error(err.message || 'Network error');
     }
-    return data;
 }
 
-// Registration
+// Registration (email)
 async function register(email) {
     try {
         const response = await fetch(`${API_BASE}/auth/register`, {
@@ -50,7 +54,7 @@ async function verify(email, code) {
     }
 }
 
-// Complete profile
+// Complete profile (email flow)
 async function completeProfile(email, username, password) {
     try {
         const response = await fetch(`${API_BASE}/auth/complete`, {
@@ -65,7 +69,7 @@ async function completeProfile(email, username, password) {
     }
 }
 
-// Login
+// Login (email)
 async function login(email, password) {
     try {
         const response = await fetch(`${API_BASE}/auth/login`, {
@@ -110,14 +114,9 @@ async function resetPassword(token, password) {
     }
 }
 
-// Get home content
+// Fetch home content
 async function fetchHomeContent() {
-    try {
-        const data = await apiRequest('/user/home-content');
-        return data.content;
-    } catch (err) {
-        throw err;
-    }
+    return await apiRequest('/user/home-content').then(data => data.content);
 }
 
 // Update home content (admin)
@@ -133,26 +132,13 @@ async function updateHomeContent(content) {
     }
 }
 
-// Get profile
-async function getProfile() {
-    try {
-        const data = await apiRequest('/user/profile');
-        return data;
-    } catch (err) {
-        throw err;
-    }
-}
-
-// Update profile (with optional file)
+// Update profile (FormData for file)
 async function updateProfile(formData) {
     try {
         const token = localStorage.getItem('token');
         const response = await fetch(`${API_BASE}/user/update`, {
             method: 'POST',
-            headers: { 
-                'Authorization': `Bearer ${token}`
-                // No Content-Type for FormData - let browser set multipart
-            },
+            headers: { 'Authorization': `Bearer ${token}` },  // No Content-Type for FormData
             body: formData
         });
         const data = await response.json();
@@ -174,12 +160,7 @@ async function deleteAccount() {
 
 // Admin: Get users
 async function getAdminUsers() {
-    try {
-        const data = await apiRequest('/admin/users');
-        return data;
-    } catch (err) {
-        throw err;
-    }
+    return await apiRequest('/admin/users');
 }
 
 // Admin: Update user
@@ -205,7 +186,7 @@ async function deleteAdminUser (id) {
     }
 }
 
-// Expose functions globally for use in HTML <script> tags and onclick handlers
+// Expose all functions globally for HTML <script> and onclick
 window.register = register;
 window.verify = verify;
 window.completeProfile = completeProfile;

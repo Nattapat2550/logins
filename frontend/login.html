@@ -18,30 +18,64 @@
         <button id="forgotBtn">Forgot Password?</button>
         <button id="googleLogin">Login with Google</button>
         <div id="message"></div>
-        <!-- Reset form (hidden initially) -->
+
+        <!-- Reset form (hidden) -->
         <form id="resetForm" style="display:none;">
             <input type="email" id="resetEmail" placeholder="Email for reset">
             <button type="submit">Send Reset Link</button>
         </form>
+
+        <!-- New password form (hidden, shown if ?reset=token) -->
         <form id="newPasswordForm" style="display:none;">
-            <input type="password" id="newPassword" placeholder="New Password">
+            <input type="password" id="newPassword" placeholder="New Password" required>
+            <label><input type="checkbox" id="showNewPassword"> Show New Password</label>
             <button type="submit">Reset Password</button>
         </form>
     </div>
     <script src="js/auth.js"></script>
     <script src="js/ui.js"></script>
     <script>
-        // Password toggle
+        // Check for reset token in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const resetToken = urlParams.get('reset');
+        if (resetToken) {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('forgotBtn').style.display = 'none';
+            document.getElementById('googleLogin').style.display = 'none';
+            document.getElementById('resetForm').style.display = 'none';
+            document.getElementById('newPasswordForm').style.display = 'block';
+            document.getElementById('newPasswordForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const password = document.getElementById('newPassword').value;
+                if (password.length < 6) {
+                    showMessage('Password must be at least 6 characters', true);
+                    return;
+                }
+                const result = await resetPassword(resetToken, password);
+                showMessage(result.message || result.error, !result.success);
+                if (result.success) {
+                    window.location.href = 'login.html';
+                }
+            });
+            document.getElementById('showNewPassword').addEventListener('change', (e) => {
+                const pw = document.getElementById('newPassword');
+                pw.type = e.target.checked ? 'text' : 'password';
+            });
+        }
+
+        // Password toggle for login
         document.getElementById('showPassword').addEventListener('change', (e) => {
             const pw = document.getElementById('loginPassword');
             pw.type = e.target.checked ? 'text' : 'password';
         });
 
+        // Login form
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('loginEmail').value;
             const password = document.getElementById('loginPassword').value;
             const result = await login(email, password);
+            showMessage(result.message || result.error, !result.success);
             if (result.success) {
                 localStorage.setItem('token', result.token);
                 localStorage.setItem('user', JSON.stringify(result.user));
@@ -50,40 +84,30 @@
                 } else {
                     window.location.href = 'home.html';
                 }
-            } else {
-                document.getElementById('message').textContent = result.error;
             }
         });
 
+        // Google login
         document.getElementById('googleLogin').addEventListener('click', () => {
             window.location.href = `${API_BASE}/auth/google`;
         });
 
+        // Forgot password toggle
         document.getElementById('forgotBtn').addEventListener('click', () => {
             document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('googleLogin').style.display = 'none';
             document.getElementById('resetForm').style.display = 'block';
         });
 
+        // Reset form (send link)
         document.getElementById('resetForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('resetEmail').value;
             const result = await forgotPassword(email);
-            document.getElementById('message').textContent = result.message || result.error;
-            // Show new password form if token in URL
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('reset')) {
-                document.getElementById('resetForm').style.display = 'none';
-                document.getElementById('newPasswordForm').style.display = 'block';
-                document.getElementById('newPasswordForm').onsubmit = async (e) => {
-                    e.preventDefault();
-                    const password = document.getElementById('newPassword').value;
-                    const token = urlParams.get('reset');
-                    const res = await resetPassword(token, password);
-                    document.getElementById('message').textContent = res.message || res.error;
-                    if (res.success) window.location.href = 'login.html';
-                };
-            }
+            showMessage(result.message || result.error, !result.success);
         });
+
+        initUI();
     </script>
 </body>
 </html>

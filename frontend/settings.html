@@ -29,56 +29,45 @@
             <input type="file" id="profilePic" accept="image/*">
             <button type="submit">Update Profile</button>
         </form>
-        <button id="themeToggle">Toggle Dark/Light Mode</button>
-        <button id="deleteAccount" onclick="deleteAccount()">Delete Account</button>
+        <button id="themeToggle" onclick="toggleTheme()">Toggle Dark/Light Mode</button>
+        <button id="deleteBtn" onclick="deleteAccount()">Delete Account</button>
     </div>
     <div id="message"></div>
     <script src="js/auth.js"></script>
     <script src="js/ui.js"></script>
     <script>
         // Protected
-        if (!localStorage.getItem('token') || !localStorage.getItem('user')) {
-            window.location.href = 'login.html';
-            return;
-        }
+        if (!checkAuth()) return;
+
         const user = JSON.parse(localStorage.getItem('user'));
-        document.getElementById('profileImg').src = `${API_BASE.replace('/api', '')}/uploads/${user.profile_pic || 'user.png'}`;
+        const baseUrl = API_BASE.replace('/api', '');
+        document.getElementById('profileImg').src = `${baseUrl}/uploads/${user.profile_pic || 'user.png'}`;
         document.getElementById('profileImg').title = user.username || user.email;
         document.getElementById('username').value = user.username || '';
 
-        // Update profile
+        // Update profile (FormData for file)
         document.getElementById('profileForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const username = document.getElementById('username').value;
             const file = document.getElementById('profilePic').files[0];
             const formData = new FormData();
-            formData.append('username', username);
+            if (username) formData.append('username', username);
             if (file) formData.append('profilePic', file);
 
             const result = await updateProfile(formData);
+            showMessage(result.message || result.error, !result.success);
             if (result.success) {
                 localStorage.setItem('user', JSON.stringify(result.user));
-                document.getElementById('message').textContent = 'Profile updated';
-                // Reload img
-                document.getElementById('profileImg').src = `${API_BASE.replace('/api', '')}/uploads/${result.user.profile_pic}`;
-            } else {
-                document.getElementById('message').textContent = result.error;
+                document.getElementById('profileImg').src = `${baseUrl}/uploads/${result.user.profile_pic}`;
             }
         });
 
-        // Theme toggle already in ui.js, but button click
-        document.getElementById('themeToggle').addEventListener('click', toggleTheme);
-
-        // Delete account
+        // Delete account confirmation
         window.deleteAccount = async () => {
-            if (confirm('Delete account?')) {
+            if (confirm('Delete account? This cannot be undone.')) {
                 const result = await deleteAccount();
-                if (result.success) {
-                    logout();
-                    window.location.href = 'index.html';
-                } else {
-                    document.getElementById('message').textContent = result.error;
-                }
+                showMessage(result.message || result.error, !result.success);
+                if (result.success) logout();
             }
         };
 

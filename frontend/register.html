@@ -17,21 +17,22 @@
         <div id="message"></div>
     </div>
     <script src="js/auth.js"></script>
+    <script src="js/ui.js"></script>
     <script>
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('email').value;
             const result = await register(email);
+            showMessage(result.message || result.error, !result.success);
             if (result.success) {
                 localStorage.setItem('tempEmail', email);
                 window.location.href = 'check.html';
-            } else {
-                document.getElementById('message').textContent = result.error;
             }
         });
         document.getElementById('googleRegister').addEventListener('click', () => {
             window.location.href = `${API_BASE}/auth/google`;
         });
+        initUI();
     </script>
 </body>
 </html>

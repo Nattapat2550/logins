@@ -27,27 +27,31 @@ passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
   callbackURL: process.env.GOOGLE_CALLBACK_URL,
-  scope: ['profile', 'email']  // Added scopes to fix potential error
+  scope: ['profile', 'email']
 }, async (accessToken, refreshToken, profile, done) => {
   try {
     let user = await db.query('SELECT * FROM users WHERE email = $1', [profile.emails[0].value]);
     if (user.rows.length === 0) {
       const newUser  = await db.query(
-        'INSERT INTO users (email, username, verified, role, profile_pic) VALUES ($1, $2, true, $3, $4) RETURNING *',
-        [profile.emails[0].value, profile.displayName, 'user', profile.photos[0]?.value || 'user.png']
+        'INSERT INTO users (email, username, verified, role, profile_pic) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+        [profile.emails[0].value, profile.displayName, true, 'user', profile.photos[0]?.value || 'user.png']
       );
       return done(null, newUser .rows[0]);
     }
     return done(null, user.rows[0]);
   } catch (err) {
-    done(err);
+    return done(err);
   }
 }));
 
 passport.serializeUser ((user, done) => done(null, user.id));
 passport.deserializeUser (async (id, done) => {
-  const user = await db.query('SELECT * FROM users WHERE id = $1', [id]);
-  done(null, user.rows[0]);
+  try {
+    const user = await db.query('SELECT * FROM users WHERE id = $1', [id]);
+    done(null, user.rows[0]);
+  } catch (err) {
+    done(err);
+  }
 });
 
 // Routes
@@ -67,6 +71,7 @@ db.query(`
     email VARCHAR(255) UNIQUE NOT NULL,
     username VARCHAR(255),
     password VARCHAR(255),
+    verification_code VARCHAR(6),
     verified BOOLEAN DEFAULT false,
     role VARCHAR(50) DEFAULT 'user',
     profile_pic VARCHAR(255) DEFAULT 'user.png',
@@ -78,7 +83,8 @@ db.query(`
     id SERIAL PRIMARY KEY,
     content TEXT DEFAULT 'Welcome to our website!'
   );
-  INSERT INTO home_content (content) SELECT 'Welcome to our website!' WHERE NOT EXISTS (SELECT 1 FROM home_content);
-`).catch(console.error);
+  INSERT INTO home_content (id, content) VALUES (1, 'Welcome to our website!') 
+  ON CONFLICT (id) DO NOTHING;
+`).catch(err => console.error('DB init error:', err));
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

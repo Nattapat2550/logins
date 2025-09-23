@@ -41,9 +41,13 @@ body.dark .container {
     font-weight: bold;
 }
 
+.nav-center {
+    display: flex;
+    gap: 15px;
+}
+
 .nav-center a {
     color: white;
-    margin: 0 15px;
     text-decoration: none;
 }
 
@@ -124,6 +128,8 @@ button {
     color: white;
     cursor: pointer;
     border: none;
+    padding: 10px;
+    border-radius: 4px;
 }
 
 button:hover {
@@ -142,6 +148,7 @@ button[type="submit"] {
     background: #d4edda;
     color: #155724;
     border: 1px solid #c3e6cb;
+    display: none; /* Hidden by default; shown via JS */
 }
 
 #message.error {
@@ -159,7 +166,7 @@ body.dark #message.error {
     background: #dc3545;
 }
 
-/* Lists and other */
+/* Lists and other elements */
 ul {
     list-style: none;
     padding: 0;
@@ -181,29 +188,50 @@ h1, h2, h3 {
     color: inherit;
 }
 
-/* Responsive */
+textarea {
+    resize: vertical;
+}
+
+/* Loading and error classes */
+.loading {
+    text-align: center;
+    color: #666;
+    font-style: italic;
+}
+
+body.dark .loading {
+    color: #ccc;
+}
+
+.error {
+    color: #dc3545;
+}
+
+/* Responsive design */
 @media (max-width: 600px) {
     .navbar {
         flex-direction: column;
         gap: 10px;
+        padding: 10px;
     }
     
     .nav-center {
         order: 3;
+        flex-wrap: wrap;
+        justify-content: center;
     }
     
     .container {
         margin: 10px;
         padding: 15px;
     }
+    
+    input, textarea, button {
+        font-size: 18px; /* Better mobile input */
+    }
 }
 
-/* Loading */
-.loading {
-    text-align: center;
-    color: #666;
-}
-
-body.dark .loading {
-    color: #ccc;
+/* Hide/show utilities */
+[style*="display: none"] {
+    display: none !important;
 }

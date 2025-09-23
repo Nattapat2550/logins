@@ -22,30 +22,29 @@
         </div>
     </nav>
     <div class="container">
-        <h1 id="homeTitle">Home</h1>
+        <h1>Home</h1>
         <div id="homeContent">Loading...</div>
     </div>
     <div id="message"></div>
     <script src="js/auth.js"></script>
     <script src="js/ui.js"></script>
     <script>
-        // Protected: Check login
-        if (!localStorage.getItem('token') || !localStorage.getItem('user')) {
-            window.location.href = 'login.html';
-            return;
-        }
+        // Protected route
+        if (!checkAuth()) return;
+
         const user = JSON.parse(localStorage.getItem('user'));
-        document.getElementById('profileImg').src = `${API_BASE.replace('/api', '')}/uploads/${user.profile_pic || 'user.png'}`;
+        const baseUrl = API_BASE.replace('/api', '');
+        document.getElementById('profileImg').src = `${baseUrl}/uploads/${user.profile_pic || 'user.png'}`;
         document.getElementById('profileImg').title = user.username || user.email;
 
         // Load home content
         fetchHomeContent().then(content => {
             document.getElementById('homeContent').innerHTML = `<p>${content}</p>`;
         }).catch(err => {
-            document.getElementById('message').textContent = 'Error loading content';
+            showMessage('Error loading content: ' + err.message, true);
         });
 
-        initUI();  // From ui.js: theme, etc.
+        initUI();
     </script>
 </body>
 </html>

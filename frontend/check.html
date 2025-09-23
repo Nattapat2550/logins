@@ -16,18 +16,24 @@
         <div id="message"></div>
     </div>
     <script src="js/auth.js"></script>
+    <script src="js/ui.js"></script>
     <script>
         document.getElementById('verifyForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = localStorage.getItem('tempEmail');
+            if (!email) {
+                showMessage('No email found. Please register again.', true);
+                return;
+            }
             const code = document.getElementById('code').value;
             const result = await verify(email, code);
+            showMessage(result.message || result.error, !result.success);
             if (result.success) {
+                localStorage.removeItem('tempEmail');
                 window.location.href = 'form.html';
-            } else {
-                document.getElementById('message').textContent = result.error;
             }
         });
+        initUI();
     </script>
 </body>
 </html>

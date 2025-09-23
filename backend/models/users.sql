@@ -1,6 +1,4 @@
--- Run this script once in your Postgres DB (e.g., via psql or Render console)
--- Note: server.js auto-creates if not exists, but this is explicit.
-
+-- Explicit schema for manual setup (server.js auto-creates if missing)
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
@@ -20,10 +18,8 @@ CREATE TABLE IF NOT EXISTS home_content (
     content TEXT DEFAULT 'Welcome to our website!'
 );
 
--- Insert default content if empty
-INSERT INTO home_content (content) 
-SELECT 'Welcome to our website!' 
-WHERE NOT EXISTS (SELECT 1 FROM home_content);
+-- Default content
+INSERT INTO home_content (id, content) VALUES (1, 'Welcome to our website!') 
+ON CONFLICT (id) DO UPDATE SET content = EXCLUDED.content;
 
--- Example: Set an admin (run manually after creating a user)
--- UPDATE users SET role = 'admin' WHERE email = 'admin@example.com';
+-- To create admin: UPDATE users SET role = 'admin' WHERE email = 'admin@example.com';

@@ -12,47 +12,65 @@
         <form id="profileForm">
             <input type="text" id="username" placeholder="Username" required>
             <input type="password" id="password" placeholder="Password" required>
-            <button type="submit">Complete</button>
+            <label><input type="checkbox" id="showPassword"> Show Password</label>
+            <button type="submit">Complete Registration</button>
         </form>
         <div id="message"></div>
     </div>
     <script src="js/auth.js"></script>
+    <script src="js/ui.js"></script>
     <script>
-        // If Google login, auto-fill or skip (check URL params)
+        // Check for Google auto-login (URL params)
         const urlParams = new URLSearchParams(window.location.search);
         const token = urlParams.get('token');
-        const userData = urlParams.get('user');
-        if (token && userData) {
-            localStorage.setItem('token', token);
-            localStorage.setItem('user', userData);
-            // Redirect based on role
-            const user = JSON.parse(userData);
-            if (user.role === 'admin') {
-                window.location.href = 'admin.html';
-            } else {
-                window.location.href = 'home.html';
+        const userStr = urlParams.get('user');
+        if (token && userStr) {
+            try {
+                const user = JSON.parse(decodeURIComponent(userStr));
+                localStorage.setItem('token', token);
+                localStorage.setItem('user', JSON.stringify(user));
+                if (user.role === 'admin') {
+                    window.location.href = 'admin.html';
+                } else {
+                    window.location.href = 'home.html';
+                }
+            } catch (err) {
+                showMessage('Invalid Google login data', true);
             }
             return;
         }
 
+        // Password toggle
+        document.getElementById('showPassword').addEventListener('change', (e) => {
+            const pw = document.getElementById('password');
+            pw.type = e.target.checked ? 'text' : 'password';
+        });
+
+        // Form submit (email complete)
         document.getElementById('profileForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = localStorage.getItem('tempEmail');
+            if (!email) {
+                showMessage('No email found. Please register again.', true);
+                return;
+            }
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             const result = await completeProfile(email, username, password);
+            showMessage(result.message || result.error, !result.success);
             if (result.success) {
                 localStorage.setItem('token', result.token);
                 localStorage.setItem('user', JSON.stringify(result.user));
+                localStorage.removeItem('tempEmail');
                 if (result.user.role === 'admin') {
                     window.location.href = 'admin.html';
                 } else {
                     window.location.href = 'home.html';
                 }
-            } else {
-                document.getElementById('message').textContent = result.error;
             }
         });
+
+        initUI();
     </script>
 </body>
 </html>
