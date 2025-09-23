@@ -3,41 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Complete Profile</title>
+    <title>Complete Profile - MyAuthApp</title>
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
     <div class="container">
-        <h2>Complete Your Profile</h2>
-        <p id="emailDisplay"></p>
+        <h2>Complete Profile</h2>
         <form id="completeForm">
             <input type="text" id="username" placeholder="Username" required>
             <input type="password" id="password" placeholder="Password (min 6 chars)" required>
             <button type="submit" class="btn btn-primary">Complete Registration</button>
         </form>
-        <p id="message"></p>
-        <a href="login.html">Back to Login</a>
+        <div id="message"></div>
     </div>
     <script src="js/auth.js"></script>
+    <script src="js/ui.js"></script>
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const email = urlParams.get('email');
-        if (email) {
-            document.getElementById('emailDisplay').textContent = `Email: ${email}`;
-        }
+        const token = urlParams.get('token');
+        const google = urlParams.get('google') === 'true';
 
-        document.getElementById('completeForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            const response = await completeProfile(email, username, password);
-            showMessage(response.message || response.error, response.success);
-            if (response.success) {
-                localStorage.setItem('token', response.token);
-                localStorage.setItem('user', JSON.stringify(response.user));
-                setTimeout(() => window.location.href = 'home.html', 2000);
-            }
-        });
+        if (google && token) {
+            saveToken(token);
+            document.getElementById('password').parentElement.innerHTML = '<input type="text" id="username" placeholder="Username" required>';  // Only username for Google
+            document.getElementById('completeForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const username = document.getElementById('username').value;
+                const result = await complete(email, username, '', true);  // google=true, no password
+                showMessage(result.message, result.success);
+                if (result.success) {
+                    saveToken(result.token);
+                    const role = result.user.role;
+                    window.location.href = role === 'admin' ? 'admin.html' : 'home.html';
+                }
+            });
+        } else if (!email) {
+            window.location.href = 'register.html';
+        } else {
+            // Email reg: Require password
+            document.getElementById('completeForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                const result = await complete(email, username, password, false);
+                showMessage(result.message, result.success);
+                if (result.success) {
+                    saveToken(result.token);
+                    const role = result.user.role;
+                    window.location.href = role === 'admin' ? 'admin.html' : 'home.html';
+                }
+            });
+        }
     </script>
 </body>
 </html>

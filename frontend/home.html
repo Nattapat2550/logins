@@ -3,91 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home</title>
+    <title>Home - MyAuthApp</title>
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <div class="container">
-        <nav id="navbar">
-            <h2 id="welcomeUser "></h2>
-            <button id="logoutBtn" class="btn btn-secondary">Logout</button>
-        </nav>
-        <div id="homeContent"></div>
-        <form id="editForm" style="display: none;">
-            <textarea id="contentEdit" rows="5" placeholder="Edit home content"></textarea>
-            <button type="submit" class="btn btn-primary">Save Changes</button>
-            <button type="button" id="cancelEdit" class="btn btn-secondary">Cancel</button>
-        </form>
-        <div id="message"></div>
-        <div class="links">
-            <a href="settings.html" class="btn btn-info">Settings</a>
-            <a href="admin.html" id="adminLink" style="display: none;">Admin</a>
+    <nav class="navbar">
+        <div class="nav-left">
+            <h1>MyAuthApp</h1>
             <a href="about.html">About</a>
             <a href="contact.html">Contact</a>
+        </div>
+        <div class="nav-right" id="profileDropdown">
+            <img src="user.png" alt="Profile" id="profilePic" class="profile-pic">
+            <div class="dropdown" id="dropdownMenu">
+                <a href="settings.html">Settings</a>
+                <a href="#" id="logout">Logout</a>
+            </div>
+        </div>
+    </nav>
+    <div class="container">
+        <h2>Welcome, <span id="username"></span>!</h2>
+        <div id="homeContent">
+            <h3 id="homeTitle">Loading...</h3>
+            <p id="homeText">Loading content...</p>
+            <button id="editHomeBtn" class="btn btn-secondary" style="display:none;">Edit Content (Admin Only)</button>
         </div>
     </div>
     <script src="js/auth.js"></script>
     <script src="js/ui.js"></script>
     <script>
-        // Handle Google OAuth redirect (token/user in query params)
-        const urlParams = new URLSearchParams(window.location.search);
-        const tokenFromUrl = urlParams.get('token');
-        const userFromUrl = urlParams.get('user');
-        if (tokenFromUrl && userFromUrl) {
-            localStorage.setItem('token', tokenFromUrl);
-            localStorage.setItem('user', userFromUrl);
-        }
+        // Load user and content on page load
+        async function loadPage() {
+            const token = getToken();
+            if (!token) return window.location.href = 'login.html';
 
-        const token = localStorage.getItem('token');
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
-        if (!token || !user.id) {
-            window.location.href = 'login.html';
-            return;
-        }
-
-        document.getElementById('welcomeUser ').textContent = `Welcome, ${user.username || user.email}!`;
-        if (user.role === 'admin') {
-            document.getElementById('adminLink').style.display = 'inline-block';
-        }
-
-        // Load home content
-        getHomeContent().then(response => {
-            if (response.success) {
-                document.getElementById('homeContent').innerHTML = `<p>${response.content}</p>`;
-                document.getElementById('contentEdit').value = response.content;
+            const profile = await getProfile();
+            if (profile.success) {
+                document.getElementById('username').textContent = profile.user.username;
+                document.getElementById('profilePic').src = profile.user.profile_pic || 'user.png';
+                toggleTheme(profile.user.theme);  // Apply theme
             }
-        });
 
-        // Edit functionality
-        document.getElementById('homeContent').addEventListener('click', () => {
-            if (user.role === 'user' || user.role === 'admin') {
-                document.getElementById('homeContent').style.display = 'none';
-                document.getElementById('editForm').style.display = 'block';
-            } else {
-                showMessage('You need user or admin role to edit', false);
+            const content = await getHomeContent();
+            if (content.success) {
+                document.getElementById('homeTitle').textContent = content.content.title;
+                document.getElementById('homeText').textContent = content.content.content;
+                if (profile.user.role === 'admin') {
+                    document.getElementById('editHomeBtn').style.display = 'block';
+                    document.getElementById('editHomeBtn').onclick = () => window.location.href = 'admin.html';
+                }
             }
-        });
+        }
+        loadPage();
 
-        document.getElementById('editForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const content = document.getElementById('contentEdit').value;
-            const response = await updateHomeContent(content);
-            showMessage(response.message || response.error, response.success);
-            if (response.success) {
-                document.getElementById('homeContent').innerHTML = `<p>${content}</p>`;
-                document.getElementById('homeContent').style.display = 'block';
-                document.getElementById('editForm').style.display = 'none';
-            }
-        });
-
-        document.getElementById('cancelEdit').addEventListener('click', () => {
-            document.getElementById('homeContent').style.display = 'block';
-            document.getElementById('editForm').style.display = 'none';
-        });
-
-        document.getElementById('logoutBtn').addEventListener('click', () => {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
+        // Logout
+        document.getElementById('logout').addEventListener('click', () => {
+            clearToken();
             window.location.href = 'index.html';
         });
     </script>

@@ -3,21 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contact</title>
+    <title>Contact - MyAuthApp</title>
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
+    <nav class="navbar" id="navbar"></nav>  <!-- ui.js will populate if logged in -->
     <div class="container">
-        <h1>Contact Us</h1>
-        <p>For support, email: support@example.com</p>
-        <form>
-            <input type="text" placeholder="Your Name">
-            <input type="email" placeholder="Your Email">
-            <textarea placeholder="Message"></textarea>
-            <button type="submit" class="btn btn-primary">Send</button>
+        <h2>Contact Us</h2>
+        <p>Have questions? Reach out below.</p>
+        <form id="contactForm">
+            <input type="text" placeholder="Your Name" required>
+            <input type="email" placeholder="Your Email" required>
+            <textarea placeholder="Message" rows="5" required></textarea>
+            <button type="submit" class="btn btn-primary">Send Message</button>
         </form>
-        <a href="index.html" class="btn btn-secondary">Home</a>
+        <p>Or email: support@myauthapp.com</p>
+        <div id="message"></div>
     </div>
+    <script src="js/auth.js"></script>
     <script src="js/ui.js"></script>
+    <script>
+        initNavbar();  // Populates navbar if logged in
+
+        // Contact form (logs to console; extend to API/email)
+        document.getElementById('contactForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            console.log('Contact submitted:', Object.fromEntries(formData));  // Simulate send
+            showMessage('Message sent! (Logged to console)', true);
+            e.target.reset();
+        });
+    </script>
 </body>
 </html>

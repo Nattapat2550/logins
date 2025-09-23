@@ -10,14 +10,13 @@ const pool = new Pool({
 async function connect() {
     const client = await pool.connect();
     await client.release();
-    console.log('DB pool ready');
+    console.log('DB ready');
 }
 
 async function query(text, params) {
     const client = await pool.connect();
     try {
-        const res = await client.query(text, params);
-        return res;
+        return await client.query(text, params);
     } finally {
         client.release();
     }
@@ -25,17 +24,12 @@ async function query(text, params) {
 
 async function initTables() {
     try {
-        // Run SQL from models/users.sql
         const sqlPath = path.join(__dirname, 'models', 'users.sql');
-        if (fs.existsSync(sqlPath)) {
-            const sql = fs.readFileSync(sqlPath, 'utf8');
-            await query(sql);
-            console.log('Tables initialized');
-        } else {
-            console.warn('models/users.sql not found - run manual SQL');
-        }
+        const sql = fs.readFileSync(sqlPath, 'utf8');
+        await query(sql);
+        console.log('Tables created');
     } catch (err) {
-        console.log('Tables already exist or init skipped:', err.message);
+        console.log('Tables exist or init skipped:', err.message);
     }
 }
 

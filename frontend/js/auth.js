@@ -1,9 +1,19 @@
-// Backend URL (set in README for Render; local dev: http://localhost:5000)
-const BACKEND_URL = 'https://backendlogins.onrender.com';  // Replace with your Render backend URL after deploy
+const BACKEND_URL = 'https://backendlogins.onrender.com';  // Update to your Render backend URL
 
-// Helper to make authenticated fetch calls
+function getToken() {
+    return localStorage.getItem('token');
+}
+
+function saveToken(token) {
+    localStorage.setItem('token', token);
+}
+
+function clearToken() {
+    localStorage.removeItem('token');
+}
+
 async function apiCall(endpoint, options = {}) {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     const headers = {
         'Content-Type': 'application/json',
         ...options.headers
@@ -18,19 +28,26 @@ async function apiCall(endpoint, options = {}) {
     });
 
     const data = await response.json();
-    data.success = response.ok;
+
+    if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+            clearToken();
+            window.location.href = 'login.html';
+        }
+        throw new Error(data.error || 'API error');
+    }
+
     return data;
 }
 
-// Register: Send verification code
+// Auth functions
 async function register(email) {
     return apiCall('/api/auth/register', {
         method: 'POST',
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email: email.toLowerCase() })
     });
 }
 
-// Verify code
 async function verify(email, code) {
     return apiCall('/api/auth/verify', {
         method: 'POST',
@@ -38,76 +55,78 @@ async function verify(email, code) {
     });
 }
 
-// Complete profile
-async function completeProfile(email, username, password) {
+async function complete(email, username, password, google = false) {
     return apiCall('/api/auth/complete', {
         method: 'POST',
-        body: JSON.stringify({ email, username, password })
+        body: JSON.stringify({ email: email.toLowerCase(), username, password, google })
     });
 }
 
-// Login
 async function login(email, password) {
     return apiCall('/api/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email: email.toLowerCase(), password })
     });
 }
 
-// Forgot password
-async function forgotPassword(email) {
+async function forgot(email) {
     return apiCall('/api/auth/forgot', {
         method: 'POST',
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email: email.toLowerCase() })
     });
 }
 
-// Reset password
-async function resetPassword(token, password) {
+async function reset(token, password) {
     return apiCall('/api/auth/reset', {
         method: 'POST',
         body: JSON.stringify({ token, password })
     });
 }
 
-// Get home content
+// User functions
+async function getProfile() {
+    return apiCall('/api/user/profile');
+}
+
+async function updateProfile(username, theme, file = null) {
+    const formData = new FormData();
+    if (username) formData.append('username', username);
+    if (theme) formData.append('theme', theme);
+    if (file) formData.append('profilePic', file);
+
+    return apiCall('/api/user/profile', {
+        method: 'POST',
+        body: formData
+    });
+}
+
+async function deleteAccount() {
+    return apiCall('/api/user/profile', { method: 'DELETE' });
+}
+
 async function getHomeContent() {
     return apiCall('/api/user/home');
 }
 
-// Update home content
-async function updateHomeContent(content) {
-    return apiCall('/api/user/home', {
-        method: 'POST',
-        body: JSON.stringify({ content })
-    });
-}
-
-// Get settings
-async function getSettings() {
-    return apiCall('/api/user/settings');
-}
-
-// Update settings
-async function updateSettings(username, profilePic) {
-    const updates = {};
-    if (username) updates.username = username;
-    if (profilePic) updates.profilePic = profilePic;
-    return apiCall('/api/user/settings', {
-        method: 'PUT',
-        body: JSON.stringify(updates)
-    });
-}
-
-// Get admin dashboard
-async function getAdminDashboard() {
-    return apiCall('/api/admin/dashboard');
-}
-
-// Get all users (admin)
-async function getAllUsers() {
+// Admin functions
+async function adminGetUsers() {
     return apiCall('/api/admin/users');
 }
 
-// Export all functions for use in HTML scripts
-window.api = { register, verify, completeProfile, login, forgotPassword, resetPassword, getHomeContent, updateHomeContent, getSettings, updateSettings, getAdminDashboard, getAllUsers };
+async function adminEditUser (id, email, username, role, verified) {
+    return apiCall(`/api/admin/users/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ email, username, role, verified })
+    });
+}
+
+async function adminDeleteUser (id) {
+    return apiCall(`/api/admin/users/${id}`, { method: 'DELETE' });
+}
+
+async function adminUpdateHome(title, content) {
+    return apiCall('/api/admin/home', {
+        method: 'PUT',
+        body: JSON.stringify({ title, content })
+    });
+}

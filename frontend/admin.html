@@ -3,65 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Panel</title>
+    <title>Admin - MyAuthApp</title>
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <div class="container">
-        <nav id="navbar">
-            <h2>Admin Dashboard</h2>
-            <button id="logoutBtn" class="btn btn-secondary">Logout</button>
-        </nav>
-        <div id="adminContent">
-            <h3>Recent Users</h3>
-            <ul id="usersList"></ul>
-            <h3>Home Content</h3>
-            <p id="adminHomeContent"></p>
-            <form id="adminEditForm">
-                <textarea id="adminContentEdit" rows="5"></textarea>
-                <button type="submit" class="btn btn-primary">Update Content</button>
-            </form>
+    <nav class="navbar">
+        <div class="nav-left">
+            <h1>MyAuthApp - Admin</h1>
+            <a href="home.html">Home</a>
+            <a href="about.html">About</a>
+            <a href="contact.html">Contact</a>
         </div>
-        <p id="message"></p>
-        <a href="home.html" class="btn btn-info">Back to Home</a>
+        <div class="nav-right" id="profileDropdown">
+            <img src="user.png" alt="Profile" id="profilePic" class="profile-pic">
+            <div class="dropdown" id="dropdownMenu">
+                <a href="settings.html">Settings</a>
+                <a href="#" id="logout">Logout</a>
+            </div>
+        </div>
+    </nav>
+    <div class="container">
+        <h2>Admin Dashboard</h2>
+        
+        <!-- Users Table -->
+        <h3>Manage Users</h3>
+        <table id="usersTable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Email</th>
+                    <th>Username</th>
+                    <th>Role</th>
+                    <th>Verified</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="usersBody"></tbody>
+        </table>
+
+        <!-- Edit Home Content Form -->
+        <h3>Edit Home Content</h3>
+        <form id="homeForm">
+            <input type="text" id="homeTitleInput" placeholder="Title" required>
+            <textarea id="homeContentInput" placeholder="Content" required></textarea>
+            <button type="submit" class="btn btn-primary">Update Home Content</button>
+        </form>
+        <div id="message"></div>
     </div>
     <script src="js/auth.js"></script>
     <script src="js/ui.js"></script>
     <script>
-        const token = localStorage.getItem('token');
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
-        if (!token || user.role !== 'admin') {
-            window.location.href = 'login.html';
-            return;
+        async function loadAdmin() {
+            const token = getToken();
+            if (!token) return window.location.href = 'login.html';
+
+            const profile = await getProfile();
+            if (profile.success) {
+                document.getElementById('profilePic').src = profile.user.profile_pic || 'user.png';
+                toggleTheme(profile.user.theme);
+            } else {
+                window.location.href = 'login.html';  // Not admin or invalid
+            }
+
+            // Load users
+            const users = await adminGetUsers();
+            const tbody = document.getElementById('usersBody');
+            tbody.innerHTML = '';
+            users.users.forEach(user => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${user.id}</td>
+                    <td>${user.email}</td>
+                    <td>${user.username}</td>
+                    <td>${user.role}</td>
+                    <td>${user.verified ? 'Yes' : 'No'}</td>
+                    <td>
+                        <button onclick="editUser (${user.id})" class="btn btn-small">Edit</button>
+                        <button onclick="deleteUser (${user.id})" class="btn btn-danger btn-small">Delete</button>
+                    </td>
+                `;
+            });
+
+            // Load current home content for edit
+            const content = await getHomeContent();
+            if (content.success) {
+                document.getElementById('homeTitleInput').value = content.content.title;
+                document.getElementById('homeContentInput').value = content.content.content;
+            }
+
+            // Home form submit
+            document.getElementById('homeForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const title = document.getElementById('homeTitleInput').value;
+                const content = document.getElementById('homeContentInput').value;
+                const result = await adminUpdateHome(title, content);
+                showMessage(result.message, result.success);
+            });
+        }
+        loadAdmin();
+
+        // Edit user modal (simple alert for now; extend to form)
+        function editUser (id) {
+            const newRole = prompt('New role (user/admin)?');
+            const newVerified = prompt('Verified? (true/false)');
+            if (newRole || newVerified) {
+                adminEditUser (id, '', '', newRole, newVerified === 'true');
+            }
         }
 
-        // Load admin data
-        getAdminDashboard().then(response => {
-            if (response.success) {
-                document.getElementById('adminHomeContent').textContent = response.homeContent;
-                document.getElementById('adminContentEdit').value = response.homeContent;
-                const usersList = document.getElementById('usersList');
-                response.recentUsers.forEach(u => {
-                    const li = document.createElement('li');
-                    li.textContent = `${u.username || u.email} (${u.role}, ${u.verified ? 'Verified' : 'Pending'})`;
-                    usersList.appendChild(li);
-                });
+        // Delete user
+        function deleteUser (id) {
+            if (confirm('Delete user?')) {
+                adminDeleteUser (id);
             }
-        });
+        }
 
-        document.getElementById('adminEditForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const content = document.getElementById('adminContentEdit').value;
-            const response = await updateHomeContent(content);  // Admin can update
-            showMessage(response.message || response.error, response.success);
-            if (response.success) {
-                document.getElementById('adminHomeContent').textContent = content;
-            }
-        });
-
-        document.getElementById('logoutBtn').addEventListener('click', () => {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
+        // Logout
+        document.getElementById('logout').addEventListener('click', () => {
+            clearToken();
             window.location.href = 'index.html';
         });
     </script>

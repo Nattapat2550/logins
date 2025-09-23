@@ -3,39 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verify Code</title>
+    <title>Verify Code - MyAuthApp</title>
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
     <div class="container">
-        <h2>Verify Your Email</h2>
-        <p id="emailDisplay"></p>
+        <h2>Verify Email</h2>
+        <p>Enter 6-digit code sent to your email.</p>
         <form id="verifyForm">
-            <input type="text" id="code" placeholder="Enter 6-digit code" maxlength="6" required>
-            <button type="submit" class="btn btn-primary">Verify Code</button>
+            <input type="text" id="code" placeholder="123456" maxlength="6" required>
+            <button type="submit" class="btn btn-primary">Verify</button>
         </form>
-        <p id="message"></p>
-        <a href="register.html">Back to Register</a>
+        <div id="message"></div>
     </div>
     <script src="js/auth.js"></script>
-    <script src="js/ui.js"></script>
     <script>
-        window.addEventListener('load', () => {
         const urlParams = new URLSearchParams(window.location.search);
         const email = urlParams.get('email');
-        if (email) {
-            document.getElementById('emailDisplay').textContent = `Code sent to: ${email}`;
-        }
+        if (!email) window.location.href = 'register.html';
 
         document.getElementById('verifyForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const code = document.getElementById('code').value;
-            const response = await verify(email, code);
-            showMessage(response.message || response.error, response.success);
-            if (response.success) {
-                setTimeout(() => window.location.href = 'form.html?email=' + encodeURIComponent(email), 2000);
-            }
-        });
+            const result = await verify(email, code);
+            showMessage(result.message, result.success);
+            if (result.success) window.location.href = 'form.html?email=' + encodeURIComponent(email);
         });
     </script>
 </body>

@@ -1,18 +1,17 @@
 const express = require('express');
-const authMiddleware = require('../middlewares/authMiddleware');
-const userController = require('../controllers/userController');
 const router = express.Router();
+const userController = require('../controllers/userController');
+const { authenticateToken } = require('../middlewares/auth');
 
-module.exports = (db, userController) => {
-    // Get home content (auth required)
-    router.get('/home', authMiddleware.verifyToken, userController.getHome.bind(null, db));
+// All routes protected
+router.use(authenticateToken);
 
-    // Update home content (user can edit)
-    router.post('/home', authMiddleware.verifyToken, userController.updateHome.bind(null, db));
+// Profile
+router.get('/profile', userController.getProfile);
+router.post('/profile', userController.upload, userController.updateProfile);
+router.delete('/profile', userController.deleteAccount);
 
-    // Settings (user profile)
-    router.get('/settings', authMiddleware.verifyToken, userController.getSettings.bind(null, db));
-    router.put('/settings', authMiddleware.verifyToken, userController.updateSettings.bind(null, db));
+// Home content (view only for users)
+router.get('/home', userController.getHomeContent);
 
-    return router;
-};
+module.exports = router;

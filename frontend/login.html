@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
+    <title>Login - MyAuthApp</title>
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -11,41 +11,73 @@
         <h2>Login</h2>
         <form id="loginForm">
             <input type="email" id="loginEmail" placeholder="Email" required>
-            <input type="password" id="password" placeholder="Password" required>
+            <div class="password-group">
+                <input type="password" id="password" placeholder="Password" required>
+                <label class="checkbox">
+                    <input type="checkbox" id="hidePassword"> Hide password
+                </label>
+            </div>
             <button type="submit" class="btn btn-primary">Login</button>
         </form>
-        <button id="googleLogin" class="btn btn-secondary">Login with Google</button>
-        <p id="message"></p>
-        <a href="register.html">Not registered? Register</a>
-        <a href="#" id="forgotLink">Forgot Password?</a>
+        <p><a href="#" id="forgotLink">Forgot Password?</a></p>
+        <p>Or</p>
+        <a href="https://backendlogins.onrender.com/api/auth/google" class="btn btn-google">Login with Google</a>
+        <div id="message"></div>
+    </div>
+    <!-- Forgot Modal -->
+    <div id="forgotModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>Forgot Password</h3>
+            <form id="forgotForm">
+                <input type="email" id="forgotEmail" placeholder="Email" required>
+                <button type="submit" class="btn btn-primary">Send Reset Link</button>
+            </form>
+        </div>
     </div>
     <script src="js/auth.js"></script>
+    <script src="js/ui.js"></script>
     <script>
+        // Login form
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('loginEmail').value;
             const password = document.getElementById('password').value;
-            const response = await login(email, password);
-            showMessage(response.message || response.error, response.success);
-            if (response.success) {
-                localStorage.setItem('token', response.token);
-                localStorage.setItem('user', JSON.stringify(response.user));
-                setTimeout(() => window.location.href = 'home.html', 1500);
+            const result = await login(email, password);
+            showMessage(result.message, result.success);
+            if (result.success) {
+                saveToken(result.token);
+                const role = result.user.role;
+                window.location.href = role === 'admin' ? 'admin.html' : 'home.html';
             }
         });
 
-        document.getElementById('googleLogin').addEventListener('click', () => {
-            window.location.href = `${BACKEND_URL}/auth/google`;
+        // Forgot
+        document.getElementById('forgotLink').addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById('forgotModal').style.display = 'block';
+        });
+        document.getElementById('forgotForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('forgotEmail').value;
+            const result = await forgot(email);
+            showMessage(result.message, result.success);
+            document.getElementById('forgotModal').style.display = 'none';
         });
 
-        document.getElementById('forgotLink').addEventListener('click', () => {
-            const email = prompt('Enter your email for reset:');
-            if (email) {
-                forgotPassword(email).then(response => {
-                    showMessage(response.message || response.error, response.success);
-                }).catch(err => showMessage('Error: ' + err.message, false));
-            }
+        // Password hide
+        document.getElementById('hidePassword').addEventListener('change', (e) => {
+            const passInput = document.getElementById('password');
+            passInput.type = e.target.checked ? 'text' : 'password';
         });
+
+        // Handle reset token from email/link
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('reset')) {
+            document.getElementById('forgotModal').style.display = 'block';
+            document.getElementById('forgotEmail').value = '';  // Token handled in auth.js if needed
+            // For simplicity, user enters new pass in modal, but extend for token-based reset
+        }
     </script>
 </body>
 </html>
