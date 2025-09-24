@@ -4,85 +4,72 @@ const multer = require('multer');
 const path = require('path');
 const db = require('../db');
 
-// Multer setup for uploads
+// Multer setup for uploads (local to /uploads)
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, 'uploads/'),
-    filename: (req, file, cb) => cb(null, `user${req.user.id}_${Date.now()}${path.extname(file.originalname)}`)
+    filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
 });
-const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });  // 5MB
+const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });  // 5MB limit
 
-// Middleware to attach multer to routes (export for use in routes)
-exports.upload = upload.single('profilePic');
-
-// Get user profile
+// GET Profile
 exports.getProfile = async (req, res) => {
     try {
-        const userRes = await db.query('SELECT id, email, username, profile_pic, theme, role FROM users WHERE id = $1', [req.user.id]);
-        const user = userRes.rows[0];
-        res.json({ success: true, user });
+        const result = await db.query('SELECT id, email, username, theme, role, profile_pic FROM users WHERE id = $1', [req.user.id]);
+        if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'User  not found' });
+
+        res.json({ success: true, user: result.rows[0] });
     } catch (err) {
-        console.error('Profile error:', err);
-        res.status(500).json({ error: 'Profile fetch failed', success: false });
+        console.error('Get profile error:', err);
+        res.status(500).json({ success: false, error: 'Profile fetch failed' });
     }
 };
 
-// Update profile (name, pic, theme)
+// PUT Update Profile (Username, Theme)
 exports.updateProfile = async (req, res) => {
+    const { username, theme } = req.body;
+    if (!username) return res.status(400).json({ success: false, error: 'Username required' });
+
     try {
-        const { username, theme } = req.body;
-        let profilePic = req.file ? `/uploads/${req.file.filename}` : null;
+        await db.query(
+            'UPDATE users SET username = $1, theme = $2 WHERE id = $3',
+            [username, theme || 'light', req.user.id]
+        );
+        console.log(`✅ Profile updated for user ${req.user.id}`);
 
-        // Update DB
-        let query = 'UPDATE users SET ';
-        const params = [];
-        let idx = 1;
-
-        if (username) {
-            query += `username = $${idx}, `;
-            params.push(username);
-            idx++;
-        }
-        if (theme) {
-            query += `theme = $${idx}, `;
-            params.push(theme);
-            idx++;
-        }
-        if (profilePic) {
-            query += `profile_pic = $${idx}, `;
-            params.push(profilePic);
-            idx++;
-        }
-
-        query = query.slice(0, -2) + ` WHERE id = $${idx} RETURNING id, username, profile_pic, theme`;
-        params.push(req.user.id);
-
-        const result = await db.query(query, params);
-        res.json({ message: 'Profile updated', success: true, user: result.rows[0] });
+        res.json({ success: true, message: 'Profile updated' });
     } catch (err) {
-        console.error('Update error:', err);
-        if (err.code === '23505') res.status(400).json({ error: 'Username taken', success: false });
-        else res.status(500).json({ error: 'Update failed', success: false });
+        console.error('Update profile error:', err);
+        res.status(500).json({ success: false, error: 'Update failed' });
     }
 };
 
-// Delete account
-exports.deleteAccount = async (req, res) => {
-    try {
-        await db.query('DELETE FROM users WHERE id = $1', [req.user.id]);
-        res.json({ message: 'Account deleted', success: true });
-    } catch (err) {
-        console.error('Delete error:', err);
-        res.status(500).json({ error: 'Delete failed', success: false });
-    }
+// POST Upload Profile Pic (Multer Middleware)
+exports.uploadProfilePic = (req, res) => {
+    upload.single('profilePic')(req, res, async (err) => {
+        if (err) return res.status(400).json({ success: false, error: 'Upload failed' });
+
+        if (!req.file) return res.status(400).json({ success: false, error: 'No file uploaded' });
+
+        const profilePic = req.file.filename;
+        try {
+            await db.query('UPDATE users SET profile_pic = $1 WHERE id = $2', [profilePic, req.user.id]);
+            console.log(`✅ Profile pic uploaded for user ${req.user.id}: ${profilePic}`);
+
+            res.json({ success: true, message: 'Profile pic updated', profilePic: `/uploads/${profilePic}` });
+        } catch (err) {
+            console.error('Upload error:', err);
+            res.status(500).json({ success: false, error: 'Upload failed' });
+        }
+    });
 };
 
-// Get home content
-exports.getHomeContent = async (req, res) => {
+// GET List Users (Admin Only)
+exports.listUsers = async (req, res) => {
     try {
-        const contentRes = await db.query('SELECT * FROM home_content ORDER BY updated_at DESC LIMIT 1');
-        res.json({ success: true, content: contentRes.rows[0] || { title: 'Welcome', content: 'No content yet' } });
+        const result = await db.query('SELECT id, email, username, verified, role, created_at FROM users ORDER BY created_at DESC');
+        res.json({ success: true, users: result.rows });
     } catch (err) {
-        console.error('Home content error:', err);
-        res.status(500).json({ error: 'Content fetch failed', success: false });
+        console.error('List users error:', err);
+        res.status(500).json({ success: false, error: 'List failed' });
     }
 };

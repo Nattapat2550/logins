@@ -1,19 +1,25 @@
 const express = require('express');
-const router = express.Router();
+const passport = require('passport');
 const authController = require('../controllers/authController');
-const { authenticateToken } = require('../middlewares/auth');
+const router = express.Router();
 
-// Public routes
+// POST /api/auth/register - Send verification code
 router.post('/register', authController.register);
-router.post('/verify', authController.verify);
-router.post('/complete', authController.complete);
-router.post('/login', authController.login);
-router.post('/forgot', authController.forgot);
-router.post('/reset', authController.reset);
 
-// Protected: Validate token (for frontend checks)
-router.get('/me', authenticateToken, (req, res) => {
-    res.json({ success: true, user: req.user });
-});
+// POST /api/auth/verify - Verify code
+router.post('/verify', authController.verify);
+
+// POST /api/auth/login - Login with email/password
+router.post('/login', authController.login);
+
+// POST /api/auth/forgot - Send reset link
+router.post('/forgot', authController.forgotPassword);
+
+// POST /api/auth/reset - Reset password with token
+router.post('/reset', authController.resetPassword);
+
+// Google OAuth
+router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+router.get('/google/callback', passport.authenticate('google', { failureRedirect: '/api/auth/login?error=google' }), authController.googleCallback);
 
 module.exports = router;

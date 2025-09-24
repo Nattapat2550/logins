@@ -3,39 +3,34 @@ CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
     username VARCHAR(100) UNIQUE NOT NULL,
-    password VARCHAR(255),
-    profile_pic VARCHAR(255) DEFAULT 'user.png',
-    theme VARCHAR(20) DEFAULT 'light',
+    password VARCHAR(255) NOT NULL,
     verified BOOLEAN DEFAULT FALSE,
+    theme VARCHAR(20) DEFAULT 'light',
     role VARCHAR(20) DEFAULT 'user',
-    reset_token VARCHAR(255),
-    reset_expires TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    google_id VARCHAR(255)  -- For Google users (no password)
+    profile_pic VARCHAR(255) DEFAULT 'default.png',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Temp verifications
+-- Temp verifications (codes, 10min expiry)
 CREATE TABLE IF NOT EXISTS temp_verifications (
-    id SERIAL PRIMARY KEY,
-    email VARCHAR(255) UNIQUE NOT NULL,
+    email VARCHAR(255) PRIMARY KEY,
     code VARCHAR(6) NOT NULL,
     expires_at TIMESTAMP NOT NULL
 );
 
--- Home content (global, admin-editable)
-CREATE TABLE IF NOT EXISTS home_content (
+-- Reset tokens (1hr expiry)
+CREATE TABLE IF NOT EXISTS reset_tokens (
     id SERIAL PRIMARY KEY,
-    title VARCHAR(255) DEFAULT 'Welcome to MyAuthApp',
-    content TEXT DEFAULT 'This is the home page content. Admins can edit this.',
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    email VARCHAR(255) NOT NULL,
+    token VARCHAR(255) NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    used BOOLEAN DEFAULT FALSE
 );
-
--- Insert default home content if empty
-INSERT INTO home_content (title, content) 
-SELECT 'Welcome to MyAuthApp', 'This is the home page content. Admins can edit this.'
-WHERE NOT EXISTS (SELECT 1 FROM home_content);
 
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_temp_email ON temp_verifications(email);
-CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_reset_email ON reset_tokens(email);
+
+-- Cleanup example (run for testing)
+-- DELETE FROM temp_verifications; DELETE FROM reset_tokens; DELETE FROM users WHERE email='nyansungvon@gmail.com';

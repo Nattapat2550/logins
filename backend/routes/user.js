@@ -1,17 +1,15 @@
 const express = require('express');
-const router = express.Router();
 const userController = require('../controllers/userController');
-const { authenticateToken } = require('../middlewares/auth');
+const authMiddleware = require('../middlewares/authMiddleware');
+const router = express.Router();
 
-// All routes protected
-router.use(authenticateToken);
+// GET /api/user/profile - Fetch user profile (protected)
+router.get('/profile', authMiddleware, userController.getProfile);
 
-// Profile
-router.get('/profile', userController.getProfile);
-router.post('/profile', userController.upload, userController.updateProfile);
-router.delete('/profile', userController.deleteAccount);
+// PUT /api/user/update - Update username/theme/profile_pic (protected)
+router.put('/update', authMiddleware, userController.updateProfile);
 
-// Home content (view only for users)
-router.get('/home', userController.getHomeContent);
+// POST /api/user/upload - Upload profile pic (protected, multer)
+router.post('/upload', authMiddleware, userController.uploadProfilePic);
 
 module.exports = router;
