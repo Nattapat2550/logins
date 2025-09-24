@@ -9,31 +9,153 @@
 <body>
     <div class="container">
         <h2>Verify Email</h2>
-        <p>Enter 6-digit code sent to your email.</p>
+        <p>Enter 6-digit code sent to your email. Expires in <span id="expiryTimer">10:00</span></p>
         <form id="verifyForm">
-            <input type="text" id="code" placeholder="123456" maxlength="6" required>
-            <button type="submit" class="btn btn-primary">Verify</button>
+            <input type="text" id="code" placeholder="123456" maxlength="6" required autofocus>
+            <button type="submit" id="submitBtn" class="btn btn-primary">Verify</button>
         </form>
+        <button id="resendBtn" class="btn btn-secondary" style="margin-top: 10px;">Resend Code</button>
         <div id="message"></div>
+        <div id="loading" style="display: none; text-align: center; margin-top: 10px;">
+            <p>Verifying...</p>
+            <div class="spinner"></div>
+        </div>
     </div>
     <script src="js/auth.js"></script>
-    <script src="js/ui.js"></script>  <!-- ADDED: For showMessage -->
+    <script src="js/ui.js"></script>
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const email = urlParams.get('email');
-        if (!email) window.location.href = 'register.html';
+        if (!email) {
+            showMessage('No email provided - start over', false);
+            setTimeout(() => window.location.href = 'register.html', 2000);
+            return;
+        }
 
-        document.getElementById('verifyForm').addEventListener('submit', async (e) => {
+        // Expiry Timer (10min from now - approximate; real expiry in backend)
+        let timeLeft = 10 * 60;  // 10 minutes in seconds
+        const timerEl = document.getElementById('expiryTimer');
+        const timerInterval = setInterval(() => {
+            timeLeft--;
+            const mins = Math.floor(timeLeft / 60);
+            const secs = timeLeft % 60;
+            timerEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                timerEl.textContent = 'Expired';
+                showMessage('Code expired - resend for new one', false);
+                document.getElementById('resendBtn').style.display = 'block';
+            }
+        }, 1000);
+
+        const submitBtn = document.getElementById('submitBtn');
+        const loadingDiv = document.getElementById('loading');
+        const verifyForm = document.getElementById('verifyForm');
+        const resendBtn = document.getElementById('resendBtn');
+        const codeInput = document.getElementById('code');
+
+        // Verify Form
+        verifyForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const code = document.getElementById('code').value;
+            const code = codeInput.value.trim().replace(/\s/g, '');  // Clean spaces
+            if (code.length !== 6 || !/^\d{6}$/.test(code)) {
+                showMessage('Enter 6-digit code', false);
+                return;
+            }
+
+            // Show loading
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Verifying...';
+            loadingDiv.style.display = 'block';
+            const messageDiv = document.getElementById('message');
+            messageDiv.innerHTML = '';
+
             try {
                 const result = await verify(email, code);
-                showMessage(result.message, result.success);  // Now defined
-                if (result.success) window.location.href = 'form.html?email=' + encodeURIComponent(email);
+                loadingDiv.style.display = 'none';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Verify';
+                showMessage(result.message, result.success);
+                clearInterval(timerInterval);  // Stop timer on success
+                if (result.success) {
+                    setTimeout(() => {
+                        window.location.href = 'form.html?email=' + encodeURIComponent(email);
+                    }, 1000);
+                }
             } catch (err) {
-                showMessage(err.message, false);
+                loadingDiv.style.display = 'none';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Verify';
+                let errorMsg = err.message || 'Verification failed';
+                
+                // FIXED: Better messages for common errors
+                if (errorMsg.includes('Invalid') || errorMsg.includes('expired')) {
+                    errorMsg = 'Invalid or expired code. Check email or resend below.';
+                    resendBtn.style.display = 'block';
+                } else if (errorMsg.includes('No active')) {
+                    errorMsg = 'No verification started - resend or register again.';
+                }
+                showMessage(errorMsg, false);
+                codeInput.value = '';  // Clear input
+                codeInput.focus();
             }
         });
+
+        // Resend Button (re-calls register for new code)
+        resendBtn.addEventListener('click', async () => {
+            resendBtn.disabled = true;
+            resendBtn.textContent = 'Resending...';
+            loadingDiv.style.display = 'block';
+            loadingDiv.querySelector('p').textContent = 'Resending code...';
+
+            try {
+                const result = await register(email);  // Re-register → New code in email/DB
+                loadingDiv.style.display = 'none';
+                resendBtn.disabled = false;
+                resendBtn.textContent = 'Resend Code';
+                showMessage(result.message, result.success);
+                if (result.success) {
+                    // Reset timer
+                    timeLeft = 10 * 60;
+                    clearInterval(timerInterval);
+                    // Restart timer interval (defined above)
+                }
+            } catch (err) {
+                loadingDiv.style.display = 'none';
+                resendBtn.disabled = false;
+                resendBtn.textContent = 'Resend Code';
+                showMessage(err.message || 'Resend failed', false);
+            }
+        });
+
+        // Initial hide resend (show only on error)
+        resendBtn.style.display = 'none';
+        codeInput.focus();  // Auto-focus on load
     </script>
+    <style>
+        /* Simple CSS Spinner (consistent) */
+        .spinner {
+            border: 4px solid var(--border-color);
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 10px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .btn-secondary {
+            background: var(--secondary-color);
+            color: white;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .btn-secondary:hover { opacity: 0.8; }
+    </style>
 </body>
 </html>

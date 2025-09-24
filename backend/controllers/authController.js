@@ -50,17 +50,36 @@ exports.verify = async (req, res) => {
 
     try {
         const now = new Date();
+        const lowerEmail = email.toLowerCase();
+        console.log(`Verify attempt: email=${lowerEmail}, input_code=${code}, now=${now}`);  // DEBUG: Log input
+
         const result = await pool.query(
-            'SELECT * FROM temp_verifications WHERE email = $1 AND code = $2 AND expires_at > $3',
-            [email.toLowerCase(), code, now]
+            'SELECT code, expires_at FROM temp_verifications WHERE email = $1 AND expires_at > $2',
+            [lowerEmail, now]
         );
 
         if (result.rows.length === 0) {
-            return res.status(400).json({ success: false, error: 'Invalid or expired code' });
+            console.log(`Verify failed: No temp record for ${lowerEmail} or expired`);  // DEBUG
+            return res.status(400).json({ success: false, error: 'No active verification - register again' });
         }
 
-        // FIXED: Delete temp record only on successful verify (enables complete to proceed)
-        await pool.query('DELETE FROM temp_verifications WHERE email = $1', [email.toLowerCase()]);
+        const dbCode = result.rows[0].code;
+        const dbExpires = result.rows[0].expires_at;
+        console.log(`DB code=${dbCode}, expires=${dbExpires}, match=${dbCode === code}`);  // DEBUG: Compare
+
+        if (dbCode !== code) {
+            console.log(`Verify failed: Code mismatch (input: ${code}, DB: ${dbCode})`);  // DEBUG
+            return res.status(400).json({ success: false, error: 'Invalid code' });
+        }
+
+        if (dbExpires <= now) {
+            console.log(`Verify failed: Expired for ${lowerEmail}`);  // DEBUG
+            return res.status(400).json({ success: false, error: 'Code expired' });
+        }
+
+        // Success: Delete temp record
+        await pool.query('DELETE FROM temp_verifications WHERE email = $1', [lowerEmail]);
+        console.log(`Verify success: Deleted temp for ${lowerEmail}`);  // DEBUG
 
         res.json({ success: true, message: 'Email verified' });
     } catch (err) {
