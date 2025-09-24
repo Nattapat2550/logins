@@ -58,12 +58,11 @@ function createTransporter() {
 async function sendVerification(email, code) {
     const transporter = createTransporter();
     if (!transporter) {
-        console.warn('No transporter - skipping email. Manual code:', code);
-        return { success: false, message: `Manual code: ${code} (email failed)` };
+        console.warn('No transporter - email skipped for', email);
+        return { success: false, message: 'SMTP unavailable' };  // FIXED: No code exposed
     }
-
     try {
-        console.log('Attempting to send verification to:', email, 'code:', code);
+        console.log('Attempting to send verification to:', email, 'code:', code);  // Log code here only
         const mailOptions = {
             from: `"Auth App" <${process.env.SMTP_USER}>`,
             to: email,
@@ -75,15 +74,15 @@ async function sendVerification(email, code) {
                 <p>Expires in 10 minutes. If not requested, ignore.</p>
             `
         };
-
         const info = await transporter.sendMail(mailOptions);
         console.log('Verification email sent successfully to:', email, 'ID:', info.messageId);
         return { success: true, message: 'Email sent' };
     } catch (error) {
-        console.error('Send verification failed:', error.message);
-        return { success: false, message: `Email failed: ${error.message}. Manual code: ${code}` };
+        console.error('Send verification failed for', email, ':', error.message);
+        return { success: false, message: 'Send failed' };  // FIXED: Generic, no code
     }
 }
+
 
 async function sendReset(email, token) {
     const transporter = createTransporter();

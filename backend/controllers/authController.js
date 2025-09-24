@@ -18,6 +18,7 @@ exports.register = async (req, res) => {
         // Generate code
         const code = Math.floor(100000 + Math.random() * 900000).toString();
         const expires = new Date(Date.now() + 10 * 60 * 1000);  // 10 min
+        console.log(`Generated code ${code} for ${email}, expires ${expires}`);  // DEBUG: Log code server-side only
 
         // Save temp verification
         await pool.query(
@@ -25,18 +26,30 @@ exports.register = async (req, res) => {
             [email.toLowerCase(), code, expires]
         );
 
-        // Send email (with fallback)
-        let emailResult;
+        // Attempt email send (but don't expose code on failure)
+        let emailSent = true;
         try {
-            emailResult = await sendVerification(email, code);
+            const emailResult = await sendVerification(email, code);
+            if (!emailResult.success) {
+                console.error('Email send failed for', email, ':', emailResult.message);  // Log failure
+                emailSent = false;
+            } else {
+                console.log('Email sent successfully to', email);
+            }
         } catch (emailErr) {
-            console.error('Email error:', emailErr.message);
-            emailResult = { success: false, message: `Manual code: ${code} (email failed)` };
+            console.error('Email error for', email, ':', emailErr.message);
+            emailSent = false;
         }
 
+        // FIXED: Always return generic success - no code exposed
+        // User must check email; retry if not received
+        const message = emailSent 
+            ? 'Code sent to email - check inbox/spam' 
+            : 'Code sent to email (possible delay - check spam or retry)';
+        
         res.json({
             success: true,
-            message: emailResult.success ? 'Code sent to email' : emailResult.message
+            message
         });
     } catch (err) {
         console.error('Register error:', err);
