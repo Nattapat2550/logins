@@ -1,34 +1,39 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
-const { sendVerification, sendReset } = require('../utils/mailer');
 const db = require('../db');
-const { generateCode, generateToken } = require('../utils/tokenGenerator');  // Optional: Use helpers
+const { sendCode } = require('../utils/mailer');  // NEW: Import sendCode (fixes ReferenceError)
+const { generateCode, generateToken } = require('../utils/tokenGenerator');  // Optional helpers
 
-// Helper: Generate JWT (or use tokenGenerator)
+// Helper: Generate JWT
 const createJWT = (user) => jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '24h' });
 
-// Register
+// Register (Updated with Your Logic: sendCode Integration)
 exports.register = async (req, res) => {
     const { email } = req.body;
     if (!email || !email.includes('@')) return res.status(400).json({ success: false, error: 'Valid email required' });
+
     try {
         const lowerEmail = email.toLowerCase();
         const userCheck = await db.query('SELECT id FROM users WHERE email = $1', [lowerEmail]);
         if (userCheck.rows.length > 0) return res.status(400).json({ success: false, error: 'Email already registered' });
-        // Your exact code generation
+
+        // Your exact code generation (6-digit random)
         const code = Math.floor(100000 + Math.random() * 900000).toString();
         const expires = new Date(Date.now() + 10 * 60 * 1000);
         console.log(`Generated code ${code} for ${lowerEmail}`);
+
         // Save to DB
         await db.query(
             'INSERT INTO temp_verifications (email, code, expires_at) VALUES ($1, $2, $3) ON CONFLICT (email) DO UPDATE SET code = $2, expires_at = $3',
             [lowerEmail, code, expires]
         );
-        // Send using new sendCode (your mailOptions)
-        const emailResult = await sendCode(lowerEmail, code);  // From mailer.js
+
+        // Send email using sendCode (from mailer.js - your adapted logic)
+        const emailResult = await sendCode(lowerEmail, code);
         const message = emailResult.success ? 'Code sent to email - check inbox/spam' : 'Code sent (check spam or retry)';
         console.log(emailResult.success ? '✅ Register email sent' : '⚠️ Register email failed');
+
         res.json({ success: true, message });
     } catch (err) {
         console.error('Register error:', err);
@@ -36,7 +41,7 @@ exports.register = async (req, res) => {
     }
 };
 
-// Verify
+// Verify (Unchanged)
 exports.verify = async (req, res) => {
     const { email, code } = req.body;
     if (!email || !code) return res.status(400).json({ success: false, error: 'Email and code required' });
@@ -62,7 +67,7 @@ exports.verify = async (req, res) => {
     }
 };
 
-// Login
+// Login (Unchanged)
 exports.login = async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ success: false, error: 'Email and password required' });
@@ -94,7 +99,7 @@ exports.login = async (req, res) => {
     }
 };
 
-// Forgot Password
+// Forgot Password (Updated to Use sendReset - Consistent)
 exports.forgotPassword = async (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ success: false, error: 'Email required' });
@@ -104,12 +109,13 @@ exports.forgotPassword = async (req, res) => {
         const userCheck = await db.query('SELECT id FROM users WHERE email = $1', [lowerEmail]);
         if (userCheck.rows.length === 0) return res.status(400).json({ success: false, error: 'Email not registered' });
 
-        const token = generateToken();  // From tokenGenerator (UUID)
+        const token = generateToken();  // UUID from tokenGenerator
         const expires = new Date(Date.now() + 60 * 60 * 1000);
 
         await db.query('DELETE FROM reset_tokens WHERE email = $1', [lowerEmail]);  // Clear old
         await db.query('INSERT INTO reset_tokens (email, token, expires_at) VALUES ($1, $2, $3)', [lowerEmail, token, expires]);
 
+        const { sendReset } = require('../utils/mailer');  // Import here if not at top
         const emailResult = await sendReset(lowerEmail, token);
         const message = emailResult.success ? 'Reset link sent to email' : 'Reset link sent (check spam)';
         console.log(emailResult.success ? '✅ Forgot email sent' : '⚠️ Forgot email failed');
@@ -121,7 +127,7 @@ exports.forgotPassword = async (req, res) => {
     }
 };
 
-// Reset Password (Completed from Truncation)
+// Reset Password (Unchanged)
 exports.resetPassword = async (req, res) => {
     const { email, token, newPassword } = req.body;
     if (!email || !token || !newPassword || newPassword.length < 6) return res.status(400).json({ success: false, error: 'Valid inputs required' });
@@ -134,7 +140,7 @@ exports.resetPassword = async (req, res) => {
         if (result.rows.length === 0) return res.status(400).json({ success: false, error: 'Invalid or expired token' });
 
         const hashedPassword = await bcrypt.hash(newPassword, 10);
-        await db.query('UPDATE users SET password = $1 WHERE email = $2', [hashedPassword, lowerEmail]);  // Completed query
+        await db.query('UPDATE users SET password = $1 WHERE email = $2', [hashedPassword, lowerEmail]);
 
         await db.query('UPDATE reset_tokens SET used = true WHERE email = $1 AND token = $2', [lowerEmail, token]);
         console.log(`✅ Password reset success for ${lowerEmail}`);
@@ -146,7 +152,7 @@ exports.resetPassword = async (req, res) => {
     }
 };
 
-// Google Callback
+// Google Callback (Unchanged)
 exports.googleCallback = (req, res) => {
     if (req.user) {
         const token = createJWT(req.user);
@@ -159,7 +165,7 @@ exports.googleCallback = (req, res) => {
     }
 };
 
-// Optional: Complete Registration (After Verify + Form)
+// Complete Registration (Optional - Unchanged)
 exports.completeRegistration = async (req, res) => {
     const { email, username, password } = req.body;
     if (!email || !username || !password || password.length < 6) return res.status(400).json({ success: false, error: 'Valid inputs required' });
