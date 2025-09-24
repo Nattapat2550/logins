@@ -69,7 +69,7 @@ app.use('/uploads', express.static('uploads'));
 // Health Check
 app.get('/', (req, res) => res.send('Backend is running!'));
 
-// Routes
+// Routes (Mount after middleware)
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/admin', adminRoutes);
@@ -80,8 +80,10 @@ app.use((err, req, res, next) => {
     res.status(500).json({ success: false, error: 'Internal server error' });
 });
 
-// 404 Handler
-app.use('*', (req, res) => res.status(404).json({ success: false, error: 'Route not found' }));
+// 404 Handler (FIXED: Pathless middleware instead of app.use('*', ...) to avoid path-to-regexp error)
+app.use((req, res) => {
+    res.status(404).json({ success: false, error: 'Route not found' });
+});
 
 // Start Server
 app.listen(PORT, () => {
