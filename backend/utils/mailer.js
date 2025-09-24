@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const db = require('../db');  // For DB expiry helper if needed
 require('dotenv').config();
 
 let transporter = null;
@@ -11,15 +12,15 @@ const createTransporter = () => {
         return null;
     }
 
-    // Safety Check: Verify Nodemailer API (logs version for debug)
-    if (typeof nodemailer.createTransporter !== 'function') {
-        console.error('❌ Nodemailer API error: createTransporter not available. Version:', require('nodemailer/package.json').version);
+    // Safety Check: Verify Nodemailer API
+    if (typeof nodemailer.createTransport !== 'function') {
+        console.error('❌ Nodemailer API error: createTransport not available. Version:', require('nodemailer/package.json').version);
         console.error('Fix: Run "npm i nodemailer@latest" and redeploy.');
         return null;
     }
 
-    const port = parseInt(process.env.SMTP_PORT) || 587;
-    const secure = port === 465;
+    const port = parseInt(process.env.SMTP_PORT) || 465;  // Default to 465 (SSL) from your code
+    const secure = port === 465;  // true for SSL
 
     const config = {
         host: process.env.SMTP_HOST || 'smtp.gmail.com',
@@ -35,7 +36,7 @@ const createTransporter = () => {
     };
 
     try {
-        transporter = nodemailer.createTransporter(config);
+        transporter = nodemailer.createTransport(config);  // Correct API: createTransport
         console.log(`✅ Transporter created (port ${port}, ${secure ? 'SSL' : 'STARTTLS'}) - Nodemailer v${require('nodemailer/package.json').version}`);
 
         if (process.env.SKIP_VERIFY !== 'true') {
@@ -52,47 +53,47 @@ const createTransporter = () => {
     return transporter;
 };
 
-const sendVerification = async (email, code) => {
+// Reusable: Send verification code (adapted from your mailOptions)
+const sendCode = async (email, code) => {
     const t = createTransporter();
     if (!t) {
-        console.warn('No transporter - verification skipped for', email);
+        console.warn('No transporter - code email skipped for', email);
         return { success: false, message: 'SMTP unavailable' };
     }
 
     try {
-        console.log(`Attempting SMTP verification to: ${email}, code: ${code}`);
+        console.log(`Attempting SMTP code to: ${email}, code: ${code}`);
         const mailOptions = {
-            from: `"Auth App" <${process.env.SMTP_USER}>`,
+            from: `"Auth App" <${process.env.SMTP_USER}>`,  // From env
             to: email,
             subject: 'Your Verification Code',
-            text: `Your code is: ${code}. Expires in 10 minutes.`,
+            text: `Your verification code is: ${code}`,  // Plain text from your code
             html: `
                 <h2>Verify Your Email</h2>
                 <p>Your code: <strong style="color: blue; font-size: 24px;">${code}</strong></p>
                 <p>Expires in 10 minutes. If not requested, ignore.</p>
-            `
+            `  // Enhanced HTML for better UX
         };
 
         const info = await t.sendMail(mailOptions);
-        console.log('✅ SMTP verification sent:', info.messageId, 'to:', email);
-        return { success: true, message: 'Email sent' };
+        console.log('✅ SMTP code sent:', info.messageId, 'to:', email);
+        return { success: true, message: 'Code sent successfully' };
     } catch (error) {
-        console.error('❌ SMTP verification failed for', email, ':', error.message);
+        console.error('❌ SMTP code failed for', email, ':', error.message);
         if (error.code === 'ETIMEDOUT') {
             console.error('Timeout details:', { command: error.command, code: error.code });
         } else if (error.code === 'EAUTH') {
             console.error('Auth failed - check App Password');
         }
-        return { success: false, message: 'Send failed' };
+        return { success: false, message: 'Failed to send email' };
     }
 };
 
+// Existing functions (for full auth flow)
+const sendVerification = sendCode;  // Alias for backward compatibility
 const sendReset = async (email, token) => {
     const t = createTransporter();
-    if (!t) {
-        console.warn('No transporter - reset skipped for', email);
-        return { success: false, message: 'SMTP unavailable' };
-    }
+    if (!t) return { success: false, message: 'SMTP unavailable' };
 
     try {
         console.log('Attempting SMTP reset to:', email);
@@ -119,4 +120,4 @@ const sendReset = async (email, token) => {
     }
 };
 
-module.exports = { sendVerification, sendReset };
+module.exports = { sendCode, sendVerification, sendReset };

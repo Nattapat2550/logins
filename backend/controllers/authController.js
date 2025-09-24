@@ -12,25 +12,23 @@ const createJWT = (user) => jwt.sign({ id: user.id }, process.env.JWT_SECRET, { 
 exports.register = async (req, res) => {
     const { email } = req.body;
     if (!email || !email.includes('@')) return res.status(400).json({ success: false, error: 'Valid email required' });
-
     try {
         const lowerEmail = email.toLowerCase();
         const userCheck = await db.query('SELECT id FROM users WHERE email = $1', [lowerEmail]);
         if (userCheck.rows.length > 0) return res.status(400).json({ success: false, error: 'Email already registered' });
-
-        const code = generateCode();  // From tokenGenerator
+        // Your exact code generation
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
         const expires = new Date(Date.now() + 10 * 60 * 1000);
         console.log(`Generated code ${code} for ${lowerEmail}`);
-
+        // Save to DB
         await db.query(
             'INSERT INTO temp_verifications (email, code, expires_at) VALUES ($1, $2, $3) ON CONFLICT (email) DO UPDATE SET code = $2, expires_at = $3',
             [lowerEmail, code, expires]
         );
-
-        const emailResult = await sendVerification(lowerEmail, code);
+        // Send using new sendCode (your mailOptions)
+        const emailResult = await sendCode(lowerEmail, code);  // From mailer.js
         const message = emailResult.success ? 'Code sent to email - check inbox/spam' : 'Code sent (check spam or retry)';
         console.log(emailResult.success ? '✅ Register email sent' : '⚠️ Register email failed');
-
         res.json({ success: true, message });
     } catch (err) {
         console.error('Register error:', err);
