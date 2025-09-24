@@ -1,119 +1,73 @@
-const nodemailer = require('nodemailer');
-require('dotenv').config();  // For local; Render uses dashboard env
+const nodemailer = require("nodemailer");
 
-let transporter = null;
+// สร้าง transporter (รองรับทั้ง 465 และ 587)
+async function createTransporter() {
+  const port = parseInt(process.env.SMTP_PORT || "587");
+  const secure = port === 465; // 465 = SSL, 587 = STARTTLS
 
-function createTransporter() {
-    if (!transporter) {
-        if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-            console.error('SMTP_USER or SMTP_PASS missing - emails disabled');
-            return null;
-        }
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST || "smtp.gmail.com",
+    port,
+    secure,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+    tls: {
+      rejectUnauthorized: false, // ป้องกัน cert error บน Render
+    },
+  });
 
-        // FIXED: Default to port 587 + STARTTLS (reliable on Render/cloud hosts)
-        // Gmail recommends 587 for apps; avoids direct SSL timeouts on port 465
-        const config = {
-            host: process.env.SMTP_HOST || 'smtp.gmail.com',
-            port: parseInt(process.env.SMTP_PORT) || 587,  // FIXED: 587 (STARTTLS)
-            secure: false,  // FIXED: false for 587 (STARTTLS upgrades to TLS)
-            auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS
-            },
-            // FIXED: TLS options for Render (tolerates cert issues during upgrade)
-            tls: {
-                rejectUnauthorized: false  // Allows self-signed/proxy certs on cloud
-            },
-            // FIXED: Increased timeouts for Render latency (30s connection, 20s socket/greeting)
-            connectionTimeout: 30000,  // 30s (was 10s)
-            greetingTimeout: 20000,    // 20s
-            socketTimeout: 20000       // 20s
-        };
+  // verify การเชื่อมต่อ (แค่ log ไม่ทำให้โปรแกรมหยุด)
+  try {
+    await transporter.verify();
+    console.log(`✅ SMTP ready on ${process.env.SMTP_HOST}:${port} (secure=${secure})`);
+  } catch (err) {
+    console.error("❌ SMTP verify failed:", err.message);
+  }
 
-        try {
-            transporter = nodemailer.createTransporter(config);
-            console.log('Transporter created (port 587, STARTTLS + TLS tolerance)');
-
-            // Verify connection (non-blocking)
-            transporter.verify((error, success) => {
-                if (error) {
-                    console.error('SMTP verify failed:', error.message);
-                } else {
-                    console.log('SMTP server ready - emails can be sent');
-                }
-            });
-        } catch (err) {
-            console.error('Transporter creation failed:', err.message);
-            transporter = null;
-        }
-    }
-    return transporter;
+  return transporter;
 }
 
 async function sendVerification(email, code) {
-    const transporter = createTransporter();
-    if (!transporter) {
-        console.warn('No transporter - email skipped for', email);
-        return { success: false, message: 'SMTP unavailable' };
-    }
+  const transporter = await createTransporter();
+  try {
+    const info = await transporter.sendMail({
+      from: `"Auth App" <${process.env.SMTP_USER}>`,
+      to: email,
+      subject: "Your Verification Code",
+      text: `Your code is: ${code}`,
+      html: `<h2>Verify Your Email</h2>
+             <p>Your code: <b style="color:blue;font-size:20px">${code}</b></p>`,
+    });
 
-    try {
-        console.log('Attempting to send verification to:', email, 'code:', code);
-        const mailOptions = {
-            from: `"Auth App" <${process.env.SMTP_USER}>`,
-            to: email,
-            subject: 'Your Verification Code',
-            text: `Your code is: ${code}. Expires in 10 minutes.`,
-            html: `
-                <h2>Verify Your Email</h2>
-                <p>Your code: <strong style="color: blue; font-size: 24px;">${code}</strong></p>
-                <p>Expires in 10 minutes. If not requested, ignore this email.</p>
-            `
-        };
-
-        const info = await transporter.sendMail(mailOptions);
-        console.log('✅ Verification email sent:', info.messageId, 'to:', email);
-        return { success: true, message: 'Email sent' };
-    } catch (error) {
-        console.error('❌ Send verification failed for', email, ':', error.message);
-        // Log full error for debug
-        if (error.code === 'ETIMEDOUT') {
-            console.error('Timeout details:', error);
-        }
-        return { success: false, message: 'Send failed' };
-    }
+    console.log("📨 Verification email sent:", info.messageId);
+    return { success: true };
+  } catch (err) {
+    console.error("❌ Send verification failed:", err.message);
+    return { success: false, error: err.message };
+  }
 }
 
 async function sendReset(email, token) {
-    const transporter = createTransporter();
-    if (!transporter) {
-        console.warn('No transporter - reset email skipped for', email);
-        return { success: false, message: 'SMTP unavailable' };
-    }
+  const transporter = await createTransporter();
+  const resetUrl = `${process.env.FRONTEND_URL || "https://frontendlogins.onrender.com"}/login.html?reset=${token}`;
+  try {
+    const info = await transporter.sendMail({
+      from: `"Auth App" <${process.env.SMTP_USER}>`,
+      to: email,
+      subject: "Password Reset",
+      text: `Reset link: ${resetUrl}`,
+      html: `<p>Click here to reset password:</p>
+             <a href="${resetUrl}" target="_blank">Reset Password</a>`,
+    });
 
-    try {
-        console.log('Attempting to send reset to:', email);
-        const resetUrl = `${process.env.FRONTEND_URL || 'https://frontendlogins.onrender.com'}/login.html?reset=${token}`;
-        const mailOptions = {
-            from: `"Auth App" <${process.env.SMTP_USER}>`,
-            to: email,
-            subject: 'Password Reset Request',
-            text: `Reset your password: ${resetUrl} (expires in 1 hour)`,
-            html: `
-                <h2>Reset Your Password</h2>
-                <p>Click the link below to reset your password:</p>
-                <p><a href="${resetUrl}" style="background: #4285f4; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reset Password</a></p>
-                <p>This link expires in 1 hour. If you didn't request this, ignore the email.</p>
-            `
-        };
-
-        const info = await transporter.sendMail(mailOptions);
-        console.log('✅ Reset email sent:', info.messageId, 'to:', email);
-        return { success: true, message: 'Reset email sent' };
-    } catch (error) {
-        console.error('❌ Send reset failed for', email, ':', error.message);
-        return { success: false, message: 'Reset email failed' };
-    }
+    console.log("📨 Reset email sent:", info.messageId);
+    return { success: true };
+  } catch (err) {
+    console.error("❌ Send reset failed:", err.message);
+    return { success: false, error: err.message };
+  }
 }
 
 module.exports = { sendVerification, sendReset };
