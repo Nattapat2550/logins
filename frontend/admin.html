@@ -1,128 +1,39 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin - MyAuthApp</title>
-    <link rel="stylesheet" href="css/styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <button id="themeToggle">Toggle Dark Mode</button>
 </head>
 <body>
-    <nav class="navbar">
-        <div class="nav-left">
-            <h1>MyAuthApp - Admin</h1>
-            <a href="home.html">Home</a>
-            <a href="about.html">About</a>
-            <a href="contact.html">Contact</a>
-        </div>
-        <div class="nav-right" id="profileDropdown">
-            <img src="user.png" alt="Profile" id="profilePic" class="profile-pic">
-            <div class="dropdown" id="dropdownMenu">
-                <a href="settings.html">Settings</a>
-                <a href="#" id="logout">Logout</a>
-            </div>
-        </div>
-    </nav>
-    <div class="container">
-        <h2>Admin Dashboard</h2>
-        
-        <!-- Users Table -->
-        <h3>Manage Users</h3>
-        <table id="usersTable">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Email</th>
-                    <th>Username</th>
-                    <th>Role</th>
-                    <th>Verified</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="usersBody"></tbody>
-        </table>
+  <h2>Admin Panel</h2>
+  
+  <h3>Manage Users</h3>
+  <table id="usersTable">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Email</th>
+        <th>Username</th>
+        <th>Avatar</th>
+        <th>Role</th>
+        <th>Created</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 
-        <!-- Edit Home Content Form -->
-        <h3>Edit Home Content</h3>
-        <form id="homeForm">
-            <input type="text" id="homeTitleInput" placeholder="Title" required>
-            <textarea id="homeContentInput" placeholder="Content" required></textarea>
-            <button type="submit" class="btn btn-primary">Update Home Content</button>
-        </form>
-        <div id="message"></div>
-    </div>
-    <script src="js/auth.js"></script>
-    <script src="js/ui.js"></script>
-    <script>
-        async function loadAdmin() {
-            const token = getToken();
-            if (!token) return window.location.href = 'login.html';
+  <h3>Edit Home Page Content</h3>
+  <form id="homeForm">
+    <input type="text" id="homeTitle" placeholder="Title" required>
+    <textarea id="homeContent" placeholder="Content" rows="5" required></textarea>
+    <button type="submit">Update Home Info</button>
+  </form>
 
-            const profile = await getProfile();
-            if (profile.success) {
-                document.getElementById('profilePic').src = profile.user.profile_pic || 'user.png';
-                toggleTheme(profile.user.theme);
-            } else {
-                window.location.href = 'login.html';  // Not admin or invalid
-            }
-
-            // Load users
-            const users = await adminGetUsers();
-            const tbody = document.getElementById('usersBody');
-            tbody.innerHTML = '';
-            users.users.forEach(user => {
-                const row = tbody.insertRow();
-                row.innerHTML = `
-                    <td>${user.id}</td>
-                    <td>${user.email}</td>
-                    <td>${user.username}</td>
-                    <td>${user.role}</td>
-                    <td>${user.verified ? 'Yes' : 'No'}</td>
-                    <td>
-                        <button onclick="editUser (${user.id})" class="btn btn-small">Edit</button>
-                        <button onclick="deleteUser (${user.id})" class="btn btn-danger btn-small">Delete</button>
-                    </td>
-                `;
-            });
-
-            // Load current home content for edit
-            const content = await getHomeContent();
-            if (content.success) {
-                document.getElementById('homeTitleInput').value = content.content.title;
-                document.getElementById('homeContentInput').value = content.content.content;
-            }
-
-            // Home form submit
-            document.getElementById('homeForm').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const title = document.getElementById('homeTitleInput').value;
-                const content = document.getElementById('homeContentInput').value;
-                const result = await adminUpdateHome(title, content);
-                showMessage(result.message, result.success);
-            });
-        }
-        loadAdmin();
-
-        // Edit user modal (simple alert for now; extend to form)
-        function editUser (id) {
-            const newRole = prompt('New role (user/admin)?');
-            const newVerified = prompt('Verified? (true/false)');
-            if (newRole || newVerified) {
-                adminEditUser (id, '', '', newRole, newVerified === 'true');
-            }
-        }
-
-        // Delete user
-        function deleteUser (id) {
-            if (confirm('Delete user?')) {
-                adminDeleteUser (id);
-            }
-        }
-
-        // Logout
-        document.getElementById('logout').addEventListener('click', () => {
-            clearToken();
-            window.location.href = 'index.html';
-        });
-    </script>
+  <script src="js/main.js"></script>
+  <script src="js/admin.js"></script>
 </body>
 </html>

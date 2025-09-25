@@ -1,10 +1,24 @@
 const express = require('express');
-const adminController = require('../controllers/userController');  // Reuse userController for admin (e.g., list users)
-const authMiddleware = require('../middlewares/authMiddleware');
-const roleMiddleware = require('../middlewares/roleMiddleware');
 const router = express.Router();
+const adminController = require('../controllers/adminController');
+const roleMiddleware = require('../middlewares/roleMiddleware');
 
-// GET /api/admin/users - List all users (admin only)
-router.get('/users', authMiddleware, roleMiddleware('admin'), adminController.listUsers);
+// Check role
+router.use(roleMiddleware('admin'));
+
+// Get all users
+router.get('/users', adminController.getAllUsers);
+
+// Update user
+router.put('/users/:id', adminController.updateUser );
+
+// Delete user
+router.delete('/users/:id', adminController.deleteUser );
+
+// Get home info
+router.get('/home', adminController.getHomeInfo);
+
+// Update home info
+router.put('/home', adminController.updateHomeInfo);
 
 module.exports = router;

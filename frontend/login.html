@@ -1,83 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - MyAuthApp</title>
-    <link rel="stylesheet" href="css/styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login</title>
+  <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <div class="container">
-        <h2>Login</h2>
-        <form id="loginForm">
-            <input type="email" id="loginEmail" placeholder="Email" required>
-            <div class="password-group">
-                <input type="password" id="password" placeholder="Password" required>
-                <label class="checkbox">
-                    <input type="checkbox" id="hidePassword"> Hide password
-                </label>
-            </div>
-            <button type="submit" class="btn btn-primary">Login</button>
-        </form>
-        <p><a href="#" id="forgotLink">Forgot Password?</a></p>
-        <p>Or</p>
-        <a href="https://backendlogins.onrender.com/api/auth/google" class="btn btn-google">Login with Google</a>
-        <div id="message"></div>
-    </div>
-    <!-- Forgot Modal -->
-    <div id="forgotModal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h3>Forgot Password</h3>
-            <form id="forgotForm">
-                <input type="email" id="forgotEmail" placeholder="Email" required>
-                <button type="submit" class="btn btn-primary">Send Reset Link</button>
-            </form>
-        </div>
-    </div>
-    <script src="js/auth.js"></script>
-    <script src="js/ui.js"></script>
-    <script>
-        // Login form
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('password').value;
-            const result = await login(email, password);
-            showMessage(result.message, result.success);
-            if (result.success) {
-                saveToken(result.token);
-                const role = result.user.role;
-                window.location.href = role === 'admin' ? 'admin.html' : 'home.html';
-            }
-        });
+  <form id="loginForm">
+    <h2>Login</h2>
+    <input type="email" id="loginEmail" placeholder="Email" required>
+    <input type="password" id="loginPassword" placeholder="Password" required>
+    <label>
+      <input type="checkbox" id="hidePassword"> Hide Password
+    </label>
+    <button type="submit">Login</button>
+    <button type="button" id="googleLogin">Login with Google</button>
+  </form>
 
-        // Forgot
-        document.getElementById('forgotLink').addEventListener('click', (e) => {
-            e.preventDefault();
-            document.getElementById('forgotModal').style.display = 'block';
-        });
-        document.getElementById('forgotForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('forgotEmail').value;
-            const result = await forgot(email);
-            showMessage(result.message, result.success);
-            document.getElementById('forgotModal').style.display = 'none';
-        });
+  <form id="forgotForm" style="margin-top: 1rem;">
+    <h3>Forgot Password?</h3>
+    <input type="email" id="forgotEmail" placeholder="Email" required>
+    <button type="submit">Send Reset Code</button>
+  </form>
 
-        // Password hide
-        document.getElementById('hidePassword').addEventListener('change', (e) => {
-            const passInput = document.getElementById('password');
-            passInput.type = e.target.checked ? 'text' : 'password';
-        });
+  <div id="resetSection" style="display: none; margin-top: 1rem;">
+    <h3>Reset Password</h3>
+    <input type="text" id="resetCode" placeholder="Reset Code" required>
+    <input type="password" id="newPassword" placeholder="New Password" required>
+    <button type="button" onclick="document.getElementById('loginForm').dispatchEvent(new Event('submit'))">Reset & Login</button>
+  </div>
 
-        // Handle reset token from email/link
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.has('reset')) {
-            document.getElementById('forgotModal').style.display = 'block';
-            document.getElementById('forgotEmail').value = '';  // Token handled in auth.js if needed
-            // For simplicity, user enters new pass in modal, but extend for token-based reset
-        }
-    </script>
+  <script src="js/auth.js"></script>
 </body>
 </html>

@@ -1,66 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home - MyAuthApp</title>
-    <link rel="stylesheet" href="css/styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Home</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <button id="themeToggle">Toggle Dark Mode</button>
 </head>
 <body>
-    <nav class="navbar">
-        <div class="nav-left">
-            <h1>MyAuthApp</h1>
-            <a href="about.html">About</a>
-            <a href="contact.html">Contact</a>
-        </div>
-        <div class="nav-right" id="profileDropdown">
-            <img src="user.png" alt="Profile" id="profilePic" class="profile-pic">
-            <div class="dropdown" id="dropdownMenu">
-                <a href="settings.html">Settings</a>
-                <a href="#" id="logout">Logout</a>
-            </div>
-        </div>
-    </nav>
-    <div class="container">
-        <h2>Welcome, <span id="username"></span>!</h2>
-        <div id="homeContent">
-            <h3 id="homeTitle">Loading...</h3>
-            <p id="homeText">Loading content...</p>
-            <button id="editHomeBtn" class="btn btn-secondary" style="display:none;">Edit Content (Admin Only)</button>
-        </div>
-    </div>
-    <script src="js/auth.js"></script>
-    <script src="js/ui.js"></script>
-    <script>
-        // Load user and content on page load
-        async function loadPage() {
-            const token = getToken();
-            if (!token) return window.location.href = 'login.html';
-
-            const profile = await getProfile();
-            if (profile.success) {
-                document.getElementById('username').textContent = profile.user.username;
-                document.getElementById('profilePic').src = profile.user.profile_pic || 'user.png';
-                toggleTheme(profile.user.theme);  // Apply theme
-            }
-
-            const content = await getHomeContent();
-            if (content.success) {
-                document.getElementById('homeTitle').textContent = content.content.title;
-                document.getElementById('homeText').textContent = content.content.content;
-                if (profile.user.role === 'admin') {
-                    document.getElementById('editHomeBtn').style.display = 'block';
-                    document.getElementById('editHomeBtn').onclick = () => window.location.href = 'admin.html';
-                }
-            }
-        }
-        loadPage();
-
-        // Logout
-        document.getElementById('logout').addEventListener('click', () => {
-            clearToken();
-            window.location.href = 'index.html';
-        });
-    </script>
+  <div class="home-content">
+    <h1 id="homeTitle">Loading...</h1>
+    <p id="homeContent">Loading content...</p>
+  </div>
+  <script src="js/main.js"></script>
+  <script>
+    // Fetch home info (public endpoint? For simplicity, use admin endpoint but without auth for read)
+    // Note: To make public, add a public route in backend/routes/home.js: router.get('/', adminController.getHomeInfo);
+    // For now, assume logged-in users can access; if error, show default.
+    const token = localStorage.getItem('token');
+    fetch('/api/admin/home' + (token ? `?token=${token}` : '')) // Hacky; better add public route
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById('homeTitle').textContent = data.title;
+        document.getElementById('homeContent').textContent = data.content;
+      })
+      .catch(() => {
+        document.getElementById('homeTitle').textContent = 'Welcome to Our Site';
+        document.getElementById('homeContent').textContent = 'This is the home page content.';
+      });
+  </script>
 </body>
 </html>

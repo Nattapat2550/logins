@@ -1,30 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>About - MyAuthApp</title>
-    <link rel="stylesheet" href="css/styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <button id="themeToggle">Toggle Dark Mode</button>
 </head>
 <body>
-    <nav class="navbar" id="navbar"></nav>  <!-- ui.js will populate if logged in -->
-    <div class="container">
-        <h2>About MyAuthApp</h2>
-        <p>This is a full-stack authentication app built with Node.js, Express, Postgres (on Render), and vanilla JavaScript. It features secure email verification using Nodemailer (Gmail SMTP), Google OAuth via Passport, JWT authentication, profile management with image uploads (Multer), light/dark theme toggling, and an admin dashboard for user CRUD operations (like direct SQL edits).</p>
-        <p>Key Technologies:</p>
-        <ul>
-            <li>Backend: Node.js, Express, pg (Postgres), bcryptjs, jsonwebtoken, nodemailer, passport-google-oauth20, multer</li>
-            <li>Frontend: HTML5, CSS3 (with custom properties for themes), Vanilla JS (fetch API)</li>
-            <li>Database: Postgres on Render (tables: users, temp_verifications, home_content)</li>
-            <li>Deployment: Render (Web Service for backend, Static Site for frontend)</li>
-        </ul>
-        <p>Security: Password hashing (bcrypt 12 rounds), JWT (1h expiry), Helmet (headers), CORS (frontend only), unique constraints (email/username).</p>
-        <p>Developed for secure user management. No React used (vanilla JS as specified), but extensible.</p>
-    </div>
-    <script src="js/auth.js"></script>
-    <script src="js/ui.js"></script>
-    <script>
-        initNavbar();  // Populates navbar if logged in
-    </script>
+  <h1>About Us</h1>
+  <p>This is the about page with general information about the website.</p>
+  <script src="js/main.js"></script>
 </body>
 </html>

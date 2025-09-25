@@ -1,132 +1,114 @@
-const BACKEND_URL = 'https://backendlogins.onrender.com';  // Update to your Render backend URL
+// Register
+document.getElementById('registerForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('email').value;
+  const username = document.getElementById('username').value;
+  const res = await fetch('/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, username })
+  });
+  if (res.ok) {
+    localStorage.setItem('regEmail', email);
+    window.location.href = 'check.html';
+  } else {
+    alert((await res.json()).error);
+  }
+});
 
-function getToken() {
-    return localStorage.getItem('token');
-}
+// Google Register/Login (same button on both)
+document.getElementById('googleLogin')?.addEventListener('click', () => {
+  window.location.href = '/api/auth/google';
+});
 
-function saveToken(token) {
-    localStorage.setItem('token', token);
-}
+// Verify Code
+document.getElementById('verifyForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = localStorage.getItem('regEmail') || document.getElementById('email').value;
+  const code = document.getElementById('code').value;
+  const res = await fetch('/api/auth/verify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, code })
+  });
+  if (res.ok) {
+    localStorage.setItem('verifiedEmail', email);
+    window.location.href = 'form.html';
+  } else {
+    alert((await res.json()).error);
+  }
+});
 
-function clearToken() {
-    localStorage.removeItem('token');
-}
+// Set Password (form.html)
+document.getElementById('passwordForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = localStorage.getItem('verifiedEmail');
+  const password = document.getElementById('password').value;
+  const res = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  });
+  const data = await res.json();
+  if (res.ok) {
+    localStorage.setItem('token', data.token);
+    window.location.href = data.redirect;
+  } else {
+    alert(data.error);
+  }
+});
 
-async function apiCall(endpoint, options = {}) {
-    const token = getToken();
-    const headers = {
-        'Content-Type': 'application/json',
-        ...options.headers
-    };
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-    }
+// Login
+document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value;
+  const password = document.getElementById('loginPassword').value;
+  const resetCode = document.getElementById('resetCode')?.value;
+  const newPassword = document.getElementById('newPassword')?.value;
+  const body = { email, password };
+  if (resetCode && newPassword) body.resetCode = resetCode, body.newPassword = newPassword, delete body.password;
+  const res = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  const data = await res.json();
+  if (res.ok) {
+    localStorage.setItem('token', data.token);
+    window.location.href = data.redirect;
+  } else {
+    alert(data.error);
+  }
+});
 
-    const response = await fetch(`${BACKEND_URL}${endpoint}`, {
-        ...options,
-        headers
-    });
+// Forgot Password
+document.getElementById('forgotForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('forgotEmail').value;
+  const res = await fetch('/api/auth/forgot-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email })
+  });
+  if (res.ok) {
+    alert('Reset code sent');
+    // Show reset fields
+    document.getElementById('resetSection').style.display = 'block';
+  } else {
+    alert((await res.json()).error);
+  }
+});
 
-    const data = await response.json();
+// Hide/Show Password
+document.getElementById('hidePassword')?.addEventListener('change', (e) => {
+  const pass = document.getElementById('loginPassword') || document.getElementById('password');
+  pass.type = e.target.checked ? 'text' : 'password';
+});
 
-    if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-            clearToken();
-            window.location.href = 'login.html';
-        }
-        throw new Error(data.error || 'API error');
-    }
-
-    return data;
-}
-
-// Auth functions
-async function register(email) {
-    return apiCall('/api/auth/register', {
-        method: 'POST',
-        body: JSON.stringify({ email: email.toLowerCase() })
-    });
-}
-
-async function verify(email, code) {
-    return apiCall('/api/auth/verify', {
-        method: 'POST',
-        body: JSON.stringify({ email, code })
-    });
-}
-
-async function complete(email, username, password, google = false) {
-    return apiCall('/api/auth/complete', {
-        method: 'POST',
-        body: JSON.stringify({ email: email.toLowerCase(), username, password, google })
-    });
-}
-
-async function login(email, password) {
-    return apiCall('/api/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email: email.toLowerCase(), password })
-    });
-}
-
-async function forgot(email) {
-    return apiCall('/api/auth/forgot', {
-        method: 'POST',
-        body: JSON.stringify({ email: email.toLowerCase() })
-    });
-}
-
-async function reset(token, password) {
-    return apiCall('/api/auth/reset', {
-        method: 'POST',
-        body: JSON.stringify({ token, password })
-    });
-}
-
-// User functions
-async function getProfile() {
-    return apiCall('/api/user/profile');
-}
-
-async function updateProfile(username, theme, file = null) {
-    const formData = new FormData();
-    if (username) formData.append('username', username);
-    if (theme) formData.append('theme', theme);
-    if (file) formData.append('profilePic', file);
-
-    return apiCall('/api/user/profile', {
-        method: 'POST',
-        body: formData
-    });
-}
-
-async function deleteAccount() {
-    return apiCall('/api/user/profile', { method: 'DELETE' });
-}
-
-async function getHomeContent() {
-    return apiCall('/api/user/home');
-}
-
-// Admin functions
-async function adminGetUsers() {
-    return apiCall('/api/admin/users');
-}
-
-async function adminEditUser (id, email, username, role, verified) {
-    return apiCall(`/api/admin/users/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify({ email, username, role, verified })
-    });
-}
-
-async function adminDeleteUser (id) {
-    return apiCall(`/api/admin/users/${id}`, { method: 'DELETE' });
-}
-
-async function adminUpdateHome(title, content) {
-    return apiCall('/api/admin/home', {
-        method: 'PUT',
-        body: JSON.stringify({ title, content })
-    });
+// Handle Google Callback (if direct access)
+const urlParams = new URLSearchParams(window.location.search);
+const callbackToken = urlParams.get('token');
+if (callbackToken) {
+  localStorage.setItem('token', callbackToken);
+  window.location.href = 'home.html'; // Or admin if role, but check after
 }

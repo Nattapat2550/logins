@@ -1,114 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Complete Registration - MyAuthApp</title>
-    <link rel="stylesheet" href="css/styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Set Password</title>
+  <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <div class="container">
-        <h2>Complete Registration</h2>
-        <p id="emailDisplay"></p>
-        <form id="completeForm">
-            <input type="text" id="username" placeholder="Username" required>
-            <div class="password-group">
-                <input type="password" id="password" placeholder="Password" required minlength="6">
-                <label class="checkbox">
-                    <input type="checkbox" id="hidePassword"> Show password
-                </label>
-            </div>
-            <button type="submit" id="submitBtn" class="btn btn-primary">Complete Registration</button>
-        </form>
-        <div id="message"></div>
-        <div id="loading" style="display: none; text-align: center; margin-top: 10px;">
-            <p>Completing...</p>
-            <div class="spinner"></div>
-        </div>
-    </div>
-    <script src="js/auth.js"></script>
-    <script src="js/ui.js"></script>
-    <script>
-        // Wait for load (safety)
-        window.addEventListener('load', () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const email = urlParams.get('email');
-            if (!email) {
-                showMessage('No email provided - start over', false);
-                setTimeout(() => window.location.href = 'register.html', 2000);
-                return;
-            }
-            document.getElementById('emailDisplay').textContent = `Email: ${email}`;
-
-            // Password toggle
-            passwordHide('hidePassword', 'password');
-
-            const submitBtn = document.getElementById('submitBtn');
-            const loadingDiv = document.getElementById('loading');
-            const form = document.getElementById('completeForm');
-
-            form.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const username = document.getElementById('username').value.trim();
-                const password = document.getElementById('password').value;
-                if (username.length < 3 || password.length < 6) {
-                    showMessage('Username min 3 chars, password min 6', false);
-                    return;
-                }
-
-                // Show loading
-                submitBtn.disabled = true;
-                submitBtn.textContent = 'Completing...';
-                loadingDiv.style.display = 'block';
-                const messageDiv = document.getElementById('message');
-                messageDiv.innerHTML = '';
-
-                try {
-                    const result = await complete(email, username, password);
-                    loadingDiv.style.display = 'none';
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = 'Complete Registration';
-                    showMessage(result.message, result.success);
-                    if (result.success) {
-                        saveToken(result.token);  // From auth.js
-                        setTimeout(() => window.location.href = 'home.html', 1500);
-                    }
-                } catch (err) {
-                    loadingDiv.style.display = 'none';
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = 'Complete Registration';
-                    let errorMsg = err.message || 'Completion failed';
-                    
-                    // FIXED: Specific handling for verification error
-                    if (errorMsg.includes('Verify email first') || errorMsg.includes('verification')) {
-                        errorMsg = 'Please verify your email first (code expired or invalid).';
-                        showMessage(errorMsg, false);
-                        // Auto-redirect back to check.html
-                        setTimeout(() => {
-                            window.location.href = `check.html?email=${encodeURIComponent(email)}`;
-                        }, 2000);
-                    } else {
-                        showMessage(errorMsg, false);
-                    }
-                }
-            });
-        });
-    </script>
-    <style>
-        /* Simple CSS Spinner (consistent with register.html) */
-        .spinner {
-            border: 4px solid var(--border-color);
-            border-top: 4px solid var(--primary-color);
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
-            margin: 10px auto;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    </style>
+  <form id="passwordForm">
+    <h2>Set Password</h2>
+    <input type="email" id="email" placeholder="Email" value="" readonly>
+    <input type="password" id="password" placeholder="Password" required>
+    <label>
+      <input type="checkbox" id="hidePassword"> Hide Password
+    </label>
+    <button type="submit">Set Password & Login</button>
+  </form>
+  <script src="js/auth.js"></script>
+  <script>
+    // Pre-fill email
+    document.getElementById('email').value = localStorage.getItem('verifiedEmail') || '';
+  </script>
 </body>
 </html>

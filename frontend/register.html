@@ -1,98 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register - MyAuthApp</title>
-    <link rel="stylesheet" href="css/styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register</title>
+  <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <div class="container">
-        <h2>Register</h2>
-        <form id="registerForm">
-            <input type="email" id="email" placeholder="Email" required>
-            <button type="submit" id="submitBtn" class="btn btn-primary">Send Verification Code</button>
-        </form>
-        <p>Or</p>
-        <a href="https://backendlogins.onrender.com/api/auth/google" class="btn btn-google">Register with Google</a>
-        <div id="message"></div>
-        <div id="loading" style="display: none; text-align: center; margin-top: 10px;">
-            <p>Sending code... (First time may take 10-20s to wake server)</p>
-            <div class="spinner"></div>
-        </div>
-        <p id="resendHint" style="display: none; font-size: 0.9em; color: var(--text-color);">Didn't receive? Check spam or submit again for resend.</p>
-    </div>
-    <script src="js/auth.js"></script>
-    <script src="js/ui.js"></script>
-    <script>
-        // Wait for ui.js to load (extra safety)
-        window.addEventListener('load', () => {
-            const submitBtn = document.getElementById('submitBtn');
-            const loadingDiv = document.getElementById('loading');
-            const form = document.getElementById('registerForm');
-            const resendHint = document.getElementById('resendHint');
-
-            form.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const email = document.getElementById('email').value;
-                if (!email.includes('@')) {
-                    if (typeof showMessage === 'function') showMessage('Valid email required', false);
-                    return;
-                }
-
-                // Show loading
-                submitBtn.disabled = true;
-                submitBtn.textContent = 'Sending...';
-                loadingDiv.style.display = 'block';
-                const messageDiv = document.getElementById('message');
-                messageDiv.innerHTML = '';  // Clear previous
-                resendHint.style.display = 'none';
-
-                try {
-                    const result = await register(email);
-                    loadingDiv.style.display = 'none';
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = 'Send Verification Code';
-                    if (typeof showMessage === 'function') {
-                        showMessage(result.message, result.success);
-                    } else {
-                        console.error('showMessage not available');
-                        alert(result.message);
-                    }
-                    if (result.success) {
-                        resendHint.style.display = 'block';  // FIXED: Show resend hint
-                        setTimeout(() => {
-                            window.location.href = 'check.html?email=' + encodeURIComponent(email);
-                        }, 1500);  // Slightly longer delay for hint visibility
-                    }
-                } catch (err) {
-                    loadingDiv.style.display = 'none';
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = 'Send Verification Code';
-                    if (typeof showMessage === 'function') {
-                        showMessage(err.message || 'Registration failed', false);
-                    } else {
-                        alert(err.message || 'Registration failed');
-                    }
-                }
-            });
-        });
-    </script>
-    <style>
-        /* Simple CSS Spinner (unchanged) */
-        .spinner {
-            border: 4px solid var(--border-color);
-            border-top: 4px solid var(--primary-color);
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
-            margin: 10px auto;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    </style>
+  <form id="registerForm">
+    <h2>Register</h2>
+    <input type="email" id="email" placeholder="Email" required>
+    <input type="text" id="username" placeholder="Username" required>
+    <button type="submit">Register</button>
+    <button type="button" id="googleLogin">Register with Google</button>
+  </form>
+  <script src="js/auth.js"></script>
 </body>
 </html>

@@ -1,15 +1,16 @@
 const express = require('express');
-const userController = require('../controllers/userController');
-const authMiddleware = require('../middlewares/authMiddleware');
 const router = express.Router();
+const userController = require('../controllers/userController');
+const multer = require('multer');
+const upload = multer({ dest: 'uploads/' });
 
-// GET /api/user/profile - Fetch user profile (protected)
-router.get('/profile', authMiddleware, userController.getProfile);
+// Get profile
+router.get('/profile', userController.getProfile);
 
-// PUT /api/user/update - Update username/theme/profile_pic (protected)
-router.put('/update', authMiddleware, userController.updateProfile);
+// Update profile (name, avatar)
+router.put('/profile', upload.single('avatar'), userController.updateProfile);
 
-// POST /api/user/upload - Upload profile pic (protected, multer)
-router.post('/upload', authMiddleware, userController.uploadProfilePic);
+// Delete account
+router.delete('/profile', userController.deleteAccount);
 
 module.exports = router;

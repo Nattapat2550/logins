@@ -1,38 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contact - MyAuthApp</title>
-    <link rel="stylesheet" href="css/styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <button id="themeToggle">Toggle Dark Mode</button>
 </head>
 <body>
-    <nav class="navbar" id="navbar"></nav>  <!-- ui.js will populate if logged in -->
-    <div class="container">
-        <h2>Contact Us</h2>
-        <p>Have questions? Reach out below.</p>
-        <form id="contactForm">
-            <input type="text" placeholder="Your Name" required>
-            <input type="email" placeholder="Your Email" required>
-            <textarea placeholder="Message" rows="5" required></textarea>
-            <button type="submit" class="btn btn-primary">Send Message</button>
-        </form>
-        <p>Or email: support@myauthapp.com</p>
-        <div id="message"></div>
-    </div>
-    <script src="js/auth.js"></script>
-    <script src="js/ui.js"></script>
-    <script>
-        initNavbar();  // Populates navbar if logged in
-
-        // Contact form (logs to console; extend to API/email)
-        document.getElementById('contactForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            console.log('Contact submitted:', Object.fromEntries(formData));  // Simulate send
-            showMessage('Message sent! (Logged to console)', true);
-            e.target.reset();
-        });
-    </script>
+  <h1>Contact Us</h1>
+  <p>Reach out via email: info@example.com</p>
+  <form>
+    <input type="text" placeholder="Name">
+    <input type="email" placeholder="Email">
+    <textarea placeholder="Message"></textarea>
+    <button type="submit">Send</button>
+  </form>
+  <script src="js/main.js"></script>
 </body>
 </html>

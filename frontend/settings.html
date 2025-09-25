@@ -1,105 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Settings - MyAuthApp</title>
-    <link rel="stylesheet" href="css/styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <button id="themeToggle">Toggle Dark Mode</button>
 </head>
 <body>
-    <nav class="navbar">
-        <div class="nav-left">
-            <h1>MyAuthApp</h1>
-            <a href="home.html">Home</a>
-            <a href="about.html">About</a>
-            <a href="contact.html">Contact</a>
-        </div>
-        <div class="nav-right" id="profileDropdown">
-            <img src="user.png" alt="Profile" id="profilePic" class="profile-pic">
-            <div class="dropdown" id="dropdownMenu">
-                <a href="home.html">Home</a>
-                <a href="#" id="logout">Logout</a>
-            </div>
-        </div>
-    </nav>
-    <div class="container">
-        <h2>Settings</h2>
-        <form id="profileForm" enctype="multipart/form-data">
-            <input type="text" id="editUsername" placeholder="New Username">
-            <input type="file" id="profilePicInput" accept="image/*">
-            <div class="progress" id="uploadProgress" style="display:none;">
-                <div class="progress-bar"></div>
-            </div>
-            <div class="theme-group">
-                <label>Theme:</label>
-                <label><input type="radio" name="theme" value="light" checked> Light</label>
-                <label><input type="radio" name="theme" value="dark"> Dark</label>
-            </div>
-            <button type="submit" class="btn btn-primary">Save Changes</button>
-        </form>
-        <button id="deleteBtn" class="btn btn-danger">Delete Account</button>
-        <div id="message"></div>
-    </div>
-    <!-- Delete Confirmation Modal -->
-    <div id="deleteModal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h3>Delete Account?</h3>
-            <p>This cannot be undone.</p>
-            <button id="confirmDelete" class="btn btn-danger">Delete</button>
-            <button id="cancelDelete" class="btn btn-secondary">Cancel</button>
-        </div>
-    </div>
-    <script src="js/auth.js"></script>
-    <script src="js/ui.js"></script>
-    <script>
-        async function loadSettings() {
-            const token = getToken();
-            if (!token) return window.location.href = 'login.html';
+  <h2>Profile Settings</h2>
+  <p>Current Username: <span id="currentUsername">Loading...</span></p>
+  <img src="images/user.png" alt="Profile Pic" class="profile-pic">
+  
+  <form id="profileForm" enctype="multipart/form-data">
+    <h3>Edit Profile</h3>
+    <input type="text" id="newUsername" placeholder="New Username" required>
+    <input type="file" id="avatarFile" accept="image/*">
+    <button type="submit">Update Profile</button>
+  </form>
 
-            const profile = await getProfile();
-            if (profile.success) {
-                document.getElementById('editUsername').value = profile.user.username;
-                document.getElementById('profilePic').src = profile.user.profile_pic || 'user.png';
-                document.querySelector(`input[name="theme"][value="${profile.user.theme}"]`).checked = true;
-                toggleTheme(profile.user.theme);
-            }
-        }
-        loadSettings();
+  <button id="deleteBtn">Delete Account</button>
 
-        // Form submit (update profile)
-        document.getElementById('profileForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const username = document.getElementById('editUsername').value;
-            const theme = document.querySelector('input[name="theme"]:checked').value;
-            const file = document.getElementById('profilePicInput').files[0];
-            const result = await updateProfile(username, theme, file);
-            showMessage(result.message, result.success);
-            if (result.success) loadSettings();  // Reload
-        });
-
-        // Delete
-        document.getElementById('deleteBtn').addEventListener('click', () => {
-            document.getElementById('deleteModal').style.display = 'block';
-        });
-        document.getElementById('confirmDelete').addEventListener('click', async () => {
-            const result = await deleteAccount();
-            showMessage(result.message, result.success);
-            if (result.success) {
-                clearToken();
-                window.location.href = 'index.html';
-            }
-            document.getElementById('deleteModal').style.display = 'none';
-        });
-        document.getElementById('cancelDelete').addEventListener('click', () => {
-            document.getElementById('deleteModal').style.display = 'none';
-        });
-
-        // Logout
-        document.getElementById('logout').addEventListener('click', () => {
-            clearToken();
-            window.location.href = 'index.html';
-        });
-    </script>
+  <script src="js/main.js"></script>
+  <script src="js/settings.js"></script>
 </body>
 </html>
