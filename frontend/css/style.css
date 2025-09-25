@@ -1,0 +1,119 @@
+:root {
+  --bg-color: #ffffff;
+  --text-color: #333333;
+  --primary-color: #007bff;
+  --secondary-color: #6c757d;
+  --border-color: #dee2e6;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  margin: 0;
+  padding: 0;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+body.dark-mode {
+  --bg-color: #121212;
+  --text-color: #ffffff;
+  --primary-color: #0d6efd;
+  --secondary-color: #adb5bd;
+  --border-color: #495057;
+}
+
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.navbar .site-name { font-size: 1.5rem; font-weight: bold; }
+
+.navbar .profile-pic {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-content {
+  display: none;
+  position: absolute;
+  right: 0;
+  background-color: var(--bg-color);
+  min-width: 160px;
+  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+  z-index: 1;
+  border: 1px solid var(--border-color);
+}
+
+.dropdown-content a {
+  color: var(--text-color);
+  padding: 12px 16px;
+  text-decoration: none;
+  display: block;
+}
+
+.dropdown-content a:hover { background-color: var(--border-color); }
+
+.dropdown:hover .dropdown-content { display: block; }
+
+.container {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 2rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background-color: var(--bg-color);
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+}
+
+input, button {
+  padding: 0.75rem;
+  margin: 0.5rem 0;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+}
+
+button {
+  background-color: var(--primary-color);
+  color: white;
+  cursor: pointer;
+}
+
+button:hover { background-color: #0056b3; }
+
+#password-toggle { cursor: pointer; margin-left: 0.5rem; }
+
+.home-content {
+  text-align: center;
+  padding: 2rem;
+}
+
+#admin-users, #admin-content { margin-top: 2rem; }
+
+.user-row, .content-form { margin-bottom: 1rem; padding: 1rem; border: 1px solid var(--border-color); border-radius: 4px; }
+
+
+#error, #success {
+  margin: 1rem 0;
+  padding: 0.5rem;
+  border-radius: 4px;
+}
+#error { background-color: #f8d7da; color: #721c24; }
+#success { background-color: #d4edda; color: #155724; }
+.hidden { display: none; }

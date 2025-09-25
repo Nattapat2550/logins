@@ -1,27 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>User Auth App</title>
-    <link rel="stylesheet" href="css/styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Home - My Website</title>
+  <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
-    <div class="container">
-        <h1>Welcome to the App</h1>
-        <p id="status">Loading authentication status...</p>
-    </div>
-    <script src="js/main.js"></script>
-    <script>
-        // Auto-redirect based on auth
-        checkAuth().then(isAuth => {
-            document.getElementById('status').textContent = isAuth ? 'Redirecting to home...' : 'Redirecting to register...';
-            setTimeout(() => {
-                window.location.href = isAuth ? 'home.html' : 'register.html';
-            }, 1500);
-        }).catch(err => {
-            showMessage('Error checking auth: ' + err.message, 'error');
-        });
-    </script>
+  <div class="container">
+    <h1>Welcome to My Website</h1>
+    <p>This is the general information page.</p>
+    <button onclick="window.location.href='/register'">Register</button>
+    <button onclick="window.location.href='/login'">Login</button>
+  </div>
+  <script src="../js/common.js"></script>
+  <script>window.common.applyDarkMode();</script> <!-- No auth needed -->
 </body>
 </html>

@@ -1,44 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
-    <link rel="stylesheet" href="css/styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login</title>
+  <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
-    <div class="container">
-        <h1>Login</h1>
-        <form id="loginForm">
-            <input type="email" id="email" placeholder="Email" required>
-            <input type="password" id="password" placeholder="Password" required>
-            <button type="submit">Login</button>
-        </form>
-        <p>Or login with:</p>
-        <a href="/api/auth/google" class="google-btn">Login with Google</a>
-        <p><a href="#" id="forgot">Forgot Password?</a> | <a href="register.html">No account? Register</a></p>
-        <div id="message"></div>
-    </div>
-    <script src="js/main.js"></script>
-    <script src="js/auth.js"></script>
-    <script>
-        document.getElementById('loginForm').addEventListener('submit', e => {
-            e.preventDefault();
-            const email = document.getElementById('email').value.trim();
-            const password = document.getElementById('password').value;
-            if (!email || !password) return showMessage('Email and password required', 'error');
-            login(email, password);
-        });
-
-        document.getElementById('forgot').addEventListener('click', e => {
-            e.preventDefault();
-            const email = document.getElementById('email').value.trim();
-            if (email) {
-                forgotPassword(email);
-            } else {
-                showMessage('Enter your email first', 'error');
-            }
-        });
-    </script>
+  <div id="navbar"></div>
+  <div class="container">
+    <h2>Login</h2>
+    <form>
+      <input type="email" id="email" placeholder="Email" required>
+      <div style="display: flex;">
+        <input type="password" id="password" placeholder="Password" required>
+        <span id="password-toggle">Show</span>
+      </div>
+      <button type="submit">Login</button>
+    </form>
+    <button id="forgot-password">Forgot Password?</button>
+    <button id="google-login">Login with Google</button>
+    <div id="error"></div>
+    <div id="success"></div>
+  </div>
+  <script src="../js/common.js"></script>
+  <script src="../js/login.js"></script>
 </body>
 </html>

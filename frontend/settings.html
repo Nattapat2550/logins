@@ -1,86 +1,57 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Settings</title>
-    <link rel="stylesheet" href="css/styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings</title>
+  <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
-    <div class="container">
-        <nav class="nav">
-            <h1>Settings</h1>
-            <div>
-                <a href="home.html">Home</a>
-                <button id="logout">Logout</button>
-            </div>
-        </nav>
-        <form id="profileForm">
-            <h2>Update Profile</h2>
-            <input type="email" id="email" placeholder="Email" required>
-            <input type="text" id="username" placeholder="Username" required>
-            <button type="submit">Update</button>
-        </form>
-        <form id="avatarForm" enctype="multipart/form-data">
-            <h2>Upload Avatar</h2>
-            <input type="file" id="avatarInput" accept="image/*">
-            <img id="avatarPreview" src="" alt="Preview" style="max-width: 200px; display: none; margin: 10px 0;">
-            <button type="submit">Upload</button>
-            <p>Current: <img id="currentAvatar" src="" alt="Current" style="max-width: 100px;"></p>
-        </form>
-        <form id="passwordForm">
-            <h2>Change Password</h2>
-            <input type="password" id="currentPassword" placeholder="Current password" required>
-            <input type="password" id="newPassword" placeholder="New password (min 6)" minlength="6" required>
-            <button type="submit">Change</button>
-        </form>
-        <div id="message"></div>
-    </div>
-    <script src="js/main.js"></script>
-    <script src="js/settings.js"></script>
-    <script>
-        checkAuth().then(isAuth => {
-            if (!isAuth) {
-                showMessage('Please log in', 'error');
-                setTimeout(() => window.location.href = 'login.html', 1000);
-                return;
-            }
-            loadProfile();
-        });
+  <div id="navbar"></div>
+  <div class="container">
+    <h2>Settings</h2>
+    <div id="error" class="hidden"></div>
+    <div id="success" class="hidden"></div>
 
-        document.getElementById('logout').addEventListener('click', logout);
+    <h3>Edit Profile</h3>
+    <form id="update-profile">
+      <input type="text" id="username" placeholder="New Username" required>
+      <input type="file" id="profile-pic-upload" accept="image/*">
+      <button type="submit">Update Profile</button>
+    </form>
 
-        // Event listeners
-        document.getElementById('profileForm').addEventListener('submit', e => {
-            e.preventDefault();
-            const email = document.getElementById('email').value.trim();
-            const username = document.getElementById('username').value.trim();
-            updateProfile(username, email);
-        });
+    <h3>Theme</h3>
+    <button id="dark-toggle">Toggle Dark Mode</button>
 
-        document.getElementById('avatarForm').addEventListener('submit', e => {
-            e.preventDefault();
-            uploadAvatar();
-        });
+    <h3>Account</h3>
+    <button id="delete-account" style="background-color: #dc3545;">Delete Account</button>
+  </div>
+  <script src="../js/common.js"></script>
+  <script src="../js/profile.js"></script>
+  <script src="../js/darkModeToggle.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const user = window.common.checkAuth();
+      if (!user) return;
+      window.common.renderNavbar(user);
+      window.common.applyDarkMode();
 
-        document.getElementById('avatarInput').addEventListener('change', e => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = ev => {
-                    document.getElementById('avatarPreview').src = ev.target.result;
-                    document.getElementById('avatarPreview').style.display = 'block';
-                };
-                reader.readAsDataURL(file);
-            }
-        });
+      // Pre-fill form
+      document.getElementById('username').value = user.username;
 
-        document.getElementById('passwordForm').addEventListener('submit', e => {
-            e.preventDefault();
-            const current = document.getElementById('currentPassword').value;
-            const newPass = document.getElementById('newPassword').value;
-            changePassword(current, newPass);
-        });
-    </script>
+      // Show/hide messages
+      const showMessage = (el, msg, isError = false) => {
+        el.textContent = msg;
+        el.classList.toggle('hidden', false);
+        el.style.color = isError ? 'red' : 'green';
+        setTimeout(() => el.classList.add('hidden'), 3000);
+      };
+
+      // Override profile.js handlers to use showMessage
+      const originalError = document.getElementById('error');
+      const originalSuccess = document.getElementById('success');
+      // profile.js already sets them; this ensures visibility
+    });
+  </script>
 </body>
 </html>

@@ -1,32 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register</title>
-    <link rel="stylesheet" href="css/styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register</title>
+  <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
-    <div class="container">
-        <h1>Register</h1>
-        <form id="registerForm">
-            <input type="email" id="email" placeholder="Enter your email" required>
-            <button type="submit">Send Verification Code</button>
-        </form>
-        <p>Or sign up with:</p>
-        <a href="/api/auth/google" class="google-btn">Sign up with Google</a>
-        <p>Already have an account? <a href="login.html">Login here</a></p>
-        <div id="message"></div>
-    </div>
-    <script src="js/main.js"></script>
-    <script src="js/auth.js"></script>
-    <script>
-        document.getElementById('registerForm').addEventListener('submit', e => {
-            e.preventDefault();
-            const email = document.getElementById('email').value.trim();
-            if (!email) return showMessage('Email is required', 'error');
-            register(email);
-        });
-    </script>
+  <div id="navbar"></div> <!-- Empty for non-auth -->
+  <div class="container">
+    <h2>Register</h2>
+    <form>
+      <input type="email" id="email" placeholder="Email" required>
+      <input type="password" id="password" placeholder="Password (min 6 chars)" required>
+      <input type="text" id="username" placeholder="Username" required>
+      <button type="submit">Register</button>
+    </form>
+    <button id="google-register">Register with Google</button>
+    <div id="error"></div>
+    <div id="success"></div>
+  </div>
+  <script src="../js/common.js"></script>
+  <script src="../js/register.js"></script>
 </body>
 </html>
