@@ -1,20 +1,27 @@
-const sendEmail = require('../services/gmail');
+const { sendEmail } = require('./gmail');
 
-const sendVerificationEmail = async (email, code) => {
-  const subject = 'Verify Your Email - 6-Digit Code';
-  const html = `
-    <h2>Email Verification</h2>
-    <p>Your 6-digit verification code is: <strong>${code}</strong></p>
-    <p>This code expires in 10 minutes. If you didn't request this, ignore it.</p>
-  `;
+async function sendVerificationEmail(to, code) {
+  const subject = 'Email Verification Code';
+  const text = `
+Dear User,
+
+Your verification code is: ${code}
+
+This code is valid for 10 minutes. Enter it on the website to complete registration.
+
+If you didn't request this, ignore this email.
+
+Best,
+My Website Team
+  `.trim();
 
   try {
-    await sendEmail(email, subject, html);
-    console.log(`Verification email sent to ${email}`);
-  } catch (err) {
-    console.error('Failed to send verification email:', err);
-    throw new Error('Email send failed');
+    const result = await sendEmail(to, subject, text);
+    return result;
+  } catch (error) {
+    console.error('Verification email error:', error);
+    throw error;  // Re-throw for controller to handle
   }
-};
+}
 
 module.exports = sendVerificationEmail;
