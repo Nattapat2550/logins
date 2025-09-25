@@ -1,0 +1,43 @@
+/* Dark Mode Overrides */
+body.dark {
+    background: #121212;
+    color: #e0e0e0;
+}
+
+body.dark header {
+    background: #1f1f1f;
+}
+
+body.dark footer {
+    background: #1f1f1f;
+}
+
+body.dark form,
+body.dark .card {
+    background: #1e1e1e;
+    border: 1px solid #333;
+}
+
+body.dark input,
+body.dark select,
+body.dark textarea {
+    background: #2d2d2d;
+    color: #e0e0e0;
+    border-color: #444;
+}
+
+body.dark button {
+    background: #1f8b4c; /* Darker green */
+}
+
+body.dark button:hover {
+    background: #166d3b;
+}
+
+body.dark .error {
+    color: #ff6b6b;
+}
+
+body.dark .success {
+    color: #51cf66;
+}

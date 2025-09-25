@@ -1,35 +1,60 @@
-const API_BASE = 'https://backendlogins.onrender.com/api'; // Update to your Render backend URL
+const API_BASE = '/api';
 
 document.addEventListener('DOMContentLoaded', () => {
-  const form = document.querySelector('form');
-  const googleBtn = document.getElementById('google-register');
+    initDarkMode(); // From darkModeToggle.js
 
-  // Google Login (redirects to backend)
-  googleBtn.addEventListener('click', () => {
-    window.location.href = `${API_BASE}/auth/google`;
-  });
+    const emailInput = document.getElementById('email');
+    const errorDiv = document.getElementById('emailError');
+    const form = document.getElementById('registerForm');
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    const username = document.getElementById('username').value;
+    // Real-time duplicate check
+    emailInput.addEventListener('blur', async () => {
+        const email = emailInput.value.trim();
+        if (!email) return;
+        try {
+            const res = await fetch(`${API_BASE}/auth/check-email?email=${encodeURIComponent(email)}`);
+            if (!res.ok) throw new Error('Check failed');
+            const data = await res.json();
+            if (data.exists) {
+                errorDiv.textContent = 'Email already registered. Try login.';
+                errorDiv.className = 'error';
+            } else {
+                errorDiv.textContent = 'Email available!';
+                errorDiv.className = 'success';
+            }
+        } catch (err) {
+            console.error('Email check error:', err);
+            errorDiv.textContent = 'Check failed. Try again.';
+            errorDiv.className = 'error';
+        }
+    });
 
-    try {
-      const res = await fetch(`${API_BASE}/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, username })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        localStorage.setItem('tempEmail', email); // For verify page
-        window.location.href = '/check';
-      } else {
-        document.getElementById('error').textContent = data.error;
-      }
-    } catch (err) {
-      document.getElementById('error').textContent = 'Registration failed';
-    }
-  });
+    // Form submit
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = emailInput.value.trim();
+        if (!email || errorDiv.className === 'error') {
+            alert('Enter a valid, unused email.');
+            return;
+        }
+        sessionStorage.setItem('pendingEmail', email);
+        window.location.href = 'pages/form.html';
+    });
 });
+
+// Google Callback (loaded via script in HTML)
+function handleGoogleRegister(response) {
+    const idToken = response.credential;
+    fetch(`${API_BASE}/auth/google?token=${idToken}`, { credentials: 'include' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.token) {
+                localStorage.setItem('token', data.token);
+                sessionStorage.setItem('pendingEmail', data.user.email); // For form if needed
+                window.location.href = 'pages/form.html'; // Per spec; or 'pages/home.html'
+            } else {
+                alert('Google registration failed: ' + (data.error || 'Unknown'));
+            }
+        })
+        .catch(err => alert('Google error: ' + err));
+}

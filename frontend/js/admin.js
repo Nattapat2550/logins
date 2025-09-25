@@ -1,85 +1,139 @@
-// Uses common.js
+const API_BASE = '/api';
+
 document.addEventListener('DOMContentLoaded', () => {
-  const user = window.common.checkAuth();
-  if (!user || user.role !== 'admin') {
-    window.location.href = '/home';
-    return;
-  }
+    initDarkMode();
 
-  window.common.renderNavbar(user);
-  window.common.applyDarkMode();
-
-  // Load users
-  const loadUsers = async () => {
-    try {
-      const users = await window.common.apiCall('/admin/users');
-      const table = document.getElementById('admin-users');
-      table.innerHTML = users.map(u => `
-        <div class="user-row">
-          <span>ID: ${u.id} | Email: ${u.email} | Username: ${u.username} | Role: ${u.role} | Verified: ${u.verified}</span>
-          <button onclick="editUser (${u.id})">Edit</button>
-          <button onclick="deleteUser (${u.id})">Delete</button>
-        </div>
-      `).join('');
-    } catch (err) {
-      document.getElementById('error').textContent = err.message;
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = 'login.html';
+        return;
     }
-  };
 
-  // Edit user form
-  window.editUser  = async (id) => {
-    const user = await window.common.apiCall(`/admin/users/${id}`); // GET not implemented, but assume fetch one
-    // For simplicity, prompt or show modal; here, redirect or inline form
-    const email = prompt('New email:', user.email);
-    const username = prompt('New username:', user.username);
-    const role = prompt('New role (user/admin):', user.role);
-    if (email && username && role) {
-      try {
-        await window.common.apiCall('/admin/users/' + id, {
-       method: 'PUT',
-       body: JSON.stringify({ email: 'new@example.com', username: 'NewUser ', role: 'user' })
-     });
-        loadUsers();
-        document.getElementById('success').textContent = 'User  updated';
-      } catch (err) {
-        document.getElementById('error').textContent = err.message;
-      }
+    const authFetch = async (url, options = {}) => {
+        const headers = { ...options.headers, 'Authorization': `Bearer ${token}` };
+        const res = await fetch(url, { ...options, headers });
+        if (res.status === 401 || res.status === 403) {
+            localStorage.removeItem('token');
+            alert('Access denied or session expired.');
+            window.location.href = 'login.html';
+            return null;
+        }
+        return res;
+    };
+
+    // Check if admin
+    const checkAdmin = async () => {
+        try {
+            const res = await authFetch(`${API_BASE}/users/profile`);
+            if (res.ok) {
+                const user = await res.json();
+                if (user.role !== 'admin') {
+                    alert('Admin access required.');
+                    window.location.href = 'home.html';
+                    return false;
+                }
+                return true;
+            }
+        } catch (err) {
+            console.error(err);
+        }
+        return false;
+    };
+
+    // Load all users
+    const loadUsers = async () => {
+        try {
+            const res = await authFetch(`${API_BASE}/admin/users`);
+            if (res.ok) {
+                const users = await res.json();
+                const userList = document.getElementById('userList');
+                if (userList) {
+                    userList.innerHTML = users.map(user => `
+                        <div class="user-item card">
+                            <span>${user.username} (${user.email}) - ${user.role} - ${user.verified ? 'Verified' : 'Pending'}</span>
+                            <div>
+                                <button onclick="editUser (${user.id})">Edit</button>
+                                <button onclick="deleteUser (${user.id})" style="background: #ea4335;">Delete</button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            }
+        } catch (err) {
+            console.error('Load users error:', err);
+        }
+    };
+
+    // Update home content form
+    const homeForm = document.getElementById('homeContentForm');
+    if (homeForm) {
+        homeForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('homeTitleInput').value.trim();
+            const content = document.getElementById('homeContentInput').value.trim();
+            const errorDiv = document.getElementById('adminError');
+
+            if (!title || !content) {
+                errorDiv.textContent = 'Title and content required.';
+                errorDiv.className = 'error';
+                return;
+            }
+
+            try {
+                const res = await authFetch(`${API_BASE}/admin/home-content`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title, content })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert('Home content updated!');
+                    errorDiv.textContent = 'Updated successfully.';
+                    errorDiv.className = 'success';
+                    // Refresh home if needed
+                } else {
+                    errorDiv.textContent = data.error || 'Update failed.';
+                    errorDiv.className = 'error';
+                }
+            } catch (err) {
+                errorDiv.textContent = 'Network error.';
+                errorDiv.className = 'error';
+                console.error(err);
+            }
+        });
     }
-  };
 
-  // Delete user
-  window.deleteUser  = async (id) => {
-    if (confirm('Delete user?')) {
-      try {
-        await window.common.apiCall(`/admin/users/${id}`, { method: 'DELETE' });
-        loadUsers();
-        document.getElementById('success').textContent = 'User  deleted';
-      } catch (err) {
-        document.getElementById('error').textContent = err.message;
-      }
-    }
-  };
+    // Placeholder functions for edit/delete (extend with modals/forms)
+    window.editUser  = (id) => {
+        alert(`Edit user ${id} (Implement modal/form for update via /api/admin/users/${id})`);
+        // TODO: Fetch user, show form, PUT to /api/admin/users/${id}
+    };
 
-  // Home content editor
-  const contentForm = document.getElementById('content-form');
-  if (contentForm) {
-    contentForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const title = document.getElementById('title').value;
-      const content = document.getElementById('content').value;
-      try {
-        await window.common.apiCall('/admin/home-content', {
-       method: 'PUT',
-       body: JSON.stringify({ title: 'New Title', content: 'New content...' })
-     });
-        document.getElementById('success').classList.remove('hidden');
-        document.getElementById('success').textContent = 'Content updated';
-      } catch (err) {
-        document.getElementById('error').textContent = err.message;
-      }
-    });
-  }
+    window.deleteUser  = async (id) => {
+        if (!confirm(`Delete user ${id}?`)) return;
+        try {
+            const res = await authFetch(`${API_BASE}/admin/users/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                alert('User  deleted.');
+                loadUsers(); // Refresh list
+            } else {
+                alert('Delete failed.');
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Network error.');
+        }
+    };
 
-  // Load initial data
-  loadUsers();
+    // Logout
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            localStorage.removeItem('token');
+            window.location.href = 'index.html';
+        });
+    };
+
+    // Init
+    checkAdmin().then(isAdmin => { if (isAdmin) loadUsers(); });
 });

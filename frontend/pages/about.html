@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About Us</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/dark-mode.css">
+</head>
+<body class="light">
+    <header>
+        <nav class="container">
+            <h1>About</h1>
+            <ul>
+                <li><a href="index.html">Home</a></li>
+                <li><a href="contact.html">Contact</a></li>
+                <li><a href="login.html">Login</a></li>
+                <li><button id="darkModeToggle" onclick="toggleDarkMode()">🌙 Dark Mode</button></li>
+            </ul>
+        </nav>
+    </header>
+    <main class="container">
+        <div class="card">
+            <h2>About Our Website</h2>
+            <p>This is a user authentication system with admin features, built with Node.js backend and vanilla frontend.</p>
+            <p>Features: Registration, login, email verification via Gmail API, Google OAuth, dark mode, and more.</p>
+        </div>
+    </main>
+    <footer>
+        <p>&copy; 2024 My Website.</p>
+    </footer>
+    <script src="../js/darkModeToggle.js"></script>
+    <script>initDarkMode();</script>
+</body>
+</html>

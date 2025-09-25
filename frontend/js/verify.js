@@ -1,41 +1,54 @@
-const API_BASE = 'https://backendlogins.onrender.com/api'; // Update to your Render backend URL
+const API_BASE = '/api';
 
 document.addEventListener('DOMContentLoaded', () => {
-  const form = document.querySelector('form');
-  const tempEmail = localStorage.getItem('tempEmail') || prompt('Enter your email for verification:');
+    initDarkMode();
 
-  document.getElementById('email').value = tempEmail;
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('email').value;
-    const code = document.getElementById('code').value;
-
-    try {
-      const res = await fetch(`${API_BASE}/auth/verify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, code })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        localStorage.removeItem('tempEmail');
-        redirectByRole(data.user.role);
-      } else {
-        document.getElementById('error').textContent = data.error;
-      }
-    } catch (err) {
-      document.getElementById('error').textContent = 'Verification failed';
+    const pendingEmail = sessionStorage.getItem('pendingEmail');
+    if (!pendingEmail) {
+        alert('No pending verification. Start over.');
+        window.location.href = 'pages/register.html';
+        return;
     }
-  });
 
-  function redirectByRole(role) {
-    if (role === 'admin') {
-      window.location.href = '/admin';
-    } else {
-      window.location.href = '/home';
-    }
-  }
+    const form = document.getElementById('checkForm');
+    const errorDiv = document.getElementById('error');
+    const codeInput = document.getElementById('code');
+
+    // Auto-format code input (digits only)
+    codeInput.addEventListener('input', (e) => {
+        e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6);
+    });
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const code = codeInput.value.trim();
+
+        if (code.length !== 6) {
+            errorDiv.textContent = 'Enter 6-digit code.';
+            errorDiv.className = 'error';
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API_BASE}/auth/verify`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: pendingEmail, code })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                localStorage.setItem('token', data.token);
+                sessionStorage.removeItem('pendingEmail');
+                alert('Verified successfully!');
+                window.location.href = 'pages/home.html';
+            } else {
+                errorDiv.textContent = data.error || 'Invalid code.';
+                errorDiv.className = 'error';
+            }
+        } catch (err) {
+            errorDiv.textContent = 'Network error.';
+            errorDiv.className = 'error';
+            console.error(err);
+        }
+    });
 });

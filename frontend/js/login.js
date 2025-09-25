@@ -1,69 +1,79 @@
-const API_BASE = 'https://backendlogins.onrender.com/api'; // Update to your Render backend URL
+const API_BASE = '/api';
 
 document.addEventListener('DOMContentLoaded', () => {
-  const form = document.querySelector('form');
-  const googleBtn = document.getElementById('google-login');
-  const forgotBtn = document.getElementById('forgot-password');
-  const toggleBtn = document.getElementById('password-toggle');
-  const passwordInput = document.getElementById('password');
+    initDarkMode();
 
-  // Password toggle
-  toggleBtn.addEventListener('click', () => {
-    const type = passwordInput.type === 'password' ? 'text' : 'password';
-    passwordInput.type = type;
-    toggleBtn.textContent = type === 'password' ? 'Show' : 'Hide';
-  });
+    const form = document.getElementById('loginForm');
+    const errorDiv = document.getElementById('error');
+    const showPassword = document.getElementById('showPassword');
+    const forgotLink = document.getElementById('forgotPassword');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
 
-  // Google Login
-  googleBtn.addEventListener('click', () => {
-    window.location.href = `${API_BASE}/auth/google`;
-  });
+    // Password toggle
+    showPassword.addEventListener('change', () => {
+        passwordInput.type = showPassword.checked ? 'text' : 'password';
+    });
 
-  // Forgot password
-  forgotBtn.addEventListener('click', async () => {
-    const email = document.getElementById('email').value;
-    try {
-      const res = await fetch(`${API_BASE}/auth/forgot-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
-      });
-      const data = await res.json();
-      document.getElementById('success').textContent = data.message;
-    } catch (err) {
-      document.getElementById('error').textContent = 'Failed to send reset';
-    }
-  });
+    // Forgot password
+    forgotLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        const email = emailInput.value.trim();
+        if (email) {
+            alert(`Reset instructions sent to ${email}. (Implement backend /api/auth/forgot-password)`);
+            // TODO: fetch(`${API_BASE}/auth/forgot-password`, { method: 'POST', body: JSON.stringify({ email }) });
+        } else {
+            alert('Enter your email first.');
+        }
+    });
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
+    // Form submit
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
 
-    try {
-      const res = await fetch(`${API_BASE}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        redirectByRole(data.user.role);
-      } else {
-        document.getElementById('error').textContent = data.error;
-      }
-    } catch (err) {
-      document.getElementById('error').textContent = 'Login failed';
-    }
-  });
+        if (!email || !password) {
+            errorDiv.textContent = 'Email and password required.';
+            errorDiv.className = 'error';
+            return;
+        }
 
-  function redirectByRole(role) {
-    if (role === 'admin') {
-      window.location.href = '/admin';
-    } else {
-      window.location.href = '/home';
-    }
-  }
+        try {
+            const res = await fetch(`${API_BASE}/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                localStorage.setItem('token', data.token);
+                alert('Logged in successfully!');
+                window.location.href = 'pages/home.html';
+            } else {
+                errorDiv.textContent = data.error || 'Login failed.';
+                errorDiv.className = 'error';
+            }
+        } catch (err) {
+            errorDiv.textContent = 'Network error.';
+            errorDiv.className = 'error';
+            console.error(err);
+        }
+    });
 });
+
+// Google Login Callback
+function handleGoogleLogin(response) {
+    const idToken = response.credential;
+    fetch(`${API_BASE}/auth/google?token=${idToken}`, { credentials: 'include' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.token) {
+                localStorage.setItem('token', data.token);
+                window.location.href = 'pages/home.html';
+            } else {
+                alert('Google login failed: ' + (data.error || 'Unknown'));
+            }
+        })
+        .catch(err => alert('Google error: ' + err));
+}
