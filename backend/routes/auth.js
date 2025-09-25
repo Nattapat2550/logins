@@ -1,54 +1,62 @@
 const express = require('express');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const { pool } = require('../db');
-const bcrypt = require('bcryptjs');
+const { pool } = require('../db');  // Your DB pool
 const authController = require('../controllers/authController');
-const { generateToken } = require('../utils/jwt');
+const jwt = require('jsonwebtoken');
 
 const router = express.Router();
 
-// Initialize Passport (exported for app.js)
-const initializePassport = (passport) => {
+// Passport Configuration Function (called from app.js)
+function initializePassport(passport) {
+  // Serialize user (store user ID in session)
+  passport.serializeUser ((user, done) => {
+    done(null, user.id);
+  });
+
+  // Deserialize user (fetch from DB)
+  passport.deserializeUser (async (id, done) => {
+    try {
+      const result = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+      const user = result.rows[0];
+      if (user) {
+        // Add role for your role system
+        user.role = user.role || 'user';
+      }
+      done(null, user);
+    } catch (err) {
+      done(err, null);
+    }
+  });
+
+  // Google OAuth Strategy
   passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: process.env.GOOGLE_REDIRECT_URI,
+    callbackURL: process.env.GOOGLE_CALLBACK_URL || '/api/auth/google/callback'
   }, async (accessToken, refreshToken, profile, done) => {
     try {
-      console.log(`[AUTH] Google for ${profile.emails[0].value}`);
-      let user = await pool.query('SELECT * FROM users WHERE email = $1', [profile.emails[0].value]);
-      
-      if (user.rows.length === 0) {
-        const username = profile.displayName || profile.emails[0].value.split('@')[0];
-        const hashedPassword = await bcrypt.hash('google-temp-password', 10);
-        user = await pool.query(
-          'INSERT INTO users (email, username, password, verified) VALUES ($1, $2, $3, true) RETURNING *',
-          [profile.emails[0].value, username, hashedPassword]
+      // Find or create user in DB
+      let result = await pool.query('SELECT * FROM users WHERE google_id = $1', [profile.id]);
+      let user = result.rows[0];
+
+      if (!user) {
+        // Create new user (email from Google, set verified=true, role='user')
+        result = await pool.query(
+          'INSERT INTO users (email, username, google_id, verified, role, avatar) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+          [profile.emails[0].value, profile.displayName, profile.id, true, 'user', profile.photos[0]?.value]
         );
+        user = result.rows[0];
       }
-      
-      const token = generateToken({ id: user.rows[0].id, email: user.rows[0].email, role: user.rows[0].role || 'user' });
-      return done(null, { ...user.rows[0], token });
+
+      return done(null, user);
     } catch (err) {
-      console.error('[AUTH] Google error:', err.message);
-      return done(err);
+      return done(err, null);
     }
   }));
-};
-module.exports.initializePassport = initializePassport;
+}
 
-// Google routes
-router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
-router.get('/google/callback', 
-  passport.authenticate('google', { session: false, failureRedirect: '/register.html' }),
-  (req, res) => {
-    const { token, email } = req.user;
-    res.redirect(`${process.env.FRONTEND_URL}/form.html?token=${token}&email=${email}`);
-  }
-);
-
-// API routes
+// Auth Routes
 router.post('/register', authController.register);
 router.post('/verify', authController.verify);
 router.post('/set-password', authController.setPassword);
@@ -56,4 +64,19 @@ router.post('/login', authController.login);
 router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset-password', authController.resetPassword);
 
-module.exports = router;
+// Google OAuth Routes
+router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+router.get('/google/callback',
+  passport.authenticate('google', { failureRedirect: '/login.html' }),
+  (req, res) => {
+    // On success, generate JWT and redirect to frontend with token
+    const token = jwt.sign({ id: req.user.id, role: req.user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/form.html?token=${token}&email=${req.user.email}`);
+  }
+);
+
+// Export object with router and init function
+module.exports = {
+  router,
+  initializePassport
+};

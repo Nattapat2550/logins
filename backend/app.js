@@ -1,46 +1,47 @@
+require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
-const passport = require('passport');
-const { connect } = require('./db');
+const session = require('express-session');
+const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/user');
+const adminRoutes = require('./routes/admin');
 
-// Initialize Express
 const app = express();
 
 // Middleware
-app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5000', credentials: true }));
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(passport.initialize());
+
+// Session for Passport (Google OAuth)
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-session-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: process.env.NODE_ENV === 'production' }
+}));
 
 // Serve static frontend files
 app.use(express.static(path.join(__dirname, '../frontend')));
 
-// Serve uploads
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Initialize Passport (from auth routes)
+const passport = require('passport');
+authRoutes.initializePassport(passport);
+app.use(passport.initialize());
+app.use(passport.session());
 
-// Routes (imported from routes/)
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/user', require('./middlewares/authMiddleware'), require('./routes/user'));
-app.use('/api/admin', require('./middlewares/authMiddleware'), require('./middlewares/roleMiddleware'), require('./routes/admin'));
+// API Routes
+app.use('/api/auth', authRoutes.router);
+app.use('/api/user', userRoutes);
+app.use('/api/admin', adminRoutes);
 
-// Root route
-app.get('/', (req, res) => {
+// Catch-all for frontend SPA (after API routes, no '*' wildcard)
+app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/index.html'));
-});
-
-// Passport config (Google strategy only; JWT in middleware)
-require('./routes/auth').initializePassport(passport);
-
-// DB Connect
-connect();
-
-// 404 Handler
-app.use((req, res) => {
-  if (req.path.startsWith('/api/')) {
-    return res.status(404).json({ error: 'API not found' });
-  }
-  res.status(404).sendFile(path.join(__dirname, '../frontend/index.html'));
 });
 
 module.exports = app;
