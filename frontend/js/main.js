@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:5000/api'; // Change to https://backendlogins.onrender.com/api for production
+const API_BASE = 'https://backendlogins.onrender.com/api'; // Change to https://backendlogins.onrender.com/api for production
 
 // Theme Toggle
 function initTheme() {
