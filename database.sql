@@ -16,6 +16,11 @@ CREATE TABLE homepage_content (
     id SERIAL PRIMARY KEY,
     content TEXT DEFAULT 'Welcome to the website! Edit me as admin.'
 );
-
+CREATE TABLE IF NOT EXISTS user_sessions (
+  sid VARCHAR NOT NULL COLLATE "default",
+  sess JSON NOT NULL,
+  expire TIMESTAMP(6) NOT NULL
+) WITH (OIDS=FALSE);
+CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON user_sessions (expire);
 -- Insert default homepage content
 INSERT INTO homepage_content (content) VALUES ('Welcome to the website! Edit me as admin.');

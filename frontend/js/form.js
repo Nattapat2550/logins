@@ -16,9 +16,10 @@ async function completeRegistration() {
   const password = document.getElementById('password').value;
   const profilePicFile = document.getElementById('profilePic').files[0];
   const email = localStorage.getItem('pendingEmail');
-  const isGoogle = localStorage.getItem('tempToken'); // Or check query
+  const isGoogle = localStorage.getItem('tempToken') !== null;  // Or check URL params
 
-  if (!username || (!isGoogle && !password)) return showError('Fill required fields');
+  if (!username || !email) return showError('Username and email required');
+  if (!isGoogle && (!password || password.length < 6)) return showError('Password required (at least 6 chars)');
 
   try {
     let formData = new FormData();
@@ -26,16 +27,18 @@ async function completeRegistration() {
     formData.append('email', email);
     if (!isGoogle) formData.append('password', password);
     if (profilePicFile) formData.append('profilePic', profilePicFile);
-    if (isGoogle) formData.append('google', 'true');
-    const token = isGoogle ? localStorage.getItem('tempToken') : null;
-    if (token) formData.append('token', token);
+    formData.append('google', isGoogle ? 'true' : 'false');  // Explicit flag
+
+    // For Google: Include temp token if available
+    const tempToken = localStorage.getItem('tempToken');
+    if (tempToken) formData.append('token', tempToken);
 
     const res = await fetch(`${API_BASE}/auth/register/complete`, {
       method: 'POST',
-      body: formData
+      body: formData  // No Content-Type; browser sets multipart/form-data
     });
     const data = await res.json();
-    if (data.success) {
+    if (res.ok && data.success) {
       localStorage.setItem('token', data.token);
       localStorage.removeItem('pendingEmail');
       localStorage.removeItem('tempToken');
@@ -44,10 +47,11 @@ async function completeRegistration() {
         window.location.href = 'home.html';
       }, 1000);
     } else {
-      showError('Registration failed');
+      showError(data.error || 'Registration failed');
     }
   } catch (err) {
-    showError(err.message);
+    console.error('Registration error:', err);
+    showError('Network error: ' + err.message);
   }
 }
 
