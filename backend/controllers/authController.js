@@ -5,7 +5,7 @@ const { sendVerificationEmail, sendResetEmail } = require('../utils/mailer');
 const generateCode = () => Math.floor(100000 + Math.random() * 900000).toString();
 
 exports.register = async (req, res) => {
-  const { email, username } = req.body;
+  const { email } = req.body;
   try {
     // Check duplicate email
     const existing = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
@@ -13,10 +13,13 @@ exports.register = async (req, res) => {
       return res.status(400).json({ error: 'Email already registered' });
     }
 
-    // Insert user (password null for now, set in form.html)
+    // Auto-generate default username from email (e.g., "john" from "john@example.com")
+    const defaultUsername = email.split('@')[0];  // Simple extraction; can enhance (e.g., check uniqueness)
+
+    // Insert user with default username (password null for now, set in form.html)
     await pool.query(
       'INSERT INTO users (email, username) VALUES ($1, $2)',
-      [email, username]
+      [email, defaultUsername]
     );
 
     // Generate and send code

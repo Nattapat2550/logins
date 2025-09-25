@@ -1,12 +1,12 @@
 // Register
+// Register (Email only)
 document.getElementById('registerForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const email = document.getElementById('email').value;
-  const username = document.getElementById('username').value;
   const res = await fetch('/api/auth/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, username })
+    body: JSON.stringify({ email })  // No username sent
   });
   if (res.ok) {
     localStorage.setItem('regEmail', email);
@@ -15,6 +15,8 @@ document.getElementById('registerForm')?.addEventListener('submit', async (e) =>
     alert((await res.json()).error);
   }
 });
+
+// ... (rest of the file unchanged: Google, Verify, Login, Forgot, etc.)
 
 // Google Register/Login (same button on both)
 document.getElementById('googleLogin')?.addEventListener('click', () => {
