@@ -26,12 +26,12 @@ app.use('/api/admin', require('./routes/adminRoutes'));
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'OK' }));
 
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({ error: 'Route not found' });
-});
+// 404 handler (FIX: Use app.all('*') instead of app.use('*') to avoid path-to-regexp parsing error)
+  app.use((req, res, next) => {
+    res.status(404).json({ error: 'Route not found' });
+  });
 
-// Global error handler
+// Global error handler (must be LAST)
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Something went wrong!' });
