@@ -11,23 +11,23 @@ const {
 
 const router = express.Router();
 
-// Apply authentication and admin role middleware to all routes
+// Apply auth and admin role to all
 router.use(authenticateToken);
 router.use(requireRole('admin'));
 
-// GET all users (view all user information)
+// GET /api/admin/users - Get all users
 router.get('/users', getAllUsers);
 
-// GET single user by ID (for editing)
+// GET /api/admin/users/:id - Get single user
 router.get('/users/:id', getUserById);
 
-// PUT update user by ID (edit email, username, role)
+// PUT /api/admin/users/:id - Update user (email, username, role)
 router.put('/users/:id', updateUser );
 
-// DELETE user by ID
+// DELETE /api/admin/users/:id - Delete user
 router.delete('/users/:id', deleteUser );
 
-// PUT update home content (admin-editable info for home page)
+// PUT /api/admin/home-content - Update home content
 router.put('/home-content', updateHomeContent);
 
 module.exports = router;

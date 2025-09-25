@@ -6,18 +6,16 @@ const {
   updateHomeContent
 } = require('../models/userModel');
 
-// GET all users (admin view: list all user information, excluding sensitive fields)
 exports.getAllUsers = async (req, res) => {
   try {
     const users = await getAllUsers();
     res.json(users);
   } catch (err) {
-    console.error('Error in adminController.getAllUsers:', err.message);
+    console.error('Get all users error:', err);
     res.status(500).json({ error: 'Failed to fetch users' });
   }
 };
 
-// GET single user by ID (for editing or viewing details in admin panel)
 exports.getUserById = async (req, res) => {
   const { id } = req.params;
 
@@ -29,7 +27,7 @@ exports.getUserById = async (req, res) => {
     const user = await getUserById(id);
     res.json(user);
   } catch (err) {
-    console.error('Error in adminController.getUser ById:', err.message);
+    console.error('Get user by ID error:', err);
     if (err.message.includes('not found')) {
       return res.status(404).json({ error: 'User  not found' });
     } else if (err.message.includes('Invalid user ID')) {
@@ -39,7 +37,6 @@ exports.getUserById = async (req, res) => {
   }
 };
 
-// PUT update user by ID (admin edits: email, username, role; like SQL update)
 exports.updateUser  = async (req, res) => {
   const { id } = req.params;
   const { email, username, role } = req.body;
@@ -55,7 +52,7 @@ exports.updateUser  = async (req, res) => {
     const updatedUser  = await updateUser (id, email, username, role);
     res.status(200).json({ message: 'User  updated successfully', user: updatedUser  });
   } catch (err) {
-    console.error('Error in adminController.updateUser :', err.message);
+    console.error('Update user error:', err);
     if (err.message.includes('exists')) {
       return res.status(400).json({ error: 'Email already exists' });
     } else if (err.message.includes('not found')) {
@@ -67,7 +64,6 @@ exports.updateUser  = async (req, res) => {
   }
 };
 
-// DELETE user by ID (admin deletes any user)
 exports.deleteUser  = async (req, res) => {
   const { id } = req.params;
 
@@ -79,7 +75,7 @@ exports.deleteUser  = async (req, res) => {
     await deleteUser (id);
     res.status(200).json({ message: 'User  deleted successfully' });
   } catch (err) {
-    console.error('Error in adminController.deleteUser :', err.message);
+    console.error('Delete user error:', err);
     if (err.message.includes('not found')) {
       return res.status(404).json({ error: 'User  not found' });
     } else if (err.message.includes('Invalid user ID')) {
@@ -89,7 +85,6 @@ exports.deleteUser  = async (req, res) => {
   }
 };
 
-// PUT update home content (admin-editable info for home page display)
 exports.updateHomeContent = async (req, res) => {
   const { title, content } = req.body;
 
@@ -101,7 +96,7 @@ exports.updateHomeContent = async (req, res) => {
     const updatedContent = await updateHomeContent(title, content);
     res.status(200).json({ message: 'Home content updated successfully', content: updatedContent });
   } catch (err) {
-    console.error('Error in adminController.updateHomeContent:', err.message);
+    console.error('Update home content error:', err);
     if (err.message.includes('required')) {
       return res.status(400).json({ error: err.message });
     }

@@ -1,28 +1,18 @@
 const express = require('express');
-const passport = require('passport');
-const { register, verify, login, forgotPassword } = require('../controllers/authController');
-const authenticateToken = require('../middleware/authMiddleware');
+const { register, login, verifyEmail, googleLogin } = require('../controllers/authController');
 
 const router = express.Router();
 
-// Google OAuth
-router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
-router.get('/google/callback', passport.authenticate('google', { session: false }), (req, res) => {
-  const generateToken = require('../utils/generateToken');
-  const token = generateToken(req.user);
-  res.redirect(`${process.env.FRONTEND_URL}/form?token=${token}&user=${encodeURIComponent(JSON.stringify(req.user))}`);
-});
-
-// Register
+// POST /api/auth/register - Register user (sends verification email)
 router.post('/register', register);
 
-// Verify email
-router.post('/verify', verify);
+// POST /api/auth/verify - Verify email with code
+router.post('/verify', verifyEmail);
 
-// Login
+// POST /api/auth/login - Login and get JWT
 router.post('/login', login);
 
-// Forgot password
-router.post('/forgot-password', forgotPassword);
+// GET /api/auth/google - Google OAuth callback (handles token)
+router.get('/google', googleLogin);
 
 module.exports = router;

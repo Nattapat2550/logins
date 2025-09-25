@@ -1,42 +1,40 @@
-const { updateProfile, deleteUser , getHomeContent } = require('../models/userModel');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, 'uploads/'),
-  filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
-});
-const upload = multer({ storage });
+const { getUserById, updateProfile, deleteUser , getHomeContent } = require('../models/userModel');
+const { pool } = require('../config/db');
 
 exports.getProfile = async (req, res) => {
-  res.json(req.user);
+  try {
+    const user = await getUserById(req.user.id);
+    res.json(user);
+  } catch (err) {
+    console.error('Get profile error:', err);
+    res.status(500).json({ error: 'Failed to get profile' });
+  }
 };
 
 exports.updateProfile = async (req, res) => {
   const { username } = req.body;
-  let profilePic = req.user.profile_pic;
-  if (req.file) {
-    profilePic = `/uploads/${req.file.filename}`;
-    // Delete old pic if not default
-    if (req.user.profile_pic !== 'user.png' && fs.existsSync(`uploads/${path.basename(req.user.profile_pic)}`)) {
-      fs.unlinkSync(`uploads/${path.basename(req.user.profile_pic)}`);
-    }
+  const profilePic = req.file ? req.file.filename : null;
+
+  if (!username) {
+    return res.status(400).json({ error: 'Username required' });
   }
+
   try {
-    const updatedUser  = await updateProfile(req.user.id, username || req.user.username, profilePic);
-    res.json(updatedUser );
+    const updated = await updateProfile(req.user.id, username, profilePic);
+    res.json({ message: 'Profile updated', user: updated });
   } catch (err) {
-    res.status(500).json({ error: 'Update failed' });
+    console.error('Update profile error:', err);
+    res.status(400).json({ error: err.message });
   }
 };
 
 exports.deleteAccount = async (req, res) => {
   try {
     await deleteUser (req.user.id);
-    res.json({ message: 'Account deleted' });
+    res.json({ message: 'Account deleted successfully' });
   } catch (err) {
-    res.status(500).json({ error: 'Deletion failed' });
+    console.error('Delete account error:', err);
+    res.status(500).json({ error: 'Failed to delete account' });
   }
 };
 
@@ -45,11 +43,7 @@ exports.getHomeContent = async (req, res) => {
     const content = await getHomeContent();
     res.json(content);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch content' });
+    console.error('Get home content error:', err);
+    res.status(500).json({ error: 'Failed to get home content' });
   }
-};
-
-exports.toggleDarkMode = (req, res) => {
-  // Frontend handles this client-side; backend just acknowledges
-  res.json({ message: 'Dark mode toggled' });
 };

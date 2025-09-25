@@ -1,59 +1,44 @@
-require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const session = require('express-session');
-const passport = require('passport');
-const path = require('path');
+const dotenv = require('dotenv');
+const path = require('path'); // For serving static files if needed
 
-const authRoutes = require('./routes/authRoutes');
-const userRoutes = require('./routes/userRoutes');
-const adminRoutes = require('./routes/adminRoutes');
-
-const { db } = require('./config/db');
+dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, '../frontend'))); // Serve frontend statically for dev
-app.use('/uploads', express.static('uploads')); // Serve uploaded profile pics
-app.use(session({
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  cookie: { secure: process.env.NODE_ENV === 'production' }
-}));
 
-app.use(passport.initialize());
-app.use(passport.session());
+// Static files (optional: serve frontend if in same repo; otherwise, ignore)
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'))); // For profile pics
 
 // Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/user', userRoutes);
-app.use('/api/admin', adminRoutes);
-
-// Serve frontend pages
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, '../frontend/pages/index.html')));
-app.get('/register', (req, res) => res.sendFile(path.join(__dirname, '../frontend/pages/register.html')));
-app.get('/login', (req, res) => res.sendFile(path.join(__dirname, '../frontend/pages/login.html')));
-app.get('/check', (req, res) => res.sendFile(path.join(__dirname, '../frontend/pages/check.html')));
-app.get('/form', (req, res) => res.sendFile(path.join(__dirname, '../frontend/pages/form.html')));
-app.get('/home', (req, res) => res.sendFile(path.join(__dirname, '../frontend/pages/home.html')));
-app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, '../frontend/pages/admin.html')));
-app.get('/about', (req, res) => res.sendFile(path.join(__dirname, '../frontend/pages/about.html')));
-app.get('/contact', (req, res) => res.sendFile(path.join(__dirname, '../frontend/pages/contact.html')));
-app.get('/settings', (req, res) => res.sendFile(path.join(__dirname, '../frontend/pages/settings.html')));
+app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/users', require('./routes/userRoutes'));
+app.use('/api/admin', require('./routes/adminRoutes'));
 
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'OK' }));
 
-// DB connection test
-db.connect((err) => {
-  if (err) console.error('DB connection error:', err);
-  else console.log('Connected to PostgreSQL');
+// 404 handler
+app.use('*', (req, res) => {
+  res.status(404).json({ error: 'Route not found' });
 });
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: 'Something went wrong!' });
+});
+
+// Start server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
+});

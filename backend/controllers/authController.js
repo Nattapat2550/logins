@@ -1,54 +1,112 @@
+const jwt = require('jsonwebtoken');
 const { createUser , findUserByEmail, verifyUser , comparePassword } = require('../models/userModel');
-const generateToken = require('../utils/generateToken');
-const sendVerification = require('../utils/sendVerification');
-const { validateEmail, validatePassword } = require('../utils/validators');
+const sendVerificationEmail = require('../utils/sendVerification');
 
 exports.register = async (req, res) => {
   const { email, password, username } = req.body;
-  if (!validateEmail(email) || !validatePassword(password)) {
-    return res.status(400).json({ error: 'Invalid email or password' });
+
+  if (!email || !password || !username) {
+    return res.status(400).json({ error: 'Email, password, and username required' });
   }
 
-  const existingUser  = await findUserByEmail(email);
-  if (existingUser ) return res.status(400).json({ error: 'Email already exists' });
-
   try {
+    const existingUser  = await findUserByEmail(email);
+    if (existingUser ) {
+      return res.status(400).json({ error: 'Email already exists' });
+    }
+
     const user = await createUser (email, password, username);
-    await sendVerification(email, user.verification_code);
-    res.json({ message: 'Verification code sent', userId: user.id });
+    await sendVerificationEmail(email, user.verification_code);
+
+    res.status(201).json({ message: 'User  created. Check email for verification code.' });
   } catch (err) {
-    res.status(500).json({ error: 'Registration failed' });
+    console.error('Register error:', err);
+    res.status(500).json({ error: 'Failed to register user' });
   }
 };
 
-exports.verify = async (req, res) => {
+exports.verifyEmail = async (req, res) => {
   const { email, code } = req.body;
+
+  if (!email || !code) {
+    return res.status(400).json({ error: 'Email and code required' });
+  }
+
   try {
     const user = await verifyUser (email, code);
-    if (!user) return res.status(400).json({ error: 'Invalid code' });
-    const token = generateToken(user);
-    res.json({ token, user });
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+    res.json({
+      message: 'Email verified successfully',
+      token,
+      user: { id: user.id, email: user.email, username: user.username, role: user.role }
+    });
   } catch (err) {
-    res.status(500).json({ error: 'Verification failed' });
+    console.error('Verify error:', err);
+    res.status(400).json({ error: err.message || 'Invalid verification code' });
   }
 };
 
 exports.login = async (req, res) => {
   const { email, password } = req.body;
-  const user = await findUserByEmail(email);
-  if (!user || !await comparePassword(password, user.password) || !user.verified) {
-    return res.status(401).json({ error: 'Invalid credentials or unverified' });
+
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password required' });
   }
-  const token = generateToken(user);
-  res.json({ token, user });
+
+  try {
+    const user = await findUserByEmail(email);
+    if (!user || !await comparePassword(password, user.password)) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+    if (!user.verified) {
+      return res.status(403).json({ error: 'Email not verified. Check your email.' });
+    }
+
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    res.json({
+      token,
+      user: { id: user.id, email: user.email, username: user.username, role: user.role }
+    });
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ error: 'Failed to login' });
+  }
 };
 
-exports.forgotPassword = async (req, res) => {
-  // Simple reset: send email with reset link (implement full reset if needed)
-  res.json({ message: 'Reset link sent' });
-};
+exports.googleLogin = async (req, res) => {
+  // Placeholder for Google OAuth (extend with passport-google-oauth20 if needed)
+  // For now, assumes token in query; in prod, use /auth/google and callback
+  const { token } = req.query;
+  if (!token) return res.status(400).json({ error: 'Google token required' });
 
-exports.googleCallback = passport.authenticate('google', { session: false }), (req, res) => {
-  const token = generateToken(req.user);
-  res.redirect(`${process.env.FRONTEND_URL}/form?token=${token}&user=${JSON.stringify(req.user)}`);
+  try {
+    // Verify Google token (use google-auth-library)
+    const { OAuth2Client } = require('google-auth-library');
+    const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+    const ticket = await client.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID
+    });
+    const payload = ticket.getPayload();
+    const { email, name } = payload;
+
+    let user = await findUserByEmail(email);
+    if (!user) {
+      // Auto-register if not exists (no password, verified=true)
+      user = await createUser (email, '', name, 'user'); // No password for Google users
+      await pool.query('UPDATE users SET verified = TRUE, verification_code = NULL WHERE id = $1', [user.id]);
+    } else if (!user.verified) {
+      return res.status(403).json({ error: 'Email not verified' });
+    }
+
+    const jwtToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    res.json({
+      token: jwtToken,
+      user: { id: user.id, email: user.email, username: user.username, role: user.role }
+    });
+  } catch (err) {
+    console.error('Google login error:', err);
+    res.status(500).json({ error: 'Google login failed' });
+  }
 };

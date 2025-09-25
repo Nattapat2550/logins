@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 
 // Create a new user (normal registration; generates verification code)
 const createUser  = async (email, password, username, role = 'user') => {
-  // Basic validation (extend as needed)
+  // Basic validation
   if (!email || !password || !username) {
     throw new Error('Email, password, and username are required');
   }
@@ -169,7 +169,7 @@ const updateHomeContent = async (title, content) => {
   const result = await pool.query(
     'INSERT INTO home_content (title, content) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET title = $1, content = $2, updated_at = CURRENT_TIMESTAMP RETURNING title, content, updated_at',
     [title, content]
-  ); // Upsert: Insert or update (assumes id=1 is default; adjust if multi-row)
+  ); // Upsert: Assumes id=1 from setup.sql
 
   if (result.rows.length === 0) {
     throw new Error('Failed to update home content');

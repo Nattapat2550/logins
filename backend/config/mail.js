@@ -10,7 +10,7 @@ const oAuth2Client = new google.auth.OAuth2(
 
 oAuth2Client.setCredentials({ refresh_token: process.env.REFRESH_TOKEN });
 
-// Function to get fresh access token (async)
+// Function to get fresh access token (async, handles expiration)
 const getFreshAccessToken = async () => {
   try {
     const { token } = await oAuth2Client.getAccessToken();
@@ -21,8 +21,8 @@ const getFreshAccessToken = async () => {
   }
 };
 
-// Create transporter with OAuth2 auth
-const transporter = nodemailer.createTransporter({
+// Create transporter with OAuth2 auth (note: createTransport, not createTransporter)
+const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     type: 'OAuth2',
@@ -30,12 +30,12 @@ const transporter = nodemailer.createTransporter({
     clientId: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     refreshToken: process.env.REFRESH_TOKEN,
-    // accessToken as a function that returns Promise<string> for dynamic fetching
+    // accessToken as async function for dynamic refresh
     accessToken: getFreshAccessToken
   }
 });
 
-// Optional: Test transporter on module load (remove in production)
+// Test transporter on load (optional; remove if unwanted in prod)
 transporter.verify((error, success) => {
   if (error) {
     console.error('Gmail transporter verification failed:', error);
