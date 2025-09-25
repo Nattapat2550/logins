@@ -3,16 +3,66 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Home</title>
-  <link rel="stylesheet" href="css/style.css">
+  <title>Home Dashboard</title>
+  <link rel="stylesheet" href="css/style.css">  <!-- Your global styles -->
+  <style>
+    /* Home-specific styles */
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f4f4f4; }
+    .header { background: #007bff; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
+    .header h1 { margin: 0; }
+    .nav-links { display: flex; gap: 15px; }
+    .nav-links a { color: white; text-decoration: none; padding: 5px 10px; border-radius: 4px; transition: background 0.3s; }
+    .nav-links a:hover { background: rgba(255,255,255,0.2); }
+    .nav-links .admin-only { display: none; }  /* Hidden by default; shown if admin */
+    .main-content { max-width: 800px; margin: 20px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .profile-section { text-align: center; margin-bottom: 30px; }
+    #profilePic { width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid #ddd; margin-bottom: 10px; }
+    .stats { display: flex; justify-content: space-around; margin-top: 20px; }
+    .stat-item { text-align: center; }
+    .stat-item h3 { margin: 5px 0; color: #007bff; }
+    .message { padding: 15px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 4px; margin-bottom: 20px; }
+    .error { background: #f8d7da; color: #721c24; border-color: #f5c6cb; }
+    .hidden { display: none; }
+    @media (max-width: 600px) { .header { flex-direction: column; gap: 10px; } .stats { flex-direction: column; gap: 15px; } }
+  </style>
 </head>
 <body>
-  <div id="navbar"></div>
-  <div class="container">
-    <h1>Home</h1>
-    <div id="homepageContent">Loading...</div>
-  </div>
-  <script src="js/main.js"></script>
-  <script src="js/home.js"></script>
+  <header class="header">
+    <h1>Welcome to Dashboard</h1>
+    <nav class="nav-links">
+      <a href="settings.html">Settings</a>
+      <a href="#" id="adminLink" class="admin-only">Admin Panel</a>
+      <a href="#" onclick="logout()">Logout</a>
+    </nav>
+  </header>
+
+  <main class="main-content">
+    <div id="loading" style="text-align: center; padding: 20px;">Loading your dashboard...</div>
+    
+    <div id="errorMessage" class="message error hidden"></div>
+    <div id="successMessage" class="message hidden"></div>
+    
+    <section class="profile-section hidden" id="profileSection">
+      <img id="profilePic" src="images/user.png" alt="Profile Picture" />
+      <h2 id="usernameDisplay">Loading...</h2>
+      <p id="emailDisplay">Loading...</p>
+      <p id="roleDisplay">Loading...</p>
+    </section>
+    
+    <div id="welcomeMessage" class="message hidden">Loading...</div>
+    
+    <section class="stats hidden" id="statsSection">
+      <div class="stat-item">
+        <h3 id="joinedDate">Loading...</h3>
+        <p>Joined On</p>
+      </div>
+      <div class="stat-item">
+        <h3 id="verifiedStatus">Loading...</h3>
+        <p>Email Verified</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/home.js"></script>  <!-- Loads the JS -->
 </body>
 </html>

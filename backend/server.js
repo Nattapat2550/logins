@@ -6,7 +6,7 @@ const PgSession = require('connect-pg-simple')(session);  // New: PostgreSQL ses
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const dotenv = require('dotenv');
 const pool = require('./config/db');  // For session store
-
+const { authenticateToken, isAdmin } = require('./middleware/auth');
 dotenv.config();
 
 const app = express();
