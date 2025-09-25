@@ -1,4 +1,3 @@
-require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
@@ -17,29 +16,35 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session for Passport (Google OAuth)
+// Session for Passport OAuth
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'your-session-secret',
+  secret: process.env.SESSION_SECRET || 'fallback-secret',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: process.env.NODE_ENV === 'production' }
+  cookie: { 
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000  // 24 hours
+  }
 }));
 
-// Serve static frontend files
+// Serve static frontend files (CSS/JS/HTML from ../frontend)
 app.use(express.static(path.join(__dirname, '../frontend')));
 
-// Initialize Passport (from auth routes)
+// Initialize Passport
 const passport = require('passport');
 authRoutes.initializePassport(passport);
 app.use(passport.initialize());
 app.use(passport.session());
 
-// API Routes
+// API Routes (specific paths, no wildcards)
 app.use('/api/auth', authRoutes.router);
 app.use('/api/user', userRoutes);
 app.use('/api/admin', adminRoutes);
 
-// Catch-all for frontend SPA (after API routes, no '*' wildcard)
+// Serve uploads statically
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Catch-all for frontend SPA (after all routes - fixes PathError)
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });

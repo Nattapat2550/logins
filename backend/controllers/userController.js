@@ -1,116 +1,132 @@
-const { pool } = require('../db');
 const bcrypt = require('bcryptjs');
-const multer = require('multer');
+const jwt = require('jsonwebtoken');
+const { pool } = require('../db');
+const fs = require('fs');
 const path = require('path');
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/');  // Saves to backend/uploads/
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname));
-  }
-});
-const upload = multer({ 
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 },  // 5MB limit
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only images allowed'), false);
-    }
-  }
-});
-
 exports.getProfile = async (req, res) => {
-  const userId = req.user.id;  // From authMiddleware
-  console.log(`[USER] Get profile: ${userId}`);
-
   try {
-    const user = await pool.query(
+    const result = await pool.query(
       'SELECT id, email, username, avatar, role, created_at FROM users WHERE id = $1',
-      [userId]
+      [req.user.id]
     );
-    if (user.rows.length > 0) {
-      res.json(user.rows[0]);
-    } else {
-      res.status(404).json({ error: 'User  not found' });
-    }
+    const user = result.rows[0];
+    if (!user) return res.status(404).json({ error: 'User  not found' });
+
+    res.json(user);
   } catch (err) {
-    console.error(`[USER] Get profile error: ${err.message}`);
-    res.status(500).json({ error: err.message });
+    console.error('[USER] Get profile error:', err);
+    res.status(500).json({ error: 'Failed to fetch profile' });
   }
 };
 
 exports.updateProfile = async (req, res) => {
   const { username, email } = req.body;
-  const userId = req.user.id;
-  console.log(`[USER] Update profile: ${userId}, ${username}, ${email}`);
+  if (!username || !email) {
+    return res.status(400).json({ error: 'Username and email required' });
+  }
 
   try {
-    // Check if new email is unique
-    const emailCheck = await pool.query('SELECT id FROM users WHERE email = $1 AND id != $2', [email, userId]);
+    // Check email uniqueness (exclude self)
+    const emailCheck = await pool.query(
+      'SELECT id FROM users WHERE email = $1 AND id != $2',
+      [email, req.user.id]
+    );
     if (emailCheck.rows.length > 0) {
       return res.status(400).json({ error: 'Email already in use' });
     }
 
     await pool.query(
       'UPDATE users SET username = $1, email = $2 WHERE id = $3',
-      [username, email, userId]
+      [username, email, req.user.id]
     );
-    res.json({ message: 'Profile updated' });
+    res.json({ message: 'Profile updated successfully' });
   } catch (err) {
-    console.error(`[USER] Update profile error: ${err.message}`);
-    res.status(500).json({ error: err.message });
+    console.error('[USER] Update profile error:', err);
+    res.status(500).json({ error: 'Failed to update profile' });
   }
 };
 
-exports.uploadAvatar = [
-  upload.single('avatar'),
-  async (req, res) => {
-    const userId = req.user.id;
-    console.log(`[USER] Upload avatar: ${userId}`);
-
-    try {
-      if (!req.file) {
-        return res.status(400).json({ error: 'No file uploaded' });
-      }
-
-      const avatarPath = `/uploads/${req.file.filename}`;  // Relative path for frontend
-      await pool.query(
-        'UPDATE users SET avatar = $1 WHERE id = $2',
-        [avatarPath, userId]
-      );
-      res.json({ message: 'Avatar uploaded', avatar: avatarPath });
-    } catch (err) {
-      console.error(`[USER] Upload error: ${err.message}`);
-      res.status(500).json({ error: err.message });
-    }
+exports.uploadAvatar = async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
   }
-];
+
+  // Validate image (basic check)
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+  if (!allowedTypes.includes(req.file.mimetype)) {
+    // Delete invalid file
+    fs.unlinkSync(req.file.path);
+    return res.status(400).json({ error: 'Only JPEG, PNG, or GIF allowed' });
+  }
+
+  try {
+    // Move to uploads/ with unique name
+    const oldPath = req.file.path;
+    const newFilename = `${req.user.id}-${Date.now()}-${req.file.originalname}`;
+    const newPath = path.join(__dirname, '../uploads', newFilename);
+    fs.renameSync(oldPath, newPath);
+
+    // Save relative path to DB (served via /uploads/)
+    const avatarPath = `/uploads/${newFilename}`;
+    await pool.query('UPDATE users SET avatar = $1 WHERE id = $2', [avatarPath, req.user.id]);
+
+    // Delete old avatar if exists
+    const user = await pool.query('SELECT avatar FROM users WHERE id = $1', [req.user.id]);
+    if (user.rows[0].avatar && user.rows[0].avatar !== avatarPath) {
+      const oldAvatarPath = path.join(__dirname, '..', user.rows[0].avatar);
+      if (fs.existsSync(oldAvatarPath)) {
+        fs.unlinkSync(oldAvatarPath);
+      }
+    }
+
+    res.json({ message: 'Avatar uploaded successfully', avatar: avatarPath });
+  } catch (err) {
+    console.error('[USER] Upload avatar error:', err);
+    // Cleanup on error
+    if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    res.status(500).json({ error: 'Failed to upload avatar' });
+  }
+};
 
 exports.changePassword = async (req, res) => {
   const { currentPassword, newPassword } = req.body;
-  const userId = req.user.id;
-  console.log(`[USER] Change password: ${userId}`);
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: 'New password must be at least 6 characters' });
+  }
 
   try {
-    const user = await pool.query('SELECT password FROM users WHERE id = $1', [userId]);
-    if (user.rows.length === 0) {
-      return res.status(404).json({ error: 'User  not found' });
+    const userResult = await pool.query('SELECT password FROM users WHERE id = $1', [req.user.id]);
+    const user = userResult.rows[0];
+    if (!user || !await bcrypt.compare(currentPassword, user.password)) {
+      return res.status(401).json({ error: 'Current password incorrect' });
     }
 
-    const isValid = await bcrypt.compare(currentPassword, user.rows[0].password);
-    if (!isValid) {
-      return res.status(400).json({ error: 'Current password incorrect' });
-    }
-
-    const hashed = await bcrypt.hash(newPassword, 10);
-    await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashed, userId]);
-    res.json({ message: 'Password changed' });
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+    await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashedNewPassword, req.user.id]);
+    res.json({ message: 'Password changed successfully' });
   } catch (err) {
-    console.error(`[USER] Change password error: ${err.message}`);
-    res.status(500).json({ error: err.message });
+    console.error('[USER] Change password error:', err);
+    res.status(500).json({ error: 'Failed to change password' });
+  }
+};
+
+exports.deleteAccount = async (req, res) => {
+  try {
+    // Delete avatar file if exists
+    const user = await pool.query('SELECT avatar FROM users WHERE id = $1', [req.user.id]);
+    if (user.rows[0].avatar) {
+      const avatarPath = path.join(__dirname, '..', user.rows[0].avatar);
+      if (fs.existsSync(avatarPath)) {
+        fs.unlinkSync(avatarPath);
+      }
+    }
+
+    // Delete user
+    await pool.query('DELETE FROM users WHERE id = $1', [req.user.id]);
+    res.json({ message: 'Account deleted successfully' });
+  } catch (err) {
+    console.error('[USER] Delete account error:', err);
+    res.status(500).json({ error: 'Failed to delete account' });
   }
 };

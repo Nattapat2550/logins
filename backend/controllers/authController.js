@@ -1,128 +1,172 @@
-const { pool } = require('../db');
 const bcrypt = require('bcryptjs');
-const { generateToken, verifyToken } = require('../utils/jwt');
+const jwt = require('jsonwebtoken');
+const { pool } = require('../db');
 const { sendVerificationEmail, sendResetEmail } = require('../utils/mailer');
-
-const generateCode = () => Math.floor(100000 + Math.random() * 900000).toString();
 
 exports.register = async (req, res) => {
   const { email } = req.body;
-  console.log(`[AUTH] Register: ${email}`);
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: 'Valid email required' });
+  }
 
   try {
-    const existing = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (existing.rows.length > 0) return res.status(400).json({ error: 'Email registered' });
+    // Check if user exists
+    const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ error: 'Email already registered' });
+    }
 
-    const defaultUsername = email.split('@')[0];
-    await pool.query('INSERT INTO users (email, username) VALUES ($1, $2)', [email, defaultUsername]);
-
-    const code = generateCode();
+    // Generate and insert code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
     await pool.query(
-      'INSERT INTO verification_codes (email, code, expires_at) VALUES ($1, $2, CURRENT_TIMESTAMP + INTERVAL \'10 minutes\') ON CONFLICT (email) DO UPDATE SET code = $2, expires_at = CURRENT_TIMESTAMP + INTERVAL \'10 minutes\'',
+      'INSERT INTO verification_codes (email, code, expires_at) VALUES ($1, $2, NOW() + INTERVAL \'10 minutes\') ON CONFLICT (email) DO UPDATE SET code = $2, expires_at = NOW() + INTERVAL \'10 minutes\'',
       [email, code]
     );
-    console.log(`[AUTH] Code: ${code}`);
+    console.log(`[AUTH] Code generated for ${email}: ${code}`);
 
+    // Send email
     await sendVerificationEmail(email, code);
-    res.json({ message: 'Code sent' });
+    res.json({ message: 'Verification code sent to your email' });
   } catch (err) {
-    console.error(`[AUTH] Register error: ${err.message}`);
-    res.status(500).json({ error: err.message });
+    console.error('[AUTH] Register error:', err);
+    res.status(500).json({ error: 'Registration failed' });
   }
 };
 
 exports.verify = async (req, res) => {
   const { email, code } = req.body;
-  console.log(`[AUTH] Verify: ${email}, ${code}`);
+  if (!code || code.length !== 6) {
+    return res.status(400).json({ error: 'Valid 6-digit code required' });
+  }
 
   try {
     const result = await pool.query(
-      'SELECT * FROM verification_codes WHERE email = $1 AND code = $2 AND expires_at > CURRENT_TIMESTAMP',
+      'SELECT id FROM verification_codes WHERE email = $1 AND code = $2 AND expires_at > NOW()',
       [email, code]
     );
-    if (result.rows.length === 0) return res.status(400).json({ error: 'Invalid/expired code' });
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid or expired code' });
+    }
 
-    await pool.query('UPDATE users SET verified = true WHERE email = $1', [email]);
-    await pool.query('DELETE FROM verification_codes WHERE email = $1', [email]);
-    res.json({ message: 'Verified' });
+    // Delete used code
+    await pool.query('DELETE FROM verification_codes WHERE email = $1 AND code = $2', [email, code]);
+    res.json({ message: 'Email verified successfully' });
   } catch (err) {
-    console.error(`[AUTH] Verify error: ${err.message}`);
-    res.status(500).json({ error: err.message });
+    console.error('[AUTH] Verify error:', err);
+    res.status(500).json({ error: 'Verification failed' });
   }
 };
 
 exports.setPassword = async (req, res) => {
   const { email, password } = req.body;
-  console.log(`[AUTH] Set password: ${email}`);
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  }
 
   try {
-    const hashed = await bcrypt.hash(password, 10);
-    await pool.query('UPDATE users SET password = $1 WHERE email = $2', [hashed, email]);
-    res.json({ message: 'Password set' });
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Check if user exists; create if not (e.g., after Google or register)
+    let result = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    let userId;
+    if (result.rows.length === 0) {
+      result = await pool.query(
+        'INSERT INTO users (email, username, password, verified, role) VALUES ($1, $2, $3, true, $4) RETURNING id, role',
+        [email, email.split('@')[0], hashedPassword, 'user']  // Default username from email
+      );
+    } else {
+      result = await pool.query(
+        'UPDATE users SET password = $1, verified = true WHERE email = $2 RETURNING id, role',
+        [hashedPassword, email]
+      );
+    }
+
+    const user = result.rows[0];
+    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    res.json({ token, message: 'Password set successfully' });
   } catch (err) {
-    console.error(`[AUTH] Set password error: ${err.message}`);
-    res.status(500).json({ error: err.message });
+    console.error('[AUTH] Set password error:', err);
+    res.status(500).json({ error: 'Password set failed' });
   }
 };
 
 exports.login = async (req, res) => {
   const { email, password } = req.body;
-  console.log(`[AUTH] Login: ${email}`);
 
   try {
-    const user = await pool.query('SELECT * FROM users WHERE email = $1 AND verified = true', [email]);
-    if (user.rows.length === 0) return res.status(400).json({ error: 'Invalid credentials' });
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const user = result.rows[0];
+    if (!user || !user.password || !await bcrypt.compare(password, user.password)) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+    if (!user.verified) {
+      return res.status(401).json({ error: 'Please verify your email first' });
+    }
 
-    const valid = await bcrypt.compare(password, user.rows[0].password);
-    if (!valid) return res.status(400).json({ error: 'Invalid credentials' });
-
-    const token = generateToken({ id: user.rows[0].id, email: user.rows[0].email, role: user.rows[0].role || 'user' });
-    res.json({ token, user: user.rows[0] });
+    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    res.json({ token, role: user.role, username: user.username });
   } catch (err) {
-    console.error(`[AUTH] Login error: ${err.message}`);
-    res.status(500).json({ error: err.message });
+    console.error('[AUTH] Login error:', err);
+    res.status(500).json({ error: 'Login failed' });
   }
 };
 
 exports.forgotPassword = async (req, res) => {
   const { email } = req.body;
-  console.log(`[AUTH] Forgot: ${email}`);
 
   try {
-    const user = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (user.rows.length === 0) return res.status(400).json({ error: 'Email not found' });
+    // Check if user exists (but don't reveal if not, for security)
+    const userResult = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Email not found' });
+    }
 
-    const code = generateCode();
+    // Generate and insert code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
     await pool.query(
-      'INSERT INTO verification_codes (email, code, expires_at) VALUES ($1, $2, CURRENT_TIMESTAMP + INTERVAL \'10 minutes\') ON CONFLICT (email) DO UPDATE SET code = $2, expires_at = CURRENT_TIMESTAMP + INTERVAL \'10 minutes\'',
+      'INSERT INTO verification_codes (email, code, expires_at) VALUES ($1, $2, NOW() + INTERVAL \'10 minutes\') ON CONFLICT (email) DO UPDATE SET code = $2, expires_at = NOW() + INTERVAL \'10 minutes\'',
       [email, code]
     );
+    console.log(`[AUTH] Reset code for ${email}: ${code}`);
 
+    // Send email
     await sendResetEmail(email, code);
-    res.json({ message: 'Reset code sent' });
+    res.json({ message: 'Reset code sent to your email' });
   } catch (err) {
-    console.error(`[AUTH] Forgot error: ${err.message}`);
-    res.status(500).json({ error: err.message });
+    console.error('[AUTH] Forgot password error:', err);
+    res.status(500).json({ error: 'Forgot password failed' });
   }
 };
 
 exports.resetPassword = async (req, res) => {
   const { email, code, password } = req.body;
-  console.log(`[AUTH] Reset: ${email}, ${code}`);
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  }
+  if (!code || code.length !== 6) {
+    return res.status(400).json({ error: 'Valid 6-digit code required' });
+  }
 
   try {
+    // Verify code
     const result = await pool.query(
-      'SELECT * FROM verification_codes WHERE email = $1 AND code = $2 AND expires_at > CURRENT_TIMESTAMP',
+      'SELECT id FROM verification_codes WHERE email = $1 AND code = $2 AND expires_at > NOW()',
       [email, code]
     );
-    if (result.rows.length === 0) return res.status(400).json({ error: 'Invalid/expired code' });
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid or expired code' });
+    }
 
-    const hashed = await bcrypt.hash(password, 10);
-    await pool.query('UPDATE users SET password = $1 WHERE email = $2', [hashed, email]);
-    await pool.query('DELETE FROM verification_codes WHERE email = $1', [email]);
-    res.json({ message: 'Password reset' });
+    // Update password
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await pool.query('UPDATE users SET password = $1 WHERE email = $2', [hashedPassword, email]);
+
+    // Delete used code
+    await pool.query('DELETE FROM verification_codes WHERE email = $1 AND code = $2', [email, code]);
+
+    res.json({ message: 'Password reset successfully' });
   } catch (err) {
-    console.error(`[AUTH] Reset error: ${err.message}`);
-    res.status(500).json({ error: err.message });
+    console.error('[AUTH] Reset password error:', err);
+    res.status(500).json({ error: 'Reset failed' });
   }
 };

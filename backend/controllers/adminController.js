@@ -1,92 +1,77 @@
 const { pool } = require('../db');
 
-exports.getUsers = async (req, res) => {
-  console.log(`[ADMIN] Get users (by ${req.user.email})`);
-
-  try {
-    const users = await pool.query(
-      'SELECT id, email, username, avatar, verified, role, created_at FROM users ORDER BY created_at DESC'
-    );
-    res.json(users.rows);
-  } catch (err) {
-    console.error(`[ADMIN] Get users error: ${err.message}`);
-    res.status(500).json({ error: err.message });
-  }
-};
-
-exports.deleteUser  = async (req, res) => {
-  const { id } = req.params;
-  console.log(`[ADMIN] Delete user ${id} (by ${req.user.email})`);
-
-  try {
-    // Prevent self-delete
-    if (parseInt(id) === req.user.id) {
-      return res.status(400).json({ error: 'Cannot delete yourself' });
-    }
-
-    const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING *', [id]);
-    if (result.rows.length > 0) {
-      res.json({ message: 'User  deleted' });
-    } else {
-      res.status(404).json({ error: 'User  not found' });
-    }
-  } catch (err) {
-    console.error(`[ADMIN] Delete error: ${err.message}`);
-    res.status(500).json({ error: err.message });
-  }
-};
-
-exports.updateUserRole = async (req, res) => {
-  const { id } = req.params;
-  const { role } = req.body;
-  console.log(`[ADMIN] Update role ${id} to ${role} (by ${req.user.email})`);
-
-  try {
-    if (!['user', 'admin'].includes(role)) {
-      return res.status(400).json({ error: 'Invalid role' });
-    }
-
-    // Prevent demoting self
-    if (parseInt(id) === req.user.id && role !== 'admin') {
-      return res.status(400).json({ error: 'Cannot demote yourself' });
-    }
-
-    const result = await pool.query('UPDATE users SET role = $1 WHERE id = $2 RETURNING *', [role, id]);
-    if (result.rows.length > 0) {
-      res.json({ message: 'Role updated' });
-    } else {
-      res.status(404).json({ error: 'User  not found' });
-    }
-  } catch (err) {
-    console.error(`[ADMIN] Update role error: ${err.message}`);
-    res.status(500).json({ error: err.message });
-  }
-};
-
 exports.getHomeInfo = async (req, res) => {
-  console.log(`[ADMIN] Get home info`);
-
   try {
-    const result = await pool.query('SELECT * FROM home_info ORDER BY id DESC LIMIT 1');
+    const result = await pool.query('SELECT title, content FROM home_info WHERE id = 1');
     res.json(result.rows[0] || { title: 'Welcome', content: 'Default content' });
   } catch (err) {
-    console.error(`[ADMIN] Get home error: ${err.message}`);
-    res.status(500).json({ error: err.message });
+    console.error('[ADMIN] Get home info error:', err);
+    res.status(500).json({ error: 'Failed to fetch home info' });
   }
 };
 
 exports.updateHomeInfo = async (req, res) => {
   const { title, content } = req.body;
-  console.log(`[ADMIN] Update home info (by ${req.user.email})`);
+  if (!title || !content) {
+    return res.status(400).json({ error: 'Title and content required' });
+  }
 
   try {
     await pool.query(
-      'INSERT INTO home_info (title, content) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET title = $1, content = $2',
+      'INSERT INTO home_info (id, title, content) VALUES (1, $1, $2) ON CONFLICT (id) DO UPDATE SET title = $1, content = $2',
       [title, content]
     );
-    res.json({ message: 'Home info updated' });
+    res.json({ message: 'Home info updated successfully' });
   } catch (err) {
-    console.error(`[ADMIN] Update home error: ${err.message}`);
-    res.status(500).json({ error: err.message });
+    console.error('[ADMIN] Update home info error:', err);
+    res.status(500).json({ error: 'Failed to update home info' });
+  }
+};
+
+exports.getUsers = async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, username, email, role, verified, created_at, avatar FROM users ORDER BY created_at DESC'
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('[ADMIN] Get users error:', err);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+};
+
+exports.updateUserRole = async (req, res) => {
+  const { userId, role } = req.body;
+  if (!['user', 'admin'].includes(role)) {
+    return res.status(400).json({ error: 'Invalid role' });
+  }
+
+  try {
+    await pool.query('UPDATE users SET role = $1 WHERE id = $2', [role, userId]);
+    res.json({ message: 'User  role updated successfully' });
+  } catch (err) {
+    console.error('[ADMIN] Update user role error:', err);
+    res.status(500).json({ error: 'Failed to update role' });
+  }
+};
+
+exports.deleteUser  = async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    // Delete avatar if exists
+    const user = await pool.query('SELECT avatar FROM users WHERE id = $1', [userId]);
+    if (user.rows[0].avatar) {
+      const avatarPath = path.join(__dirname, '..', user.rows[0].avatar);
+      if (fs.existsSync(avatarPath)) {
+        fs.unlinkSync(avatarPath);
+      }
+    }
+
+    await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+    res.json({ message: 'User  deleted successfully' });
+  } catch (err) {
+    console.error('[ADMIN] Delete user error:', err);
+    res.status(500).json({ error: 'Failed to delete user' });
   }
 };
