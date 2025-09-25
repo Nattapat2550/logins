@@ -107,13 +107,11 @@ async function apiCall(url, options = {}) {
   
   try {
     const res = await fetch(url, config);
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-    }
+    // DO NOT throw here - return res for caller to handle status (e.g., 401 with body)
     return res;
   } catch (error) {
-    console.error('API call error:', error);
-    throw error;
+    console.error('API call network error:', error);
+    throw error;  // Only throw true network/fetch errors (e.g., offline)
   }
 }
 
