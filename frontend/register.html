@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
+    <title>Register</title>
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="/css/dark-mode.css">
     <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -11,30 +11,25 @@
 <body class="light">
     <header>
         <nav class="container">
-            <h1>Login</h1>
+            <h1>Register</h1>
             <ul>
-                <li><a href="/pages/index.html">Home</a></li>
-                <li><a href="/pages/register.html">Register</a></li>
+                <li><a href="/index.html">Home</a></li>
+                <li><a href="/login.html">Login</a></li>
                 <li><button id="darkModeToggle" onclick="toggleDarkMode()">🌙 Dark Mode</button></li>
             </ul>
         </nav>
     </header>
     <main>
-        <form id="loginForm">
-            <h2>Login</h2>
+        <form id="registerForm">
+            <h2>Enter Your Email</h2>
             <input type="email" id="email" placeholder="Email" required>
-            <input type="password" id="password" placeholder="Password" required>
-            <label class="checkbox">
-                <input type="checkbox" id="showPassword"> Show password
-            </label>
-            <div id="error" class="error"></div>
-            <button type="submit">Login</button>
-            <p><a href="#" id="forgotPassword">Forgot Password?</a> | <a href="/pages/register.html">Register</a></p>
+            <div id="emailError" class="error"></div>
+            <button type="submit">Next</button>
         </form>
-        <p style="text-align: center; margin: 20px;">Or log in with</p>
+        <p style="text-align: center; margin: 20px;">Or sign up with</p>
         <div id="g_id_onload"
-             data-client_id="542247623824-u1re8o6fc4avn0h94ppe74e87khu95ml.apps.googleusercontent.com"
-             data-callback="handleGoogleLogin"
+             data-client_id="YOUR_GOOGLE_CLIENT_ID"
+             data-callback="handleGoogleRegister"
              data-auto_prompt="false">
         </div>
         <div class="g_id_signin" data-type="standard" style="text-align: center;"></div>
@@ -43,6 +38,6 @@
         <p>&copy; 2024 My Website.</p>
     </footer>
     <script src="/js/darkModeToggle.js"></script>
-    <script src="/js/login.js"></script>
+    <script src="/js/register.js"></script>
 </body>
 </html>

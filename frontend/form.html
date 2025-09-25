@@ -3,34 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verify Email</title>
+    <title>Complete Registration</title>
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="/css/dark-mode.css">
 </head>
 <body class="light">
     <header>
         <nav class="container">
-            <h1>Verify Email</h1>
+            <h1>Complete Registration</h1>
             <ul>
-                <li><a href="/pages/register.html">Back to Register</a></li>
+                <li><a href="/register.html">Back to Email</a></li>
                 <li><button id="darkModeToggle" onclick="toggleDarkMode()">🌙 Dark Mode</button></li>
             </ul>
         </nav>
     </header>
     <main>
-        <form id="checkForm">
-            <h2>Enter 6-Digit Code</h2>
-            <p>Check your email for the code sent via Gmail.</p>
-            <input type="text" id="code" placeholder="Enter 6-digit code" maxlength="6" required>
+        <form id="formForm">
+            <h2>Enter Username and Password</h2>
+            <p id="emailDisplay">Email: <span id="emailText"></span></p>
+            <input type="text" id="username" placeholder="Choose a username" required>
+            <input type="password" id="password" placeholder="Choose a password (min 6 chars)" required minlength="6">
             <div id="error" class="error"></div>
-            <button type="submit">Verify</button>
-            <p><a href="/pages/form.html">Back to Details</a> | <a href="/pages/register.html">Resend Code</a></p>
+            <button type="submit">Register & Send Code</button>
         </form>
     </main>
     <footer>
         <p>&copy; 2024 My Website.</p>
     </footer>
     <script src="/js/darkModeToggle.js"></script>
-    <script src="/js/verify.js"></script>
+    <script src="/js/form.js"></script>
 </body>
 </html>

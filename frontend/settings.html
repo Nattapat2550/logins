@@ -12,8 +12,8 @@
         <nav class="container">
             <h1>Settings</h1>
             <ul>
-                <li><a href="/pages/home.html">Home</a></li>
-                <li id="adminLink"><a href="/pages/admin.html">Admin</a></li>
+                <li><a href="/home.html">Home</a></li>
+                <li id="adminLink"><a href="/admin.html">Admin</a></li>
                 <li><button id="logoutBtn">Logout</button></li>
                 <li><button id="darkModeToggle" onclick="toggleDarkMode()">🌙 Dark Mode</button></li>
             </ul>
@@ -22,7 +22,7 @@
     <main class="container">
         <div class="card">
             <h2>Update Profile</h2>
-            <form id="updateProfileForm">
+            <form id="updateProfileForm" enctype="multipart/form-data">
                 <input type="text" id="username" placeholder="Username" required>
                 <input type="file" id="profilePicInput" accept="image/*">
                 <img id="profilePic" src="/assets/user.png" alt="Current Profile" class="profile-pic">
