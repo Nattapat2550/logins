@@ -2,37 +2,64 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../db');
 const { sendVerificationEmail, sendResetEmail } = require('../utils/mailer');
-const generateCode = () => Math.floor(100000 + Math.random() * 900000).toString();
+// Utility function to generate 6-digit code (add this at the top of authController.js if not already there)
+const generateCode = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString(); // e.g., "123456"
+};
 
 exports.register = async (req, res) => {
   const { email } = req.body;
+  console.log(`[REGISTER] Attempting registration for email: ${email}`); // Log for debugging
+
   try {
     // Check duplicate email
     const existing = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     if (existing.rows.length > 0) {
+      console.log(`[REGISTER] Duplicate email found: ${email}`);
       return res.status(400).json({ error: 'Email already registered' });
     }
 
-    // Auto-generate default username from email (e.g., "john" from "john@example.com")
-    const defaultUsername = email.split('@')[0];  // Simple extraction; can enhance (e.g., check uniqueness)
+    // Auto-generate default username from email
+    const defaultUsername = email.split('@')[0];
+    console.log(`[REGISTER] Generated default username: ${defaultUsername}`);
 
-    // Insert user with default username (password null for now, set in form.html)
+    // Insert user with default username (password null for now)
     await pool.query(
       'INSERT INTO users (email, username) VALUES ($1, $2)',
       [email, defaultUsername]
     );
+    console.log(`[REGISTER] User inserted successfully for ${email}`);
 
-    // Generate and send code
+    // Generate code
     const code = generateCode();
-    await pool.query(
-      'INSERT INTO verification_codes (email, code) VALUES ($1, $2) ON CONFLICT (email) DO UPDATE SET code = $2, expires_at = CURRENT_TIMESTAMP + INTERVAL \'10 minutes\'',
-      [email, code]
-    );
+    console.log(`[REGISTER] Generated verification code: ${code} for ${email}`);
 
-    await sendVerificationEmail(email, code);
+    // Insert code into verification_codes table
+    try {
+      await pool.query(
+        'INSERT INTO verification_codes (email, code, expires_at) VALUES ($1, $2, CURRENT_TIMESTAMP + INTERVAL \'10 minutes\') ON CONFLICT (email) DO UPDATE SET code = $2, expires_at = CURRENT_TIMESTAMP + INTERVAL \'10 minutes\'',
+        [email, code]
+      );
+      console.log(`[REGISTER] Verification code inserted into DB for ${email}`);
+    } catch (dbErr) {
+      console.error(`[REGISTER] DB insert error for verification code: ${dbErr.message}`);
+      // Don't fail registration if code insert fails (retry on verify), but log it
+      return res.status(500).json({ error: 'Failed to save verification code. Please try again.' });
+    }
 
-    res.json({ message: 'Verification code sent' });
+    // Send email (separate try-catch to isolate)
+    try {
+      await sendVerificationEmail(email, code);
+      console.log(`[REGISTER] Verification email sent successfully to ${email}`);
+      res.json({ message: 'Verification code sent' });
+    } catch (emailErr) {
+      console.error(`[REGISTER] Email send error for ${email}: ${emailErr.message}`);
+      // Still succeed registration (user exists, code in DB), but warn user
+      res.status(200).json({ message: 'User  registered, but email delivery failed. Check spam or try login.' });
+    }
+
   } catch (err) {
+    console.error(`[REGISTER] General error for ${email}: ${err.message}`);
     res.status(500).json({ error: err.message });
   }
 };
