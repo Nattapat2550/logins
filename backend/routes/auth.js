@@ -144,20 +144,25 @@ router.post('/login', async (req, res) => {
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password required' });
     }
-
-    // Verify user and password
+    // Find user
     const user = await User.findByEmail(email);
-    if (!user || !user.email_verified || !(await User.verifyPassword(email, password))) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials' });  // Don't reveal email exists
     }
-
+    if (!user.email_verified) {
+      return res.status(401).json({ error: 'Please verify your email first' });  // More specific
+    }
+    // Verify password
+    const isValidPassword = await User.verifyPassword(email, password);
+    if (!isValidPassword) {
+      return res.status(401).json({ error: 'Invalid password' });  // More specific
+    }
     // Generate JWT
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
-
     res.json({ token, role: user.role });
   } catch (error) {
     console.error('Login error:', error);

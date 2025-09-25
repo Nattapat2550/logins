@@ -88,23 +88,31 @@ function logout() {
 }
 
 // API Helper
-async function apiCall(endpoint, options = {}) {
-  const token = localStorage.getItem('token');
-  const headers = {
-    'Content-Type': 'application/json',
-    ...options.headers
+async function apiCall(url, options = {}) {
+  const defaults = {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' }
   };
-  if (token) headers.Authorization = `Bearer ${token}`;
-
-  const res = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers
-  });
-
-  if (!res.ok) {
-    throw new Error(await res.text());
+  const config = { ...defaults, ...options };
+  
+  // Add token if present (not for login)
+  const token = localStorage.getItem('token');
+  if (token && options.method !== 'POST' && !url.includes('/login')) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
-  return res.json();
+  
+  // Handle body for POST/PUT
+  if (options.body && typeof options.body === 'object') {
+    config.body = JSON.stringify(options.body);
+  }
+  
+  try {
+    const res = await fetch(url, config);
+    return res;
+  } catch (error) {
+    console.error('API call error:', error);
+    throw error;
+  }
 }
 
 // Init on load
