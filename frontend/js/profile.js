@@ -1,12 +1,12 @@
 const API_BASE = '/api';
 
 document.addEventListener('DOMContentLoaded', () => {
-    initDarkMode(); // From darkModeToggle.js
+    initDarkMode();
 
     const token = localStorage.getItem('token');
     if (!token) {
         alert('Please log in.');
-        window.location.href = 'login.html';
+        window.location.href = '/pages/login.html';
         return;
     }
 
@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (res.status === 401 || res.status === 403) {
             localStorage.removeItem('token');
             alert('Session expired. Please log in again.');
-            window.location.href = 'login.html';
+            window.location.href = '/pages/login.html';
             return null;
         }
         return res;
@@ -29,10 +29,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await authFetch(`${API_BASE}/users/profile`);
             if (res.ok) {
                 const user = await res.json();
-                document.getElementById('username') ? document.getElementById('username').value = user.username : null;
-                document.getElementById('profilePic') ? document.getElementById('profilePic').src = user.profile_pic ? `/uploads/${user.profile_pic}` : '../assets/user.png' : null;
-                document.getElementById('userEmail') ? document.getElementById('userEmail').textContent = user.email : null;
-                document.getElementById('userRole') ? document.getElementById('userRole').textContent = `Role: ${user.role}` : null;
+                const usernameEl = document.getElementById('username');
+                if (usernameEl) usernameEl.value = user.username;
+                const profilePicEl = document.getElementById('profilePic');
+                if (profilePicEl) profilePicEl.src = user.profile_pic ? `/uploads/${user.profile_pic}` : '/assets/user.png';
+                const userEmailEl = document.getElementById('userEmail');
+                if (userEmailEl) userEmailEl.textContent = `Email: ${user.email}`;
+                const userRoleEl = document.getElementById('userRole');
+                if (userRoleEl) userRoleEl.textContent = `Role: ${user.role}`;
 
                 // Show/hide admin link based on role
                 const adminLink = document.getElementById('adminLink');
@@ -53,8 +57,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (res.ok) {
                 const content = await res.json();
                 const titleEl = document.getElementById('homeTitle');
-                const contentEl = document.getElementById('homeContent');
                 if (titleEl) titleEl.textContent = content.title;
+                const contentEl = document.getElementById('homeContent');
                 if (contentEl) contentEl.textContent = content.content;
             }
         } catch (err) {
@@ -114,7 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (res.ok) {
                     localStorage.removeItem('token');
                     alert('Account deleted.');
-                    window.location.href = 'index.html';
+                    window.location.href = '/pages/index.html';
                 } else {
                     alert('Delete failed.');
                 }
@@ -130,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {
             localStorage.removeItem('token');
-            window.location.href = 'index.html';
+            window.location.href = '/pages/index.html';
         });
     }
 

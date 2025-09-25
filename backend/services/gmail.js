@@ -1,5 +1,4 @@
-const { google } = require("googleapis");
-const MailComposer = require("nodemailer/lib/mail-composer");
+const { google } = require('googleapis');
 
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
@@ -7,51 +6,34 @@ const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_REDIRECT_URI
 );
 
-oauth2Client.setCredentials({
-  refresh_token: process.env.REFRESH_TOKEN,
-});
+oauth2Client.setCredentials({ refresh_token: process.env.REFRESH_TOKEN });
 
-const gmail = google.gmail({ version: "v1", auth: oauth2Client });
-
-async function sendEmail(to, subject, text) {
+const sendEmail = async (to, subject, html) => {
   try {
-    const mail = new MailComposer({
-      to,
-      text,
-      subject,
-      from: process.env.SENDER_EMAIL,
-    });
+    const accessToken = await oauth2Client.getAccessToken();
+    const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
-    const message = await new Promise((resolve, reject) => {
-      mail.compile().build((err, msg) => {
-        if (err) {
-          console.error('Error building email message:', err);
-          reject(err);
-        } else {
-          resolve(msg);
-        }
-      });
-    });
+    const message = [
+      `From: ${process.env.SENDER_EMAIL}`,
+      `To: ${to}`,
+      'Content-Type: text/html; charset=utf-8',
+      `Subject: ${subject}`,
+      '',
+      html
+    ].join('\n').trim();
 
-    const encodedMessage = Buffer.from(message)
-      .toString("base64")
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=+$/, "");
+    const encodedMessage = Buffer.from(message).toString('base64').replace(/\+/g, '-').replace(/\//g, '_');
 
-    const res = await gmail.users.messages.send({
-      userId: "me",
+    await gmail.users.messages.send({
+      userId: 'me',
       requestBody: {
-        raw: encodedMessage,
-      },
+        raw: encodedMessage
+      }
     });
-
-    console.log(`Email sent successfully to ${to}: ${res.data.id}`);
-    return res.data;
-  } catch (error) {
-    console.error('Error sending email to', to, ':', error.message);
-    throw new Error(`Failed to send email: ${error.message}`);
+  } catch (err) {
+    console.error('Gmail send error:', err);
+    throw new Error('Failed to send email via Gmail API');
   }
-}
+};
 
-module.exports = { sendEmail };
+module.exports = sendEmail;

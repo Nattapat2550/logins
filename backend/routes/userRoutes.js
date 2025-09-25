@@ -1,33 +1,22 @@
 const express = require('express');
-const multer = require('multer');
-const authenticateToken = require('../middleware/authMiddleware');
 const { getProfile, updateProfile, deleteAccount, getHomeContent } = require('../controllers/userController');
+const { authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Multer for file uploads (profile pics)
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, 'uploads/'),
-  filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
-});
-const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 }, fileFilter: (req, file, cb) => {
-  if (file.mimetype.startsWith('image/')) cb(null, true);
-  else cb(new Error('Only images allowed'), false);
-} });
+// Protected routes
+router.use(authMiddleware);
 
-// Apply auth to all
-router.use(authenticateToken);
-
-// GET /api/users/profile - Get current user profile
+// Get profile
 router.get('/profile', getProfile);
 
-// PUT /api/users/profile - Update username and profile pic
-router.put('/profile', upload.single('profilePic'), updateProfile);
+// Update profile
+router.put('/profile', updateProfile);
 
-// DELETE /api/users/account - Delete current user account
+// Delete account
 router.delete('/account', deleteAccount);
 
-// GET /api/users/home - Get home page content (admin-editable)
+// Get home content
 router.get('/home', getHomeContent);
 
 module.exports = router;

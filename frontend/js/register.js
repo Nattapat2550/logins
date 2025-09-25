@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         sessionStorage.setItem('pendingEmail', email);
-        window.location.href = 'pages/form.html';
+        window.location.href = '/pages/form.html';
     });
 });
 
@@ -51,7 +51,7 @@ function handleGoogleRegister(response) {
             if (data.token) {
                 localStorage.setItem('token', data.token);
                 sessionStorage.setItem('pendingEmail', data.user.email); // For form if needed
-                window.location.href = 'pages/form.html'; // Per spec; or 'pages/home.html'
+                window.location.href = '/pages/form.html'; // Per spec; or 'pages/home.html'
             } else {
                 alert('Google registration failed: ' + (data.error || 'Unknown'));
             }

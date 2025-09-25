@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (res.ok) {
                 localStorage.setItem('token', data.token);
                 alert('Logged in successfully!');
-                window.location.href = 'pages/home.html';
+                window.location.href = '/pages/home.html';
             } else {
                 errorDiv.textContent = data.error || 'Login failed.';
                 errorDiv.className = 'error';
@@ -70,7 +70,7 @@ function handleGoogleLogin(response) {
         .then(data => {
             if (data.token) {
                 localStorage.setItem('token', data.token);
-                window.location.href = 'pages/home.html';
+                window.location.href = '/pages/home.html';
             } else {
                 alert('Google login failed: ' + (data.error || 'Unknown'));
             }

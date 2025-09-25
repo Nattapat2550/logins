@@ -6,12 +6,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const pendingEmail = sessionStorage.getItem('pendingEmail');
     if (!pendingEmail) {
         alert('No email found. Start over.');
-        window.location.href = 'pages/register.html';
+        window.location.href = '/pages/register.html';
         return;
     }
 
     // Pre-fill email if needed (display only)
-    document.getElementById('emailDisplay') ? document.getElementById('emailDisplay').textContent = pendingEmail : null;
+    const emailText = document.getElementById('emailText');
+    if (emailText) emailText.textContent = pendingEmail;
 
     const form = document.getElementById('formForm');
     const errorDiv = document.getElementById('error');
@@ -36,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             if (res.ok) {
                 alert('Registered! Check email for 6-digit code.');
-                window.location.href = 'pages/check.html';
+                window.location.href = '/pages/check.html';
             } else {
                 errorDiv.textContent = data.error || 'Registration failed.';
                 errorDiv.className = 'error';

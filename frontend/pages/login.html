@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login</title>
-    <link rel="stylesheet" href="../css/style.css">
-    <link rel="stylesheet" href="../css/dark-mode.css">
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/dark-mode.css">
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body class="light">
@@ -13,8 +13,8 @@
         <nav class="container">
             <h1>Login</h1>
             <ul>
-                <li><a href="index.html">Home</a></li>
-                <li><a href="register.html">Register</a></li>
+                <li><a href="/pages/index.html">Home</a></li>
+                <li><a href="/pages/register.html">Register</a></li>
                 <li><button id="darkModeToggle" onclick="toggleDarkMode()">🌙 Dark Mode</button></li>
             </ul>
         </nav>
@@ -29,11 +29,11 @@
             </label>
             <div id="error" class="error"></div>
             <button type="submit">Login</button>
-            <p><a href="#" id="forgotPassword">Forgot Password?</a> | <a href="register.html">Register</a></p>
+            <p><a href="#" id="forgotPassword">Forgot Password?</a> | <a href="/pages/register.html">Register</a></p>
         </form>
         <p style="text-align: center; margin: 20px;">Or log in with</p>
         <div id="g_id_onload"
-             data-client_id="YOUR_GOOGLE_CLIENT_ID"
+             data-client_id="542247623824-u1re8o6fc4avn0h94ppe74e87khu95ml.apps.googleusercontent.com"
              data-callback="handleGoogleLogin"
              data-auto_prompt="false">
         </div>
@@ -42,7 +42,7 @@
     <footer>
         <p>&copy; 2024 My Website.</p>
     </footer>
-    <script src="../js/darkModeToggle.js"></script>
-    <script src="../js/login.js"></script>
+    <script src="/js/darkModeToggle.js"></script>
+    <script src="/js/login.js"></script>
 </body>
 </html>

@@ -1,10 +1,4 @@
-const {
-  getAllUsers,
-  getUserById,
-  updateUser ,
-  deleteUser ,
-  updateHomeContent
-} = require('../models/userModel');
+const { getAllUsers, getUserById, updateUser , deleteUser , updateHomeContent } = require('../models/userModel');
 
 exports.getAllUsers = async (req, res) => {
   try {
@@ -18,88 +12,45 @@ exports.getAllUsers = async (req, res) => {
 
 exports.getUserById = async (req, res) => {
   const { id } = req.params;
-
   try {
-    if (!id || isNaN(parseInt(id))) {
-      return res.status(400).json({ error: 'Invalid user ID' });
-    }
-
-    const user = await getUserById(id);
+    const user = await getUserById(parseInt(id));
     res.json(user);
   } catch (err) {
     console.error('Get user by ID error:', err);
-    if (err.message.includes('not found')) {
-      return res.status(404).json({ error: 'User  not found' });
-    } else if (err.message.includes('Invalid user ID')) {
-      return res.status(400).json({ error: err.message });
-    }
-    res.status(500).json({ error: 'Failed to fetch user' });
+    res.status(err.message.includes('not found') ? 404 : 500).json({ error: err.message });
   }
 };
 
 exports.updateUser  = async (req, res) => {
   const { id } = req.params;
   const { email, username, role } = req.body;
-
   try {
-    if (!id || isNaN(parseInt(id))) {
-      return res.status(400).json({ error: 'Invalid user ID' });
-    }
-    if (!email || !username || !role) {
-      return res.status(400).json({ error: 'Email, username, and role are required' });
-    }
-
-    const updatedUser  = await updateUser (id, email, username, role);
-    res.status(200).json({ message: 'User  updated successfully', user: updatedUser  });
+    const updatedUser  = await updateUser (parseInt(id), email, username, role);
+    res.json({ message: 'User  updated successfully', user: updatedUser  });
   } catch (err) {
     console.error('Update user error:', err);
-    if (err.message.includes('exists')) {
-      return res.status(400).json({ error: 'Email already exists' });
-    } else if (err.message.includes('not found')) {
-      return res.status(404).json({ error: 'User  not found' });
-    } else if (err.message.includes('Role must be') || err.message.includes('required')) {
-      return res.status(400).json({ error: err.message });
-    }
-    res.status(500).json({ error: 'Failed to update user' });
+    res.status(err.message.includes('not found') || err.message.includes('exists') ? 400 : 500).json({ error: err.message });
   }
 };
 
 exports.deleteUser  = async (req, res) => {
   const { id } = req.params;
-
   try {
-    if (!id || isNaN(parseInt(id))) {
-      return res.status(400).json({ error: 'Invalid user ID' });
-    }
-
-    await deleteUser (id);
-    res.status(200).json({ message: 'User  deleted successfully' });
+    await deleteUser (parseInt(id));
+    res.json({ message: 'User  deleted successfully' });
   } catch (err) {
     console.error('Delete user error:', err);
-    if (err.message.includes('not found')) {
-      return res.status(404).json({ error: 'User  not found' });
-    } else if (err.message.includes('Invalid user ID')) {
-      return res.status(400).json({ error: err.message });
-    }
-    res.status(500).json({ error: 'Failed to delete user' });
+    res.status(err.message.includes('not found') ? 404 : 500).json({ error: err.message });
   }
 };
 
 exports.updateHomeContent = async (req, res) => {
   const { title, content } = req.body;
-
   try {
-    if (!title || !content) {
-      return res.status(400).json({ error: 'Title and content are required' });
-    }
-
-    const updatedContent = await updateHomeContent(title, content);
-    res.status(200).json({ message: 'Home content updated successfully', content: updatedContent });
+    const updated = await updateHomeContent(title, content);
+    res.json({ message: 'Home content updated', content: updated });
   } catch (err) {
     console.error('Update home content error:', err);
-    if (err.message.includes('required')) {
-      return res.status(400).json({ error: err.message });
-    }
     res.status(500).json({ error: 'Failed to update home content' });
   }
 };

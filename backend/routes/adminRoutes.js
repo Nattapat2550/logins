@@ -1,33 +1,26 @@
 const express = require('express');
-const authenticateToken = require('../middleware/authMiddleware');
-const requireRole = require('../middleware/roleMiddleware');
-const {
-  getAllUsers,
-  getUserById,
-  updateUser ,
-  deleteUser ,
-  updateHomeContent
-} = require('../controllers/adminController');
+const { getAllUsers, getUserById, updateUser , deleteUser , updateHomeContent } = require('../controllers/adminController');
+const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Apply auth and admin role to all
-router.use(authenticateToken);
-router.use(requireRole('admin'));
+// Protected admin routes
+router.use(authMiddleware);
+router.use(adminMiddleware);
 
-// GET /api/admin/users - Get all users
+// Get all users
 router.get('/users', getAllUsers);
 
-// GET /api/admin/users/:id - Get single user
+// Get user by ID
 router.get('/users/:id', getUserById);
 
-// PUT /api/admin/users/:id - Update user (email, username, role)
+// Update user
 router.put('/users/:id', updateUser );
 
-// DELETE /api/admin/users/:id - Delete user
+// Delete user
 router.delete('/users/:id', deleteUser );
 
-// PUT /api/admin/home-content - Update home content
+// Update home content
 router.put('/home-content', updateHomeContent);
 
 module.exports = router;

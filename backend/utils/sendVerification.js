@@ -1,26 +1,19 @@
-const { sendEmail } = require('../services/gmail');
+const sendEmail = require('../services/gmail');
 
-// Send verification email with 6-digit code
 const sendVerificationEmail = async (email, code) => {
-  const subject = 'Verify Your Email - My Website';
-  const text = `
-Welcome! Your verification code is: ${code}
-
-Enter this code on the verification page to complete your registration.
-
-If you didn't request this, ignore this email.
-
-Expires in 10 minutes.
-Best,
-My Website Team
-  `.trim();
+  const subject = 'Verify Your Email - 6-Digit Code';
+  const html = `
+    <h2>Email Verification</h2>
+    <p>Your 6-digit verification code is: <strong>${code}</strong></p>
+    <p>This code expires in 10 minutes. If you didn't request this, ignore it.</p>
+  `;
 
   try {
-    await sendEmail(email, subject, text);
+    await sendEmail(email, subject, html);
     console.log(`Verification email sent to ${email}`);
-  } catch (error) {
-    console.error('Failed to send verification email:', error.message);
-    throw new Error('Failed to send verification email. Please try again.');
+  } catch (err) {
+    console.error('Failed to send verification email:', err);
+    throw new Error('Email send failed');
   }
 };
 

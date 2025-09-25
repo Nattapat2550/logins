@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pendingEmail = sessionStorage.getItem('pendingEmail');
     if (!pendingEmail) {
         alert('No pending verification. Start over.');
-        window.location.href = 'pages/register.html';
+        window.location.href = '/pages/register.html';
         return;
     }
 
@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 localStorage.setItem('token', data.token);
                 sessionStorage.removeItem('pendingEmail');
                 alert('Verified successfully!');
-                window.location.href = 'pages/home.html';
+                window.location.href = '/pages/home.html';
             } else {
                 errorDiv.textContent = data.error || 'Invalid code.';
                 errorDiv.className = 'error';

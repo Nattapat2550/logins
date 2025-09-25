@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const token = localStorage.getItem('token');
     if (!token) {
-        window.location.href = 'login.html';
+        window.location.href = '/pages/login.html';
         return;
     }
 
@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (res.status === 401 || res.status === 403) {
             localStorage.removeItem('token');
             alert('Access denied or session expired.');
-            window.location.href = 'login.html';
+            window.location.href = '/pages/login.html';
             return null;
         }
         return res;
@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const user = await res.json();
                 if (user.role !== 'admin') {
                     alert('Admin access required.');
-                    window.location.href = 'home.html';
+                    window.location.href = '/pages/home.html';
                     return false;
                 }
                 return true;
@@ -130,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {
             localStorage.removeItem('token');
-            window.location.href = 'index.html';
+            window.location.href = '/pages/index.html';
         });
     };
 

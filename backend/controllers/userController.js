@@ -1,27 +1,23 @@
 const { getUserById, updateProfile, deleteUser , getHomeContent } = require('../models/userModel');
-const { pool } = require('../config/db');
+const jwt = require('jsonwebtoken');
 
 exports.getProfile = async (req, res) => {
   try {
     const user = await getUserById(req.user.id);
-    res.json(user);
+    res.json({ id: user.id, email: user.email, username: user.username, role: user.role, profile_pic: user.profile_pic, verified: user.verified });
   } catch (err) {
     console.error('Get profile error:', err);
-    res.status(500).json({ error: 'Failed to get profile' });
+    res.status(500).json({ error: 'Failed to fetch profile' });
   }
 };
 
 exports.updateProfile = async (req, res) => {
   const { username } = req.body;
-  const profilePic = req.file ? req.file.filename : null;
-
-  if (!username) {
-    return res.status(400).json({ error: 'Username required' });
-  }
+  let profilePic = req.file ? req.file.filename : req.body.profilePic;
 
   try {
-    const updated = await updateProfile(req.user.id, username, profilePic);
-    res.json({ message: 'Profile updated', user: updated });
+    const user = await updateProfile(req.user.id, username, profilePic);
+    res.json({ message: 'Profile updated', user });
   } catch (err) {
     console.error('Update profile error:', err);
     res.status(400).json({ error: err.message });
@@ -31,7 +27,7 @@ exports.updateProfile = async (req, res) => {
 exports.deleteAccount = async (req, res) => {
   try {
     await deleteUser (req.user.id);
-    res.json({ message: 'Account deleted successfully' });
+    res.json({ message: 'Account deleted' });
   } catch (err) {
     console.error('Delete account error:', err);
     res.status(500).json({ error: 'Failed to delete account' });
@@ -44,6 +40,6 @@ exports.getHomeContent = async (req, res) => {
     res.json(content);
   } catch (err) {
     console.error('Get home content error:', err);
-    res.status(500).json({ error: 'Failed to get home content' });
+    res.status(500).json({ error: 'Failed to fetch home content' });
   }
 };
