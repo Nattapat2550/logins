@@ -1,22 +1,46 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Verify Email</title>
-  <link rel="stylesheet" href="css/styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Email</title>
+    <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <form id="verifyForm">
-    <h2>Enter Verification Code</h2>
-    <input type="email" id="email" placeholder="Email" value="" readonly> <!-- Pre-filled from localStorage if available -->
-    <input type="text" id="code" placeholder="6-digit code" maxlength="6" required>
-    <button type="submit">Verify</button>
-  </form>
-  <script src="js/auth.js"></script>
-  <script>
-    // Pre-fill email
-    document.getElementById('email').value = localStorage.getItem('regEmail') || '';
-  </script>
+    <div class="container">
+        <h1>Verify Your Email</h1>
+        <p>Check your email for the 6-digit code.</p>
+        <form id="verifyForm">
+            <input type="email" id="email" placeholder="Your email" required>
+            <input type="text" id="code" placeholder="Enter 6-digit code" maxlength="6" pattern="[0-9]{6}" required>
+            <button type="submit">Verify Code</button>
+        </form>
+        <p>Didn't receive it? <a href="#" id="resend">Resend code</a></p>
+        <div id="message"></div>
+    </div>
+    <script src="js/main.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        // Pre-fill email from URL param or localStorage
+        const urlParams = new URLSearchParams(window.location.search);
+        const email = urlParams.get('email') || localStorage.getItem('tempEmail');
+        if (email) document.getElementById('email').value = email;
+
+        document.getElementById('verifyForm').addEventListener('submit', e => {
+            e.preventDefault();
+            const email = document.getElementById('email').value.trim();
+            const code = document.getElementById('code').value.trim();
+            if (!email || !code) return showMessage('Email and code required', 'error');
+            localStorage.setItem('tempEmail', email);
+            verify(email, code);
+        });
+
+        document.getElementById('resend').addEventListener('click', e => {
+            e.preventDefault();
+            const email = document.getElementById('email').value.trim();
+            if (email) register(email);  // Triggers resend
+            else showMessage('Enter email first', 'error');
+        });
+    </script>
 </body>
 </html>

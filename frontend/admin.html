@@ -1,39 +1,63 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Panel</title>
-  <link rel="stylesheet" href="css/styles.css">
-  <button id="themeToggle">Toggle Dark Mode</button>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel</title>
+    <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <h2>Admin Panel</h2>
-  
-  <h3>Manage Users</h3>
-  <table id="usersTable">
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Email</th>
-        <th>Username</th>
-        <th>Avatar</th>
-        <th>Role</th>
-        <th>Created</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+    <div class="container">
+        <nav class="nav">
+            <h1>Admin Panel</h1>
+            <div>
+                <a href="home.html">Home</a>
+                <button id="logout">Logout</button>
+            </div>
+        </nav>
+        <div id="homeSection">
+            <h2>Manage Home Info</h2>
+            <form id="homeForm">
+                <input type="text" id="title" placeholder="Home Title" required>
+                <textarea id="content" placeholder="Home Content" rows="4" required></textarea>
+                <button type="submit">Update Home Info</button>
+            </form>
+            <div id="homePreview"></div>
+        </div>
+        <div id="usersSection">
+            <h2>Manage Users</h2>
+            <div id="usersList"></div>
+        </div>
+        <div id="message"></div>
+    </div>
+    <script src="js/main.js"></script>
+    <script src="js/admin.js"></script>
+    <script>
+        checkAuth().then(async isAuth => {
+            if (!isAuth) {
+                showMessage('Please log in', 'error');
+                setTimeout(() => window.location.href = 'login.html', 1000);
+                return;
+            }
+            const profile = await apiGet('/api/user/profile');
+            if (profile.role !== 'admin') {
+                showMessage('Admin access required', 'error');
+                setTimeout(() => window.location.href = 'home.html', 1000);
+                return;
+            }
+            loadAdmin();
+        });
 
-  <h3>Edit Home Page Content</h3>
-  <form id="homeForm">
-    <input type="text" id="homeTitle" placeholder="Title" required>
-    <textarea id="homeContent" placeholder="Content" rows="5" required></textarea>
-    <button type="submit">Update Home Info</button>
-  </form>
+        document.getElementById('logout').addEventListener('click', logout);
 
-  <script src="js/main.js"></script>
-  <script src="js/admin.js"></script>
+        // Event listeners
+        document.getElementById('homeForm').addEventListener('submit', e => {
+            e.preventDefault();
+            const title = document.getElementById('title').value.trim();
+            const content = document.getElementById('content').value.trim();
+            if (!title || !content) return showMessage('Title and content required', 'error');
+            updateHomeInfo(title, content);
+        });
+    </script>
 </body>
 </html>

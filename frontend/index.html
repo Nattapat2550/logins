@@ -1,17 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Home - Website</title>
-  <link rel="stylesheet" href="css/styles.css">
-  <button id="themeToggle">Toggle Dark Mode</button>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Auth App</title>
+    <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <h1>Welcome to Our Website</h1>
-  <p>This is the general information page.</p>
-  <a href="register.html"><button>Register</button></a>
-  <a href="login.html"><button>Login</button></a>
-  <script src="js/main.js"></script>
+    <div class="container">
+        <h1>Welcome to the App</h1>
+        <p id="status">Loading authentication status...</p>
+    </div>
+    <script src="js/main.js"></script>
+    <script>
+        // Auto-redirect based on auth
+        checkAuth().then(isAuth => {
+            document.getElementById('status').textContent = isAuth ? 'Redirecting to home...' : 'Redirecting to register...';
+            setTimeout(() => {
+                window.location.href = isAuth ? 'home.html' : 'register.html';
+            }, 1500);
+        }).catch(err => {
+            showMessage('Error checking auth: ' + err.message, 'error');
+        });
+    </script>
 </body>
 </html>

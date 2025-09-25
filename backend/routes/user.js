@@ -1,16 +1,11 @@
 const express = require('express');
-const router = express.Router();
 const userController = require('../controllers/userController');
-const multer = require('multer');
-const upload = multer({ dest: 'uploads/' });
 
-// Get profile
+const router = express.Router();
+
 router.get('/profile', userController.getProfile);
-
-// Update profile (name, avatar)
-router.put('/profile', upload.single('avatar'), userController.updateProfile);
-
-// Delete account
-router.delete('/profile', userController.deleteAccount);
+router.put('/profile', userController.updateProfile);
+router.post('/avatar', userController.uploadAvatar);
+router.put('/password', userController.changePassword);
 
 module.exports = router;

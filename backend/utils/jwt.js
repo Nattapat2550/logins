@@ -1,19 +1,11 @@
-const { v4: uuidv4 } = require('uuid');
+const jwt = require('jsonwebtoken');
 
-// Generate 6-digit verification code
-const generateCode = () => {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+const generateToken = (payload, expiresIn = '1h') => {
+  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn });
 };
 
-// Generate UUID token (for resets)
-const generateToken = () => {
-    return uuidv4();
+const verifyToken = (token) => {
+  return jwt.verify(token, process.env.JWT_SECRET);
 };
 
-// Generate JWT (alternative to inline in controllers)
-const generateJWT = (user, secret = process.env.JWT_SECRET, expiresIn = '24h') => {
-    const jwt = require('jsonwebtoken');
-    return jwt.sign({ id: user.id }, secret, { expiresIn });
-};
-
-module.exports = { generateCode, generateToken, generateJWT };
+module.exports = { generateToken, verifyToken };

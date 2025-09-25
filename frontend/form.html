@@ -1,25 +1,46 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Set Password</title>
-  <link rel="stylesheet" href="css/styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Set Password</title>
+    <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <form id="passwordForm">
-    <h2>Set Password</h2>
-    <input type="email" id="email" placeholder="Email" value="" readonly>
-    <input type="password" id="password" placeholder="Password" required>
-    <label>
-      <input type="checkbox" id="hidePassword"> Hide Password
-    </label>
-    <button type="submit">Set Password & Login</button>
-  </form>
-  <script src="js/auth.js"></script>
-  <script>
-    // Pre-fill email
-    document.getElementById('email').value = localStorage.getItem('verifiedEmail') || '';
-  </script>
+    <div class="container">
+        <h1>Set Your Password</h1>
+        <form id="passwordForm">
+            <input type="email" id="email" placeholder="Your email" required>
+            <input type="password" id="password" placeholder="New password (min 6 chars)" minlength="6" required>
+            <button type="submit">Set Password & Continue</button>
+        </form>
+        <div id="message"></div>
+    </div>
+    <script src="js/main.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        // Pre-fill email from localStorage or URL param
+        const urlParams = new URLSearchParams(window.location.search);
+        const email = urlParams.get('email') || localStorage.getItem('tempEmail');
+        if (email) document.getElementById('email').value = email;
+
+        // Handle Google callback (token in URL)
+        const token = urlParams.get('token');
+        if (token) {
+            localStorage.setItem('token', token);
+            localStorage.removeItem('tempEmail');
+            showMessage('Google login successful! Redirecting...', 'success');
+            setTimeout(() => window.location.href = 'home.html', 1500);
+            return;
+        }
+
+        document.getElementById('passwordForm').addEventListener('submit', e => {
+            e.preventDefault();
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            if (!email || password.length < 6) return showMessage('Valid email and password (6+ chars) required', 'error');
+            setPassword(email, password);
+        });
+    </script>
 </body>
 </html>

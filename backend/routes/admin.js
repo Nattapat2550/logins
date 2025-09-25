@@ -1,24 +1,15 @@
 const express = require('express');
-const router = express.Router();
 const adminController = require('../controllers/adminController');
-const roleMiddleware = require('../middlewares/roleMiddleware');
 
-// Check role
-router.use(roleMiddleware('admin'));
+const router = express.Router();
 
-// Get all users
-router.get('/users', adminController.getAllUsers);
-
-// Update user
-router.put('/users/:id', adminController.updateUser );
-
-// Delete user
-router.delete('/users/:id', adminController.deleteUser );
-
-// Get home info
+// Home info (public GET, admin PUT)
 router.get('/home', adminController.getHomeInfo);
-
-// Update home info
 router.put('/home', adminController.updateHomeInfo);
+
+// Admin-only users management
+router.get('/users', adminController.getUsers);
+router.delete('/users/:id', adminController.deleteUser );
+router.put('/users/:id/role', adminController.updateUserRole);
 
 module.exports = router;

@@ -1,15 +1,42 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>About</title>
-  <link rel="stylesheet" href="css/styles.css">
-  <button id="themeToggle">Toggle Dark Mode</button>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About</title>
+    <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <h1>About Us</h1>
-  <p>This is the about page with general information about the website.</p>
-  <script src="js/main.js"></script>
+    <div class="container">
+        <nav class="public-nav">
+            <h1>About Us</h1>
+            <div>
+                <a href="index.html">Home</a>
+                <a href="contact.html">Contact</a>
+                <a href="register.html">Register</a>
+                <a href="login.html">Login</a>
+            </div>
+        </nav>
+        <div class="content">
+            <h2>About the App</h2>
+            <p>This is a user authentication app built with Node.js, Express, and Postgres. It supports email verification, Google OAuth, profile management, and an admin panel.</p>
+            <p>Features include secure login, avatar uploads, and role-based access.</p>
+            <p>&copy; 2024 User Auth App. All rights reserved.</p>
+        </div>
+    </div>
+    <script src="js/main.js"></script>
+    <script>
+        // Optional: Check auth and show login/register links if unauth
+        checkAuth().then(isAuth => {
+            if (isAuth) {
+                const nav = document.querySelector('.public-nav div');
+                nav.innerHTML = `
+                    <a href="home.html">Dashboard</a>
+                    <a href="settings.html">Settings</a>
+                    <button onclick="logout()">Logout</button>
+                `;
+            }
+        });
+    </script>
 </body>
 </html>

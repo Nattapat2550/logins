@@ -1,21 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Contact</title>
-  <link rel="stylesheet" href="css/styles.css">
-  <button id="themeToggle">Toggle Dark Mode</button>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact</title>
+    <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <h1>Contact Us</h1>
-  <p>Reach out via email: info@example.com</p>
-  <form>
-    <input type="text" placeholder="Name">
-    <input type="email" placeholder="Email">
-    <textarea placeholder="Message"></textarea>
-    <button type="submit">Send</button>
-  </form>
-  <script src="js/main.js"></script>
+    <div class="container">
+        <nav class="public-nav">
+            <h1>Contact Us</h1>
+            <div>
+                <a href="index.html">Home</a>
+                <a href="about.html">About</a>
+                <a href="register.html">Register</a>
+                <a href="login.html">Login</a>
+            </div>
+        </nav>
+        <div class="content">
+            <h2>Get in Touch</h2>
+            <form id="contactForm">
+                <input type="text" id="name" placeholder="Your Name" required>
+                <input type="email" id="email" placeholder="Your Email" required>
+                <textarea id="message" placeholder="Your Message" rows="5" required></textarea>
+                <button type="submit">Send Message</button>
+            </form>
+            <p>Or email us at: support@example.com</p>
+            <div id="contactMessage"></div>
+        </div>
+    </div>
+    <script src="js/main.js"></script>
+    <script>
+        // Dynamic nav for auth users
+        checkAuth().then(isAuth => {
+            if (isAuth) {
+                const nav = document.querySelector('.public-nav div');
+                nav.innerHTML = `
+                    <a href="home.html">Dashboard</a>
+                    <a href="settings.html">Settings</a>
+                    <button onclick="logout()">Logout</button>
+                `;
+            }
+        });
+
+        // Simple contact form (logs to console; integrate with backend if needed)
+        document.getElementById('contactForm').addEventListener('submit', e => {
+            e.preventDefault();
+            const name = document.getElementById('name').value;
+            const email = document.getElementById('email').value;
+            const msg = document.getElementById('message').value;
+            console.log('Contact form:', { name, email, msg });  // Replace with API call
+            showMessage('Message sent! (Demo - check console)', 'success', 'contactMessage');
+            document.getElementById('contactForm').reset();
+        });
+    </script>
 </body>
 </html>

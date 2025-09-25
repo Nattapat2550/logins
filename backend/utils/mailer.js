@@ -1,67 +1,67 @@
-const nodemailer = require('nodemailer');
-require('dotenv').config(); // Ensure env vars loaded
+const { google } = require('googleapis');
+const MailComposer = require('nodemailer/lib/mail-composer');
 
-// Create transporter with OAuth2
-const transporter = nodemailer.createTransporter({
-  service: 'gmail',
-  auth: {
-    type: 'OAuth2',
-    user: process.env.EMAIL_USER || 'your-gmail@gmail.com', // Set this env var too!
-    clientId: process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    refreshToken: process.env.REFRESH_TOKEN,
-  },
-});
+const oauth2Client = new google.auth.OAuth2(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  process.env.GOOGLE_REDIRECT_URI
+);
 
-// Test transporter on startup (optional, for logs)
-transporter.verify((error, success) => {
-  if (error) {
-    console.error(`[MAILER] Transporter verification failed: ${error.message}`);
-  } else {
-    console.log('[MAILER] Server is ready to send emails');
-  }
-});
+oauth2Client.setCredentials({ refresh_token: process.env.REFRESH_TOKEN });
+const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
-const sendVerificationEmail = async (email, code) => {
-  console.log(`[MAILER] Attempting to send verification email to ${email} with code ${code}`);
-  
-  const mailOptions = {
-    from: process.env.EMAIL_USER || 'your-gmail@gmail.com',
-    to: email,
-    subject: 'Email Verification Code',
-    text: `Your 6-digit verification code is: ${code}. It expires in 10 minutes. Do not share this code.`,
-    html: `<p>Your 6-digit verification code is: <strong>${code}</strong></p><p>It expires in 10 minutes.</p>`,
-  };
+const sendEmail = async (to, subject, text, html = null) => {
+  console.log(`[MAILER] Sending to ${to}: ${subject}`);
+
+  const mail = new MailComposer({
+    to,
+    subject,
+    from: process.env.SENDER_EMAIL,
+    text,
+    html,
+  });
+
+  const message = await new Promise((resolve, reject) => {
+    mail.compile().build((err, msg) => {
+      if (err) {
+        console.error(`[MAILER] Build error: ${err.message}`);
+        reject(err);
+      } else {
+        resolve(msg);
+      }
+    });
+  });
+
+  const encodedMessage = Buffer.from(message)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
 
   try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log(`[MAILER] Email sent successfully to ${email}: ${info.messageId}`);
-    return info;
+    const res = await gmail.users.messages.send({
+      userId: 'me',
+      requestBody: { raw: encodedMessage },
+    });
+    console.log(`[MAILER] Sent: ${res.data.id}`);
+    return res.data;
   } catch (error) {
-    console.error(`[MAILER] Failed to send email to ${email}: ${error.message}`);
-    throw new Error(`Email send failed: ${error.message}`); // Re-throw for controller to catch
+    console.error(`[MAILER] Send error: ${error.message}`);
+    if (error.response) console.error(`[MAILER] API response: ${JSON.stringify(error.response.data)}`);
+    throw new Error(`Email failed: ${error.message}`);
   }
 };
 
-const sendResetEmail = async (email, code) => {
-  console.log(`[MAILER] Attempting to send reset email to ${email} with code ${code}`);
-  
-  const mailOptions = {
-    from: process.env.EMAIL_USER || 'your-gmail@gmail.com',
-    to: email,
-    subject: 'Password Reset Code',
-    text: `Your password reset code is: ${code}. It expires in 10 minutes.`,
-    html: `<p>Your password reset code is: <strong>${code}</strong></p><p>It expires in 10 minutes.</p>`,
-  };
+const sendVerificationEmail = async (email, code) => {
+  const text = `Your 6-digit verification code is: ${code}. It expires in 10 minutes. Do not share this code.`;
+  const html = `<p>Your 6-digit verification code is: <strong>${code}</strong></p><p>It expires in 10 minutes. Do not share this code.</p>`;
+  await sendEmail(email, 'Email Verification Code', text, html);
+};
 
-  try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log(`[MAILER] Reset email sent successfully to ${email}: ${info.messageId}`);
-    return info;
-  } catch (error) {
-    console.error(`[MAILER] Failed to send reset email to ${email}: ${error.message}`);
-    throw new Error(`Email send failed: ${error.message}`);
-  }
+const sendResetEmail = async (email, code) => {
+  const text = `Your password reset code is: ${code}. It expires in 10 minutes.`;
+  const html = `<p>Your password reset code is: <strong>${code}</strong></p><p>It expires in 10 minutes.</p>`;
+  await sendEmail(email, 'Password Reset Code', text, html);
 };
 
 module.exports = { sendVerificationEmail, sendResetEmail };

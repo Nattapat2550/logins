@@ -2,11 +2,7 @@ const express = require('express');
 const path = require('path');
 const cors = require('cors');
 const passport = require('passport');
-const db = require('./db');
-const authRoutes = require('./routes/auth');
-const userRoutes = require('./routes/user');
-const adminRoutes = require('./routes/admin');
-const homeRoutes = require('./routes/home'); // Optional: for public home info
+const { connect } = require('./db');
 
 // Initialize Express
 const app = express();
@@ -17,36 +13,33 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(passport.initialize());
 
-// Serve static frontend files (handles all .html, .css, .js, images directly, e.g., /home.html -> frontend/home.html)
+// Serve static frontend files
 app.use(express.static(path.join(__dirname, '../frontend')));
 
-// Serve uploads directory for profile pics (e.g., /uploads/avatar.jpg)
+// Serve uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// API Routes (place before any other handlers)
-app.use('/api/auth', authRoutes);
-app.use('/api/user', passport.authenticate('jwt', { session: false }), userRoutes);
-app.use('/api/admin', passport.authenticate('jwt', { session: false }), adminRoutes);
-app.use('/api/home', homeRoutes); // Public read for home info
+// Routes (imported from routes/)
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/user', require('./middlewares/authMiddleware'), require('./routes/user'));
+app.use('/api/admin', require('./middlewares/authMiddleware'), require('./middlewares/roleMiddleware'), require('./routes/admin'));
 
-// Root route: Serve index.html explicitly
+// Root route
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
 
-// Passport Google Strategy
-require('./utils/passport')(passport);
+// Passport config (Google strategy only; JWT in middleware)
+require('./routes/auth').initializePassport(passport);
 
-// DB Connection
-db.connect();
+// DB Connect
+connect();
 
-// 404 Handler for unmatched routes (serves index.html as fallback for frontend, but returns 404 for API)
-app.use((req, res, next) => {
-  // If it's an API path, return proper 404
+// 404 Handler
+app.use((req, res) => {
   if (req.path.startsWith('/api/')) {
-    return res.status(404).json({ error: 'API endpoint not found' });
+    return res.status(404).json({ error: 'API not found' });
   }
-  // For frontend paths, try to serve index.html as fallback (e.g., for refresh issues)
   res.status(404).sendFile(path.join(__dirname, '../frontend/index.html'));
 });
 

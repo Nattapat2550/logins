@@ -1,53 +1,76 @@
-// Inject Navbar on all pages except index/login/register
-if (!['index.html', 'login.html', 'register.html'].includes(window.location.pathname.split('/').pop())) {
-  const navbar = document.createElement('nav');
-  navbar.className = 'navbar';
-  navbar.innerHTML = `
-    <h1>Website Name</h1>
-    <div>
-      <a href="home.html">Home</a>
-      <a href="about.html">About</a>
-      <a href="contact.html">Contact</a>
-      <a href="settings.html">Settings</a>
-    </div>
-    <div class="dropdown">
-      <img id="accountPic" src="images/user.png" alt="Account" class="account-pic">
-      <div class="dropdown-content">
-        <a href="settings.html">Profile</a>
-        <a href="#" id="logout">Logout</a>
-      </div>
-    </div>
-  `;
-  document.body.insertBefore(navbar, document.body.firstChild);
+// API Helper: Fetch with token
+async function apiGet(endpoint, options = {}) {
+    return apiFetch(endpoint, { method: 'GET', ...options });
 }
 
-// Dark Mode Toggle
-const toggleDarkMode = () => {
-  document.body.classList.toggle('dark-mode');
-  localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
-};
-if (localStorage.getItem('darkMode') === 'true') toggleDarkMode();
-document.getElementById('themeToggle')?.addEventListener('click', toggleDarkMode);
+async function apiPost(endpoint, body, options = {}) {
+    return apiFetch(endpoint, { method: 'POST', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' }, ...options });
+}
 
-// Logout
-document.getElementById('logout')?.addEventListener('click', async () => {
-  localStorage.removeItem('token');
-  window.location.href = 'index.html';
-});
+async function apiPut(endpoint, body, options = {}) {
+    return apiFetch(endpoint, { method: 'PUT', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' }, ...options });
+}
 
-// Load Profile Pic and Username (if logged in)
-const token = localStorage.getItem('token');
-if (token) {
-  fetch('/api/user/profile', {
-    headers: { 'Authorization': `Bearer ${token}` }
-  })
-  .then(res => res.json())
-  .then(user => {
-    if (user.username) document.querySelector('.navbar h1').textContent = user.username + "'s Site"; // Optional
-    const pic = document.getElementById('accountPic');
-    if (pic && user.avatar) {
-      pic.src = user.avatar.startsWith('http') ? user.avatar : `/uploads/${user.avatar}`;
+async function apiDelete(endpoint, options = {}) {
+    return apiFetch(endpoint, { method: 'DELETE', ...options });
+}
+
+async function apiFetch(endpoint, options) {
+    const token = localStorage.getItem('token');
+    const headers = {
+        ...options.headers,
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    };
+
+    const response = await fetch(`${window.location.origin}${endpoint}`, {
+        ...options,
+        headers
+    });
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Network error' }));
+        throw new Error(error.error || `HTTP ${response.status}`);
     }
-  })
-  .catch(() => localStorage.removeItem('token')); // Invalid token, logout
+
+    return response.json();
 }
+
+// Auth Check: Verify token by fetching profile
+async function checkAuth() {
+    const token = localStorage.getItem('token');
+    if (!token) return false;
+
+    try {
+        await apiGet('/api/user/profile');
+        return true;
+    } catch (err) {
+        localStorage.removeItem('token');
+        return false;
+    }
+}
+
+// Show Message: Display in #message or specified element
+function showMessage(text, type = 'success', elementId = 'message') {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    el.textContent = text;
+    el.className = type;
+    el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 5000);
+}
+
+// Logout: Clear token and redirect
+function logout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('tempEmail');
+    window.location.href = 'register.html';
+}
+
+// Export for global use (e.g., in HTML onclick)
+window.logout = logout;
+window.showMessage = showMessage;
+window.checkAuth = checkAuth;
+window.apiGet = apiGet;
+window.apiPost = apiPost;
+window.apiPut = apiPut;
+window.apiDelete = apiDelete;

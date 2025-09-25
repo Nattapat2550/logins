@@ -1,31 +1,29 @@
--- Run this once to initialize DB
+-- Users table
 CREATE TABLE IF NOT EXISTS users (
   id SERIAL PRIMARY KEY,
   email VARCHAR(255) UNIQUE NOT NULL,
-  password VARCHAR(255),
   username VARCHAR(255) NOT NULL,
-  avatar TEXT DEFAULT 'user.png',
-  google_id VARCHAR(255),
+  password VARCHAR(255),
+  avatar VARCHAR(255),
+  verified BOOLEAN DEFAULT false,
   role VARCHAR(50) DEFAULT 'user',
-  verified BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Verification codes
 CREATE TABLE IF NOT EXISTS verification_codes (
-  id SERIAL PRIMARY KEY,
-  email VARCHAR(255) UNIQUE NOT NULL,
+  email VARCHAR(255) PRIMARY KEY,
   code VARCHAR(6) NOT NULL,
-  expires_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP + INTERVAL '10 minutes'
+  expires_at TIMESTAMP NOT NULL
 );
 
+-- Home info (for admin)
 CREATE TABLE IF NOT EXISTS home_info (
   id SERIAL PRIMARY KEY,
-  title VARCHAR(255) DEFAULT 'Welcome to Our Site',
-  content TEXT DEFAULT 'This is the home page content editable by admins.',
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  title VARCHAR(255),
+  content TEXT
 );
 
--- Insert default home info
-INSERT INTO home_info (title, content) VALUES ('Welcome to Our Site', 'This is the home page content editable by admins.') ON CONFLICT DO NOTHING;
-
--- For admin testing: Manually set a user's role to 'admin' in DB after registration
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);

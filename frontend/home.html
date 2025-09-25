@@ -1,33 +1,62 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Home</title>
-  <link rel="stylesheet" href="css/styles.css">
-  <button id="themeToggle">Toggle Dark Mode</button>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home</title>
+    <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <div class="home-content">
-    <h1 id="homeTitle">Loading...</h1>
-    <p id="homeContent">Loading content...</p>
-  </div>
-  <script src="js/main.js"></script>
-  <script>
-    // Fetch home info (public endpoint? For simplicity, use admin endpoint but without auth for read)
-    // Note: To make public, add a public route in backend/routes/home.js: router.get('/', adminController.getHomeInfo);
-    // For now, assume logged-in users can access; if error, show default.
-    const token = localStorage.getItem('token');
-    fetch('/api/admin/home' + (token ? `?token=${token}` : '')) // Hacky; better add public route
-      .then(res => res.json())
-      .then(data => {
-        document.getElementById('homeTitle').textContent = data.title;
-        document.getElementById('homeContent').textContent = data.content;
-      })
-      .catch(() => {
-        document.getElementById('homeTitle').textContent = 'Welcome to Our Site';
-        document.getElementById('homeContent').textContent = 'This is the home page content.';
-      });
-  </script>
+    <div class="container">
+        <nav class="nav">
+            <h1>Home</h1>
+            <div>
+                <a href="settings.html">Settings</a>
+                <a href="admin.html" id="adminLink" style="display:none;">Admin</a>
+                <button id="logout">Logout</button>
+            </div>
+        </nav>
+        <div id="homeContent">
+            <h2>Welcome, <span id="username"></span>!</h2>
+            <div id="homeInfo"></div>
+        </div>
+        <div id="message"></div>
+        <nav class="bottom-nav">
+            <a href="about.html">About</a>
+            <a href="contact.html">Contact</a>
+        </nav>
+    </div>
+    <script src="js/main.js"></script>
+    <script src="js/admin.js"></script>
+    <script>
+        checkAuth().then(isAuth => {
+            if (!isAuth) {
+                showMessage('Please log in', 'error');
+                setTimeout(() => window.location.href = 'login.html', 1000);
+                return;
+            }
+            loadHome();
+        });
+
+        async function loadHome() {
+            try {
+                const profile = await apiGet('/api/user/profile');
+                document.getElementById('username').textContent = profile.username;
+                if (profile.role === 'admin') {
+                    document.getElementById('adminLink').style.display = 'inline';
+                }
+
+                const info = await apiGet('/api/admin/home');
+                document.getElementById('homeInfo').innerHTML = `
+                    <h3>${info.title || 'Welcome'}</h3>
+                    <p>${info.content || 'This is your dashboard. Use settings to update your profile.'}</p>
+                `;
+            } catch (err) {
+                showMessage('Error loading home: ' + err.message, 'error');
+            }
+        }
+
+        document.getElementById('logout').addEventListener('click', logout);
+    </script>
 </body>
 </html>
