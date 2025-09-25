@@ -6,7 +6,7 @@ class User {
   static async findByEmail(email) {
     try {
       const result = await pool.query(
-        'SELECT id, email, username, password, profile_pic, role, email_verified, created_at FROM users WHERE email = $1',
+        'SELECT id, email, username, password, profilepic, role, email_verified, created_at FROM users WHERE email = $1',
         [email]
       );
       return result.rows[0] || null;
@@ -19,7 +19,7 @@ class User {
   static async findById(id) {
     try {
       const result = await pool.query(
-        'SELECT id, email, username, profile_pic, role, email_verified, created_at FROM users WHERE id = $1',
+        'SELECT id, email, username, profilepic, role, email_verified, created_at FROM users WHERE id = $1',
         [id]
       );
       return result.rows[0] || null;
@@ -37,9 +37,9 @@ class User {
       }
 
       const result = await pool.query(
-        `INSERT INTO users (email, username, password, profile_pic, role, email_verified, created_at)
+        `INSERT INTO users (email, username, password, profilepic, role, email_verified, created_at)
          VALUES ($1, $2, $3, $4, $5, $6, NOW())
-         RETURNING id, email, username, profile_pic, role, email_verified, created_at`,
+         RETURNING id, email, username, profilepic, role, email_verified, created_at`,
         [email, username, hashedPassword, profilePic, role, emailVerified]
       );
       return result.rows[0];
@@ -64,7 +64,7 @@ class User {
         paramIndex++;
       }
       if (profilePic !== undefined) {
-        updates.push(`profile_pic = $${paramIndex}`);
+        updates.push(`profilepic = $${paramIndex}`);
         params.push(profilePic);
         paramIndex++;
       }
@@ -129,7 +129,7 @@ class User {
   static async findAll() {
     try {
       const result = await pool.query(
-        'SELECT id, email, username, profile_pic, role, created_at FROM users ORDER BY created_at DESC'
+        'SELECT id, email, username, profilepic, role, created_at FROM users ORDER BY created_at DESC'
       );
       return result.rows;
     } catch (error) {

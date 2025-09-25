@@ -4,22 +4,50 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Complete Registration</title>
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css">  <!-- Your global styles -->
+  <style>
+    /* Form-specific styles */
+    .form-container { max-width: 400px; margin: 50px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+    .form-group input, .form-group textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+    #profilePreview { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; margin: 10px 0; border: 2px solid #ddd; }
+    button { width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    button:hover { background: #0056b3; }
+    .error { color: red; margin-top: 5px; }
+    .success { color: green; margin-top: 5px; }
+    .hidden { display: none; }  /* For password field in Google flow */
+  </style>
 </head>
 <body>
-  <div id="navbar"></div>
-  <div class="container">
-    <h1>Complete Your Profile</h1>
-    <form id="formForm">
-      <input type="text" id="username" placeholder="Username" required>
-      <input type="password" id="password" placeholder="Password" required>
-      <input type="file" id="profilePic" accept="image/*">
-      <button type="button" onclick="completeRegistration()">Save</button>
+  <div class="form-container">
+    <h2>Complete Your Profile</h2>
+    <p id="emailDisplay">Email: <span id="pendingEmail"></span></p>
+    
+    <form id="profileForm">
+      <div class="form-group">
+        <label for="username">Username (required)</label>
+        <input type="text" id="username" required minlength="3">
+      </div>
+      
+      <div class="form-group" id="passwordGroup">
+        <label for="password">Password (required, unless Google login)</label>
+        <input type="password" id="password" required minlength="6">
+      </div>
+      
+      <div class="form-group">
+        <label for="profilePic">Profile Picture (optional)</label>
+        <input type="file" id="profilePic" accept="image/*">
+        <img id="profilePreview" src="images/user.png" alt="Profile Preview" />  <!-- Default image -->
+        <small>Upload an image or use default avatar</small>
+      </div>
+      
+      <button type="button" onclick="completeRegistration()">Save Profile</button>
     </form>
-    <div id="error"></div>
-    <div id="success" class="hidden"></div>
+    
+    <div id="message"></div>  <!-- For error/success -->
   </div>
-  <script src="js/main.js"></script>
-  <script src="js/form.js"></script>
+
+  <script src="js/form.js"></script>  <!-- Loads the JS -->
 </body>
 </html>
