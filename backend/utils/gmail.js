@@ -1,37 +1,54 @@
-const { google } = require('googleapis');
+// backend/utils/gmail.js
+const { google } = require("googleapis");
+const MailComposer = require("nodemailer/lib/mail-composer");
 require('dotenv').config();
 
-const oauth2Client = new google.auth.OAuth2();
-oauth2Client.setCredentials({ refresh_token: process.env.REFRESH_TOKEN });
+const oauth2Client = new google.auth.OAuth2(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  process.env.GOOGLE_REDIRECT_URI
+);
 
-const sendEmail = async (to, subject, code) => {
+oauth2Client.setCredentials({
+  refresh_token: process.env.REFRESH_TOKEN,
+});
+
+const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+
+async function sendEmail(to, subject, text) {
   try {
-    const accessToken = await oauth2Client.getAccessToken();
-    const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
-
-    const message = [
-      `From: ${process.env.SENDER_EMAIL}`,
-      `To: ${to}`,
-      'Content-Type: text/plain; charset=utf-8',
-      'MIME-Version: 1.0',
-      `Subject: ${subject}`,
-      '',
-      `Your verification code is: ${code}. It expires in 10 minutes.`
-    ].join('\n').trim();
-
-    const encodedMessage = Buffer.from(message).toString('base64').replace(/\+/g, '-').replace(/\//g, '_');
-
-    await gmail.users.messages.send({
-      userId: 'me',
-      requestBody: {
-        raw: encodedMessage
-      }
+    const mail = new MailComposer({
+      to,
+      text,  // Plain text body (e.g., verification message)
+      subject,
+      from: process.env.SENDER_EMAIL,
     });
-    return true;
+
+    const message = await new Promise((resolve, reject) => {
+      mail.compile().build((err, msg) => {
+        if (err) reject(err);
+        else resolve(msg);
+      });
+    });
+
+    const encodedMessage = Buffer.from(message)
+      .toString("base64")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+
+    const res = await gmail.users.messages.send({
+      userId: "me",
+      requestBody: {
+        raw: encodedMessage,
+      },
+    });
+
+    return true;  // Success (you can return res.data if you need the message ID)
   } catch (error) {
     console.error('Gmail API Error:', error);
-    return false;
+    return false;  // Failure
   }
-};
+}
 
 module.exports = { sendEmail };

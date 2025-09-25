@@ -41,12 +41,14 @@ router.post('/register/email', async (req, res) => {
     return res.json({ duplicate: true });
   }
   const code = generateCode();
-  // Store code in session or temp DB; for simplicity, use a map (in prod, use Redis)
   req.app.locals.verificationCodes = req.app.locals.verificationCodes || {};
   req.app.locals.verificationCodes[email] = { code, expires: Date.now() + 10 * 60 * 1000 };
-  sendEmail(email, 'Verification Code', code).then(sent => {
-    res.json({ duplicate: false, sent });
-  });
+  
+  const textBody = `Your verification code is: ${code}. It expires in 10 minutes.`;
+  const sent = await sendEmail(email, 'Verification Code', textBody);
+  
+  res.json({ duplicate: false, sent });
+  
 });
 
 // Verify code
@@ -94,9 +96,11 @@ router.post('/forgot-password', async (req, res) => {
   const code = generateCode();
   req.app.locals.resetCodes = req.app.locals.resetCodes || {};
   req.app.locals.resetCodes[email] = { code, expires: Date.now() + 10 * 60 * 1000 };
-  sendEmail(email, 'Password Reset Code', code).then(sent => {
-    res.json({ sent });
-  });
+  
+  const textBody = `Your password reset code is: ${code}. It expires in 10 minutes.`;
+  const sent = await sendEmail(email, 'Password Reset Code', textBody);
+  
+  res.json({ sent });
 });
 
 // Verify reset code
