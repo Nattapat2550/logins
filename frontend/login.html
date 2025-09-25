@@ -1,48 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
-    <link rel="stylesheet" href="/css/style.css">
-    <link rel="stylesheet" href="/css/dark-mode.css">
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="light">
-    <header>
-        <nav class="container">
-            <h1>Login</h1>
-            <ul>
-                <li><a href="/index.html">Home</a></li>
-                <li><a href="/register.html">Register</a></li>
-                <li><button id="darkModeToggle" onclick="toggleDarkMode()">🌙 Dark Mode</button></li>
-            </ul>
-        </nav>
-    </header>
-    <main>
-        <form id="loginForm">
-            <h2>Login</h2>
-            <input type="email" id="email" placeholder="Email" required>
-            <input type="password" id="password" placeholder="Password" required>
-            <label class="checkbox">
-                <input type="checkbox" id="showPassword"> Show password
-            </label>
-            <div id="error" class="error"></div>
-            <button type="submit">Login</button>
-            <p><a href="#" id="forgotPassword">Forgot Password?</a> | <a href="/register.html">Register</a></p>
-        </form>
-        <p style="text-align: center; margin: 20px;">Or log in with</p>
-        <div id="g_id_onload"
-             data-client_id="YOUR_GOOGLE_CLIENT_ID"
-             data-callback="handleGoogleLogin"
-             data-auto_prompt="false">
-        </div>
-        <div class="g_id_signin" data-type="standard" style="text-align: center;"></div>
-    </main>
-    <footer>
-        <p>&copy; 2024 My Website.</p>
-    </footer>
-    <script src="/js/darkModeToggle.js"></script>
-    <script src="/js/login.js"></script>
+<body>
+  <div id="navbar"></div>
+  <div class="container">
+    <h1>Login</h1>
+    <form id="loginForm">
+      <input type="email" id="email" placeholder="Email" required>
+      <div style="display: flex; align-items: center;">
+        <input type="password" id="password" placeholder="Password" required>
+        <input type="checkbox" id="showPassword" onclick="togglePassword()"> Show
+      </div>
+      <button type="button" onclick="login()">Login</button>
+      <a href="reset.html">Forgot Password?</a>
+      <br><br>
+      <button type="button" onclick="googleLogin()">Login with Google</button>
+    </form>
+    <div id="error"></div>
+  </div>
+  <script src="js/main.js"></script>
+  <script src="js/login.js"></script>
 </body>
 </html>

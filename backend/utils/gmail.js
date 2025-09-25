@@ -1,54 +1,37 @@
 const { google } = require('googleapis');
-const MailComposer = require('nodemailer/lib/mail-composer');
+require('dotenv').config();
 
-const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET
-  // No redirect URI needed for refresh token auth
-);
+const oauth2Client = new google.auth.OAuth2();
+oauth2Client.setCredentials({ refresh_token: process.env.REFRESH_TOKEN });
 
-oauth2Client.setCredentials({
-  refresh_token: process.env.REFRESH_TOKEN,
-});
-
-const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
-
-async function sendEmail(to, subject, text) {
+const sendEmail = async (to, subject, code) => {
   try {
-    const mail = new MailComposer({
-      to,
-      text,  // Plain text body
-      subject,
-      from: process.env.SENDER_EMAIL,
-    });
+    const accessToken = await oauth2Client.getAccessToken();
+    const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
-    const message = await new Promise((resolve, reject) => {
-      mail.compile().build((err, msg) => {
-        if (err) reject(err);
-        else resolve(msg);
-      });
-    });
+    const message = [
+      `From: ${process.env.SENDER_EMAIL}`,
+      `To: ${to}`,
+      'Content-Type: text/plain; charset=utf-8',
+      'MIME-Version: 1.0',
+      `Subject: ${subject}`,
+      '',
+      `Your verification code is: ${code}. It expires in 10 minutes.`
+    ].join('\n').trim();
 
-    const encodedMessage = Buffer.from(message)
-      .toString('base64')
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/, '');
+    const encodedMessage = Buffer.from(message).toString('base64').replace(/\+/g, '-').replace(/\//g, '_');
 
-    const res = await gmail.users.messages.send({
+    await gmail.users.messages.send({
       userId: 'me',
       requestBody: {
-        raw: encodedMessage,
-      },
+        raw: encodedMessage
+      }
     });
-
-    console.log(`Email sent successfully to ${to}: ${res.data.id}`);
-    return { success: true, messageId: res.data.id };
+    return true;
   } catch (error) {
-    console.error('Gmail send error:', error);
-    // Common: Invalid refresh token (401), quota exceeded, etc.
-    throw new Error(`Failed to send email: ${error.message}`);
+    console.error('Gmail API Error:', error);
+    return false;
   }
-}
+};
 
 module.exports = { sendEmail };

@@ -1,36 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Complete Registration</title>
-    <link rel="stylesheet" href="/css/style.css">
-    <link rel="stylesheet" href="/css/dark-mode.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Complete Registration</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="light">
-    <header>
-        <nav class="container">
-            <h1>Complete Registration</h1>
-            <ul>
-                <li><a href="/register.html">Back to Email</a></li>
-                <li><button id="darkModeToggle" onclick="toggleDarkMode()">🌙 Dark Mode</button></li>
-            </ul>
-        </nav>
-    </header>
-    <main>
-        <form id="formForm">
-            <h2>Enter Username and Password</h2>
-            <p id="emailDisplay">Email: <span id="emailText"></span></p>
-            <input type="text" id="username" placeholder="Choose a username" required>
-            <input type="password" id="password" placeholder="Choose a password (min 6 chars)" required minlength="6">
-            <div id="error" class="error"></div>
-            <button type="submit">Register & Send Code</button>
-        </form>
-    </main>
-    <footer>
-        <p>&copy; 2024 My Website.</p>
-    </footer>
-    <script src="/js/darkModeToggle.js"></script>
-    <script src="/js/form.js"></script>
+<body>
+  <div id="navbar"></div>
+  <div class="container">
+    <h1>Complete Your Profile</h1>
+    <form id="formForm">
+      <input type="text" id="username" placeholder="Username" required>
+      <input type="password" id="password" placeholder="Password" required>
+      <input type="file" id="profilePic" accept="image/*">
+      <button type="button" onclick="completeRegistration()">Save</button>
+    </form>
+    <div id="error"></div>
+    <div id="success" class="hidden"></div>
+  </div>
+  <script src="js/main.js"></script>
+  <script src="js/form.js"></script>
 </body>
 </html>

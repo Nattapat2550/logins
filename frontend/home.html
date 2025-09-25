@@ -1,43 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home - Dashboard</title>
-    <link rel="stylesheet" href="/css/style.css">
-    <link rel="stylesheet" href="/css/dark-mode.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Home</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="light">
-    <header>
-        <nav class="container">
-            <h1>Dashboard</h1>
-            <ul>
-                <li><a href="/home.html">Home</a></li>
-                <li><a href="/about.html">About</a></li>
-                <li><a href="/contact.html">Contact</a></li>
-                <li id="adminLink"><a href="/admin.html">Admin</a></li>
-                <li><a href="/settings.html">Settings</a></li>
-                <li><button id="logoutBtn">Logout</button></li>
-                <li><button id="darkModeToggle" onclick="toggleDarkMode()">🌙 Dark Mode</button></li>
-            </ul>
-        </nav>
-    </header>
-    <main class="container">
-        <div class="card">
-            <h2 id="homeTitle">Welcome</h2>
-            <p id="homeContent">Loading home content...</p>
-        </div>
-        <div class="card">
-            <h3>Your Profile</h3>
-            <p id="userEmail">Email: Loading...</p>
-            <p id="userRole">Role: Loading...</p>
-            <img id="profilePic" src="/assets/user.png" alt="Profile" class="profile-pic">
-        </div>
-    </main>
-    <footer>
-        <p>&copy; 2024 My Website.</p>
-    </footer>
-    <script src="/js/darkModeToggle.js"></script>
-    <script src="/js/profile.js"></script>
+<body>
+  <div id="navbar"></div>
+  <div class="container">
+    <h1>Home</h1>
+    <div id="homepageContent">Loading...</div>
+  </div>
+  <script src="js/main.js"></script>
+  <script src="js/home.js"></script>
 </body>
 </html>

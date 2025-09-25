@@ -1,45 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Settings</title>
-    <link rel="stylesheet" href="/css/style.css">
-    <link rel="stylesheet" href="/css/dark-mode.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="light">
-    <header>
-        <nav class="container">
-            <h1>Settings</h1>
-            <ul>
-                <li><a href="/home.html">Home</a></li>
-                <li id="adminLink"><a href="/admin.html">Admin</a></li>
-                <li><button id="logoutBtn">Logout</button></li>
-                <li><button id="darkModeToggle" onclick="toggleDarkMode()">🌙 Dark Mode</button></li>
-            </ul>
-        </nav>
-    </header>
-    <main class="container">
-        <div class="card">
-            <h2>Update Profile</h2>
-            <form id="updateProfileForm" enctype="multipart/form-data">
-                <input type="text" id="username" placeholder="Username" required>
-                <input type="file" id="profilePicInput" accept="image/*">
-                <img id="profilePic" src="/assets/user.png" alt="Current Profile" class="profile-pic">
-                <div id="profileError" class="error"></div>
-                <button type="submit">Update Profile</button>
-            </form>
-        </div>
-        <div class="card">
-            <h3>Account Actions</h3>
-            <button id="deleteAccount" style="background: #ea4335; color: white;">Delete Account</button>
-            <p><em>This action is permanent.</em></p>
-        </div>
-    </main>
-    <footer>
-        <p>&copy; 2024 My Website.</p>
-    </footer>
-    <script src="/js/darkModeToggle.js"></script>
-    <script src="/js/profile.js"></script>
+<body>
+  <div id="navbar"></div>
+  <div class="container">
+    <h1>Settings</h1>
+    <form id="settingsForm">
+      <input type="text" id="username" placeholder="New Username">
+      <input type="file" id="profilePic" accept="image/*">
+      <button type="button" onclick="updateProfile()">Update Profile</button>
+      <button type="button" id="themeToggle" onclick="toggleTheme()">Toggle Theme</button>
+      <button type="button" onclick="deleteAccount()" style="background: red;">Delete Account</button>
+    </form>
+    <div id="error"></div>
+    <div id="success" class="hidden"></div>
+    <div id="currentProfile">
+      <h2>Current Profile</h2>
+      <p id="currentUsername"></p>
+      <img id="currentPic" src="" alt="Profile" style="width: 100px; height: 100px; border-radius: 50%;">
+    </div>
+  </div>
+  <script src="js/main.js"></script>
+  <script src="js/settings.js"></script>
 </body>
 </html>

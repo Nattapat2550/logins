@@ -1,42 +1,42 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard</title>
-    <link rel="stylesheet" href="/css/style.css">
-    <link rel="stylesheet" href="/css/dark-mode.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="light">
-    <header>
-        <nav class="container">
-            <h1>Admin Panel</h1>
-            <ul>
-                <li><a href="/home.html">Home</a></li>
-                <li><button id="logoutBtn">Logout</button></li>
-                <li><button id="darkModeToggle" onclick="toggleDarkMode()">🌙 Dark Mode</button></li>
-            </ul>
-        </nav>
-    </header>
-    <main class="container">
-        <div class="card">
-            <h2>Manage Users</h2>
-            <div id="userList">Loading users...</div>
-        </div>
-        <div class="card">
-            <h2>Update Home Content</h2>
-            <form id="homeContentForm">
-                <input type="text" id="homeTitleInput" placeholder="Home Title" required>
-                <textarea id="homeContentInput" placeholder="Home Content" rows="5" required></textarea>
-                <div id="adminError" class="error"></div>
-                <button type="submit">Update Content</button>
-            </form>
-        </div>
-    </main>
-    <footer>
-        <p>&copy; 2024 My Website. Admin Only.</p>
-    </footer>
-    <script src="/js/darkModeToggle.js"></script>
-    <script src="/js/admin.js"></script>
+<body>
+  <div id="navbar"></div>
+  <div class="container">
+    <h1>Admin Panel</h1>
+    
+    <!-- Homepage Content Editor -->
+    <h2>Edit Homepage Content</h2>
+    <textarea id="homepageContent" rows="5" cols="50" placeholder="Current homepage content..."></textarea>
+    <br>
+    <button onclick="updateHomepage()">Save Homepage Content</button>
+    <div id="hpError"></div>
+
+    <!-- Users Management -->
+    <h2>Manage Users</h2>
+    <table id="usersTable">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Email</th>
+          <th>Username</th>
+          <th>Profile Pic</th>
+          <th>Role</th>
+          <th>Created</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <div id="usersError"></div>
+  </div>
+  <script src="js/main.js"></script>
+  <script src="js/admin.js"></script>
 </body>
 </html>

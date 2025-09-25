@@ -1,32 +1,24 @@
 const jwt = require('jsonwebtoken');
-const { getUserById } = require('../models/userModel'); // Fixed: getUser ById
+const User = require('../models/user');
 
-const authMiddleware = async (req, res, next) => {
-  const token = req.header('Authorization')?.replace('Bearer ', '') || req.cookies.token;
-
-  if (!token) {
-    return res.status(401).json({ error: 'Access denied. No token provided.' });
-  }
+const authenticateToken = async (req, res, next) => {
+  const token = req.headers['authorization']?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Access denied' });
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await getUserById(decoded.id); // Fixed call
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid token.' });
-    }
+    const user = await User.findByEmail(decoded.email);
+    if (!user) return res.status(401).json({ error: 'Invalid token' });
     req.user = user;
     next();
-  } catch (err) {
-    console.error('Auth middleware error:', err);
-    res.status(401).json({ error: 'Invalid token.' });
+  } catch (error) {
+    res.status(403).json({ error: 'Invalid token' });
   }
 };
 
-const adminMiddleware = (req, res, next) => {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ error: 'Admin access required.' });
-  }
+const isAdmin = (req, res, next) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
   next();
 };
 
-module.exports = { authMiddleware, adminMiddleware };
+module.exports = { authenticateToken, isAdmin };

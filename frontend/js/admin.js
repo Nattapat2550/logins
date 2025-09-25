@@ -1,139 +1,123 @@
-const API_BASE = '/api';
+let allUsers = [];
+let homepageContent = '';
 
-document.addEventListener('DOMContentLoaded', () => {
-    initDarkMode();
+document.addEventListener('DOMContentLoaded', async () => {
+  const user = await checkAuth();
+  if (!user || user.role !== 'admin') {
+    window.location.href = 'home.html';
+    return;
+  }
 
-    const token = localStorage.getItem('token');
-    if (!token) {
-        window.location.href = '/pages/login.html';
-        return;
-    }
+  // Load homepage content
+  try {
+    const res = await apiCall('/homepage');
+    homepageContent = res.content;
+    document.getElementById('homepageContent').value = homepageContent;
+  } catch (err) {
+    showHpError('Failed to load homepage content');
+  }
 
-    const authFetch = async (url, options = {}) => {
-        const headers = { ...options.headers, 'Authorization': `Bearer ${token}` };
-        const res = await fetch(url, { ...options, headers });
-        if (res.status === 401 || res.status === 403) {
-            localStorage.removeItem('token');
-            alert('Access denied or session expired.');
-            window.location.href = '/pages/login.html';
-            return null;
-        }
-        return res;
-    };
-
-    // Check if admin
-    const checkAdmin = async () => {
-        try {
-            const res = await authFetch(`${API_BASE}/users/profile`);
-            if (res.ok) {
-                const user = await res.json();
-                if (user.role !== 'admin') {
-                    alert('Admin access required.');
-                    window.location.href = '/pages/home.html';
-                    return false;
-                }
-                return true;
-            }
-        } catch (err) {
-            console.error(err);
-        }
-        return false;
-    };
-
-    // Load all users
-    const loadUsers = async () => {
-        try {
-            const res = await authFetch(`${API_BASE}/admin/users`);
-            if (res.ok) {
-                const users = await res.json();
-                const userList = document.getElementById('userList');
-                if (userList) {
-                    userList.innerHTML = users.map(user => `
-                        <div class="user-item card">
-                            <span>${user.username} (${user.email}) - ${user.role} - ${user.verified ? 'Verified' : 'Pending'}</span>
-                            <div>
-                                <button onclick="editUser (${user.id})">Edit</button>
-                                <button onclick="deleteUser (${user.id})" style="background: #ea4335;">Delete</button>
-                            </div>
-                        </div>
-                    `).join('');
-                }
-            }
-        } catch (err) {
-            console.error('Load users error:', err);
-        }
-    };
-
-    // Update home content form
-    const homeForm = document.getElementById('homeContentForm');
-    if (homeForm) {
-        homeForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const title = document.getElementById('homeTitleInput').value.trim();
-            const content = document.getElementById('homeContentInput').value.trim();
-            const errorDiv = document.getElementById('adminError');
-
-            if (!title || !content) {
-                errorDiv.textContent = 'Title and content required.';
-                errorDiv.className = 'error';
-                return;
-            }
-
-            try {
-                const res = await authFetch(`${API_BASE}/admin/home-content`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ title, content })
-                });
-                const data = await res.json();
-                if (res.ok) {
-                    alert('Home content updated!');
-                    errorDiv.textContent = 'Updated successfully.';
-                    errorDiv.className = 'success';
-                    // Refresh home if needed
-                } else {
-                    errorDiv.textContent = data.error || 'Update failed.';
-                    errorDiv.className = 'error';
-                }
-            } catch (err) {
-                errorDiv.textContent = 'Network error.';
-                errorDiv.className = 'error';
-                console.error(err);
-            }
-        });
-    }
-
-    // Placeholder functions for edit/delete (extend with modals/forms)
-    window.editUser  = (id) => {
-        alert(`Edit user ${id} (Implement modal/form for update via /api/admin/users/${id})`);
-        // TODO: Fetch user, show form, PUT to /api/admin/users/${id}
-    };
-
-    window.deleteUser  = async (id) => {
-        if (!confirm(`Delete user ${id}?`)) return;
-        try {
-            const res = await authFetch(`${API_BASE}/admin/users/${id}`, { method: 'DELETE' });
-            if (res.ok) {
-                alert('User  deleted.');
-                loadUsers(); // Refresh list
-            } else {
-                alert('Delete failed.');
-            }
-        } catch (err) {
-            console.error(err);
-            alert('Network error.');
-        }
-    };
-
-    // Logout
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
-            localStorage.removeItem('token');
-            window.location.href = '/pages/index.html';
-        });
-    };
-
-    // Init
-    checkAdmin().then(isAdmin => { if (isAdmin) loadUsers(); });
+  // Load users
+  try {
+    allUsers = await apiCall('/admin/users');
+    renderUsersTable();
+  } catch (err) {
+    showUsersError('Failed to load users');
+  }
 });
+
+function renderUsersTable() {
+  const tbody = document.querySelector('#usersTable tbody');
+  tbody.innerHTML = '';
+  allUsers.forEach(u => {
+    const row = document.createElement('tr');
+    const pic = u.profilePic || 'images/user.png';
+    row.innerHTML = `
+      <td>${u.id}</td>
+      <td>${u.email}</td>
+      <td>${u.username}</td>
+      <td><img src="${pic}" alt="Pic" style="width: 30px; height: 30px; border-radius: 50%;"></td>
+      <td>${u.role}</td>
+      <td>${new Date(u.created_at).toLocaleDateString()}</td>
+      <td>
+        <button onclick="editUser (${u.id})">Edit</button>
+        <button onclick="deleteUser (${u.id})" style="background: red;">Delete</button>
+      </td>
+    `;
+    tbody.appendChild(row);
+  });
+}
+
+async function editUser (id) {
+  const user = allUsers.find(u => u.id === id);
+  if (!user) return;
+
+  const newUsername = prompt('New Username:', user.username);
+  if (newUsername === null) return;
+
+  const newRole = prompt('New Role (user/admin):', user.role);
+  if (newRole === null) return;
+
+  if (!newUsername || !newRole) return showUsersError('Fill both fields');
+
+  try {
+    await apiCall(`/admin/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ username: newUsername, role: newRole })
+    });
+    showUsersSuccess('User  updated!');
+    // Refresh users
+    allUsers = await apiCall('/admin/users');
+    renderUsersTable();
+  } catch (err) {
+    showUsersError(err.message);
+  }
+}
+
+async function deleteUser (id) {
+  if (!confirm('Delete this user?')) return;
+
+  try {
+    await apiCall(`/admin/users/${id}`, { method: 'DELETE' });
+    showUsersSuccess('User  deleted!');
+    // Refresh
+    allUsers = await apiCall('/admin/users');
+    renderUsersTable();
+  } catch (err) {
+    showUsersError(err.message);
+  }
+}
+
+async function updateHomepage() {
+  const content = document.getElementById('homepageContent').value;
+  if (!content) return showHpError('Enter content');
+
+  try {
+    await apiCall('/homepage', {
+      method: 'PUT',
+      body: JSON.stringify({ content })
+    });
+    homepageContent = content;
+    showHpSuccess('Homepage updated!');
+  } catch (err) {
+    showHpError(err.message);
+  }
+}
+
+function showHpError(msg) {
+  document.getElementById('hpError').textContent = msg;
+}
+
+function showHpSuccess(msg) {
+  document.getElementById('hpError').innerHTML = `<span style="color: green;">${msg}</span>`;
+  setTimeout(() => { document.getElementById('hpError').textContent = ''; }, 3000);
+}
+
+function showUsersError(msg) {
+  document.getElementById('usersError').textContent = msg;
+}
+
+function showUsersSuccess(msg) {
+  document.getElementById('usersError').innerHTML = `<span style="color: green;">${msg}</span>`;
+  setTimeout(() => { document.getElementById('usersError').textContent = ''; }, 3000);
+}
