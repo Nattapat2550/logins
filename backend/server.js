@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
-const multer = require('multer'); // Add to package.json if missing: "multer": "^1.4.5-lts.1"
+const multer = require('multer');
 
 dotenv.config();
 
@@ -35,19 +35,22 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // API Routes (with multer for file uploads in user routes)
 app.use('/api/auth', require('./routes/authRoutes'));
-app.use('/api/users', upload.single('profilePic'), require('./routes/userRoutes')); // Multer for profile pic
+app.use('/api/users', upload.single('profilePic'), require('./routes/userRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'OK' }));
 
-// Frontend catch-all (serve index.html for non-API routes)
-app.get('*', (req, res) => {
-  if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'API route not found' });
-  res.sendFile(path.join(__dirname, '../frontend/pages/index.html'));
+// Frontend catch-all (after all routes/static - no wildcard *)
+app.use((req, res, next) => {
+  if (req.method === 'GET' && !req.path.startsWith('/api/')) {
+    res.sendFile(path.join(__dirname, '../frontend/pages/index.html'));
+  } else {
+    next();
+  }
 });
 
-// 404 handler
+// 404 handler (for API or other methods)
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });

@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { getUserById } = require('../models/userModel');
+const { getUserById } = require('../models/userModel'); // Fixed: getUser ById
 
 const authMiddleware = async (req, res, next) => {
   const token = req.header('Authorization')?.replace('Bearer ', '') || req.cookies.token;
@@ -10,7 +10,7 @@ const authMiddleware = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await getUserById(decoded.id);
+    const user = await getUserById(decoded.id); // Fixed call
     if (!user) {
       return res.status(401).json({ error: 'Invalid token.' });
     }

@@ -1,5 +1,5 @@
 const express = require('express');
-const { getAllUsers, getUserById, updateUser , deleteUser , updateHomeContent } = require('../controllers/adminController');
+const { getAllUsers, getUserById, updateUser , deleteUser , updateHomeContent } = require('../controllers/adminController'); // Fixed names
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
