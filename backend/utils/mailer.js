@@ -4,19 +4,22 @@ const MailComposer = require('nodemailer/lib/mail-composer');
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
-  process.env.GOOGLE_REDIRECT_URI
+  process.env.GOOGLE_REDIRECT_URI  // e.g., https://backendlogins.onrender.com/api/auth/google/callback
 );
 
-oauth2Client.setCredentials({ refresh_token: process.env.REFRESH_TOKEN });
+oauth2Client.setCredentials({
+  refresh_token: process.env.REFRESH_TOKEN,
+});
+
 const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
 async function sendEmail(to, subject, text, html = null) {
   console.log(`[MAILER] Sending to ${to}: ${subject}`);
-
+  
   const mail = new MailComposer({
     to,
     subject,
-    from: process.env.SENDER_EMAIL,
+    from: process.env.SENDER_EMAIL,  // Your Gmail sender
     text,
     ...(html && { html }),
   });
@@ -43,25 +46,26 @@ async function sendEmail(to, subject, text, html = null) {
       userId: 'me',
       requestBody: { raw: encodedMessage },
     });
-    console.log(`[MAILER] Sent: ${res.data.id}`);
+    console.log(`[MAILER] Sent successfully: ${res.data.id}`);
     return res.data;
   } catch (error) {
     console.error(`[MAILER] Send error: ${error.message}`);
-    if (error.response) console.error(`[MAILER] API response: ${JSON.stringify(error.response.data)}`);
-    throw new Error(`Email failed: ${error.message}`);
+    if (error.response) console.error(`[MAILER] API details: ${JSON.stringify(error.response.data)}`);
+    throw new Error(`Failed to send email: ${error.message}`);
   }
 }
 
+// Specific functions for your auth flow
 async function sendVerificationEmail(email, code) {
-  const text = `Your 6-digit verification code is: ${code}. It expires in 10 minutes. Do not share this code.`;
-  const html = `<p>Your 6-digit verification code is: <strong>${code}</strong></p><p>It expires in 10 minutes. Do not share this code.</p>`;
+  const text = `Your 6-digit verification code is: ${code}. Expires in 10 minutes.`;
+  const html = `<p>Your verification code: <strong>${code}</strong></p><p>Expires in 10 minutes.</p>`;
   await sendEmail(email, 'Email Verification Code', text, html);
 }
 
 async function sendResetEmail(email, code) {
-  const text = `Your password reset code is: ${code}. It expires in 10 minutes.`;
-  const html = `<p>Your password reset code is: <strong>${code}</strong></p><p>It expires in 10 minutes.</p>`;
+  const text = `Your password reset code: ${code}. Expires in 10 minutes.`;
+  const html = `<p>Reset code: <strong>${code}</strong></p><p>Expires in 10 minutes.</p>`;
   await sendEmail(email, 'Password Reset Code', text, html);
 }
 
-module.exports = { sendVerificationEmail, sendResetEmail };
+module.exports = { sendVerificationEmail, sendResetEmail, sendEmail };
