@@ -10,7 +10,7 @@ const oauth2Client = new google.auth.OAuth2(
 oauth2Client.setCredentials({ refresh_token: process.env.REFRESH_TOKEN });
 const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
-const sendEmail = async (to, subject, text, html = null) => {
+async function sendEmail(to, subject, text, html = null) {
   console.log(`[MAILER] Sending to ${to}: ${subject}`);
 
   const mail = new MailComposer({
@@ -18,7 +18,7 @@ const sendEmail = async (to, subject, text, html = null) => {
     subject,
     from: process.env.SENDER_EMAIL,
     text,
-    html,
+    ...(html && { html }),
   });
 
   const message = await new Promise((resolve, reject) => {
@@ -50,18 +50,18 @@ const sendEmail = async (to, subject, text, html = null) => {
     if (error.response) console.error(`[MAILER] API response: ${JSON.stringify(error.response.data)}`);
     throw new Error(`Email failed: ${error.message}`);
   }
-};
+}
 
-const sendVerificationEmail = async (email, code) => {
+async function sendVerificationEmail(email, code) {
   const text = `Your 6-digit verification code is: ${code}. It expires in 10 minutes. Do not share this code.`;
   const html = `<p>Your 6-digit verification code is: <strong>${code}</strong></p><p>It expires in 10 minutes. Do not share this code.</p>`;
   await sendEmail(email, 'Email Verification Code', text, html);
-};
+}
 
-const sendResetEmail = async (email, code) => {
+async function sendResetEmail(email, code) {
   const text = `Your password reset code is: ${code}. It expires in 10 minutes.`;
   const html = `<p>Your password reset code is: <strong>${code}</strong></p><p>It expires in 10 minutes.</p>`;
   await sendEmail(email, 'Password Reset Code', text, html);
-};
+}
 
 module.exports = { sendVerificationEmail, sendResetEmail };
