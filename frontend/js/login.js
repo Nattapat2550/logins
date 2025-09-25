@@ -1,5 +1,5 @@
 // frontend/js/login.js
-const API_BASE = 'https://backendlogins.onrender.com/api';
+// Note: API_BASE is defined in main.js - do not redeclare here
 
 // Helper: Show message
 function showMessage(message, isError = true) {
@@ -27,11 +27,16 @@ async function login() {
     return showMessage('Password must be at least 6 characters');
   }
 
+  // Ensure API_BASE is available (from main.js)
+  if (typeof API_BASE === 'undefined') {
+    return showMessage('API configuration error. Please refresh the page.');
+  }
+
   try {
-    // Use your main.js apiCall (adjust if different)
+    // Use apiCall from main.js (adjust if different)
     const res = await apiCall(`${API_BASE}/auth/login`, {
       method: 'POST',
-      body: JSON.stringify({ email, password })
+      body: { email, password }  // apiCall handles JSON.stringify
     });
 
     const data = await res.json();

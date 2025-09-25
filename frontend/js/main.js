@@ -87,7 +87,6 @@ function logout() {
   window.location.href = 'index.html';
 }
 
-// API Helper
 async function apiCall(url, options = {}) {
   const defaults = {
     method: 'GET',
@@ -95,19 +94,22 @@ async function apiCall(url, options = {}) {
   };
   const config = { ...defaults, ...options };
   
-  // Add token if present (not for login)
+  // Add token if present (skip for login/register)
   const token = localStorage.getItem('token');
-  if (token && options.method !== 'POST' && !url.includes('/login')) {
+  if (token && !url.includes('/auth/login') && !url.includes('/auth/register')) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   
-  // Handle body for POST/PUT
-  if (options.body && typeof options.body === 'object') {
+  // Handle body for POST/PUT (JSON.stringify if object)
+  if (options.body && typeof options.body === 'object' && options.body !== null) {
     config.body = JSON.stringify(options.body);
   }
   
   try {
     const res = await fetch(url, config);
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    }
     return res;
   } catch (error) {
     console.error('API call error:', error);
