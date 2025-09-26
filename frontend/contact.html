@@ -1,50 +1,38 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Contact - Login App</title>
-  <link rel="stylesheet" href="css/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact</title>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <nav class="navbar">
-    <a href="index.html" class="logo">Login App</a>
-    <ul id="navLinks">
-      <li><a href="about.html">About</a></li>
-      <li><a href="register.html">Register</a></li>
-      <li><a href="login.html">Login</a></li>
-      <li><button id="themeToggle" class="theme-toggle">🌙</button></li>
-    </ul>
-  </nav>
-
-  <main>
+    <nav class="navbar">
+        <div class="navbar-brand">Login App</div>
+        <div class="dropdown">
+            <img id="profile-pic" class="profile-pic" src="/images/user.png" alt="Profile">
+            <div class="dropdown-content">
+                <a href="home.html">Home</a>
+                <a href="settings.html">Settings</a>
+                <a href="about.html">About</a>
+                <a href="#" onclick="logout()">Logout</a>
+            </div>
+        </div>
+    </nav>
     <div class="container">
-      <h1>Contact Us</h1>
-      <p>Send us a message:</p>
-      <form id="contactForm">
-        <input type="text" placeholder="Your Name" required>
-        <input type="email" placeholder="Your Email" required>
-        <textarea placeholder="Message" rows="5" required></textarea>
-        <button type="submit">Send Message</button>
-      </form>
-      <div id="alert" class="alert hidden"></div>
+        <h1>Contact Us</h1>
+        <p>Email: support@example.com</p>
+        <form>
+            <input type="text" placeholder="Your Email">
+            <textarea placeholder="Message" rows="4"></textarea>
+            <button type="submit">Send</button>
+        </form>
     </div>
-  </main>
-
-  <footer>
-    <p>&copy; 2023 Login App. All rights reserved.</p>
-  </footer>
-
-  <script src="js/main.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      initTheme();
-      setupNavbar();
-      document.getElementById('contactForm').addEventListener('submit', (e) => {
-        e.preventDefault();
-        showAlert('Message sent! (Demo - no backend)', 'success');
-      });
-    });
-  </script>
+    <script src="js/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadUser ();
+        });
+    </script>
 </body>
 </html>

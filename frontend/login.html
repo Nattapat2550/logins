@@ -1,49 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login - Login App</title>
-  <link rel="stylesheet" href="css/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <nav class="navbar">
-    <a href="index.html" class="logo">Login App</a>
-    <ul id="navLinks">
-      <li><a href="register.html">Register</a></li>
-      <li><button id="themeToggle" class="theme-toggle">🌙</button></li>
-    </ul>
-  </nav>
-
-  <main>
     <div class="container">
-      <h1>Login</h1>
-      <form id="loginForm">
-        <input type="email" id="email" placeholder="Email" required>
-        <input type="password" id="password" placeholder="Password" required minlength="6">
-        <button type="submit">Login</button>
-      </form>
-      <div style="text-align: center; margin: 1rem 0;">
-        <a href="https://backendlogins.onrender.com/api/auth/google" class="google-btn">
-          <img src="https://developers.google.com/identity/images/g-logo.png" alt="Google" style="width: 20px; vertical-align: middle;"> 
-          Sign in with Google
-        </a>
-      </div>
-      <p style="text-align: center;">
-        <a href="register.html">Don't have an account? Register</a> | 
-        <a href="reset.html">Forgot Password?</a>
-      </p>
-      <div id="alert" class="alert hidden"></div>
+        <h1>Login</h1>
+        <form id="login-form">
+            <input type="email" id="email" placeholder="Email" required>
+            <input type="password" id="password" placeholder="Password" required>
+            <label><input type="checkbox" onclick="togglePassword()"> Show Password</label>
+            <button type="submit">Login</button>
+        </form>
+        <button id="google-login">Login with Google</button>
+        <p><a href="reset.html">Forgot Password?</a> | <a href="register.html">Register</a></p>
+        <div id="message"></div>
     </div>
-  </main>
-  <script src="js/main.js"></script>
-  <script src="js/login.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      initTheme();
-      setupNavbar();
-      setupLoginForm();
-    });
-  </script>
+    <script src="js/main.js"></script>
+    <script src="js/login.js"></script>
 </body>
 </html>

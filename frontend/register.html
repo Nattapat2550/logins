@@ -1,40 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Register - Login App</title>
-  <link rel="stylesheet" href="css/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register</title>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <nav class="navbar">
-    <a href="index.html" class="logo">Login App</a>
-    <ul id="navLinks">
-      <li><a href="login.html">Login</a></li>
-      <li><button id="themeToggle" class="theme-toggle">🌙</button></li>
-    </ul>
-  </nav>
-
-  <main>
     <div class="container">
-      <h1>Register</h1>
-      <p>Enter your email to start registration.</p>
-      <form id="registerForm">
-        <input type="email" id="email" placeholder="Enter your email" required>
-        <button type="submit">Send Verification Code</button>
-      </form>
-      <div id="alert" class="alert hidden"></div>
+        <h1>Register</h1>
+        <form id="register-form">
+            <input type="email" id="email" placeholder="Email" required>
+            <button type="submit">Send Verification Code</button>
+        </form>
+        <button id="google-register">Register with Google</button>
+        <p><a href="index.html">Back to Home</a></p>
+        <div id="message"></div>
     </div>
-  </main>
-
-  <script src="js/main.js"></script>
-  <script src="js/register.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      initTheme();
-      setupNavbar();
-      setupRegisterForm();
-    });
-  </script>
+    <script src="js/main.js"></script>
+    <script src="js/register.js"></script>
 </body>
 </html>

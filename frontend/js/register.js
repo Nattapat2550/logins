@@ -1,47 +1,32 @@
-function setupRegisterForm() {
-  const form = document.getElementById('registerForm');
-  if (!form) return;
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('register-form');
+    const message = document.getElementById('message');
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('email').value.trim();
-    const button = form.querySelector('button');
-    button.disabled = true;
-    button.textContent = 'Sending...';
-    button.classList.add('loading');  // Add spinner class (see CSS below)
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('email').value;
+        try {
+            const response = await fetch(`${BACKEND_URL}/api/auth/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+            const data = await response.json();
+            if (response.ok) {
+                message.innerHTML = '<p class="success">' + data.message + '</p>';
+                localStorage.setItem('tempEmail', email);  // For check.html
+                setTimeout(() => window.location.href = 'check.html', 1500);
+            } else {
+                message.innerHTML = '<p class="error">' + data.message + '</p>';
+            }
+        } catch (err) {
+            message.innerHTML = '<p class="error">Error: ' + err.message + '</p>';
+        }
+    });
 
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      mainUtils.showAlert('Valid email required', 'error');
-      button.disabled = false;
-      button.textContent = 'Send Verification Code';
-      button.classList.remove('loading');
-      return;
+    // Google button
+    const googleBtn = document.getElementById('google-register');
+    if (googleBtn) {
+        googleBtn.addEventListener('click', googleOAuthRedirect);
     }
-
-    // Custom timeout wrapper for fetch (30s max)
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);  // 30s timeout
-
-    try {
-      const data = await mainUtils.apiCall('/api/auth/check-email', {
-        method: 'POST',
-        body: JSON.stringify({ email }),
-        signal: controller.signal  // Abort on timeout
-      });
-      clearTimeout(timeoutId);
-      mainUtils.setStorage('tempToken', data.tempToken);
-      mainUtils.showAlert('Verification code sent! Check your email (may take 10-30s).', 'success');
-      setTimeout(() => window.location.href = 'check.html', 1500);  // Delay for user to see alert
-    } catch (error) {
-      clearTimeout(timeoutId);
-      if (error.name === 'AbortError') {
-        mainUtils.showAlert('Request timed out (30s). Network slow or server busy—try again.', 'error');
-      }
-      // Other errors handled by apiCall
-    } finally {
-      button.disabled = false;
-      button.textContent = 'Send Verification Code';
-      button.classList.remove('loading');
-    }
-  });
-}
+});

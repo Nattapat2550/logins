@@ -1,43 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Settings - Login App</title>
-  <link rel="stylesheet" href="css/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings</title>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <nav class="navbar" id="navbar">
-    <a href="home.html" class="logo">Login App</a>
-    <ul id="navLinks">
-      <li><a href="home.html">Home</a></li>
-      <li id="adminLink" class="hidden"><a href="admin.html">Admin</a></li>
-      <li><button id="logoutBtn" class="secondary">Logout</button></li>
-      <li><button id="themeToggle" class="theme-toggle">🌙</button></li>
-    </ul>
-  </nav>
-
-  <main>
+    <nav class="navbar">
+        <div class="navbar-brand">Login App</div>
+        <div class="dropdown">
+            <img id="profile-pic" class="profile-pic" src="/images/user.png" alt="Profile">
+            <div class="dropdown-content">
+                <a href="home.html">Home</a>
+                <a href="about.html">About</a>
+                <a href="contact.html">Contact</a>
+                <a href="#" onclick="logout()">Logout</a>
+            </div>
+        </div>
+    </nav>
     <div class="container">
-      <h1>Profile Settings</h1>
-      <form id="settingsForm">
-        <input type="text" id="username" placeholder="Username" required minlength="3">
-        <input type="file" id="profilePic" accept="image/*">
-        <img id="profilePreview" src="images/user.png" alt="Preview" class="hidden" style="width: 100px; height: 100px; border-radius: 50%;">
-        <button type="submit">Update Profile</button>
-      </form>
-      <div id="alert" class="alert hidden"></div>
+        <h1>Settings</h1>
+        <form id="profile-form">
+            <input type="text" id="username" placeholder="Username" required>
+            <input type="password" id="new-password" placeholder="New Password (optional)">
+            <input type="file" id="profile-pic-upload" accept="image/*">
+            <button type="submit">Update Profile</button>
+        </form>
+        <button id="theme-toggle">Toggle Theme</button>
+        <button onclick="deleteAccount()">Delete Account</button>
+        <div id="message"></div>
     </div>
-  </main>
-
-  <script src="js/main.js"></script>
-  <script src="js/settings.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      initTheme();
-      setupNavbar();
-      loadSettingsData();
-    });
-  </script>
+    <script src="js/main.js"></script>
+    <script src="js/settings.js"></script>
 </body>
 </html>

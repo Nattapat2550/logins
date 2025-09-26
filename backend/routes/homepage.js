@@ -1,42 +1,34 @@
 const express = require('express');
-const User = require('../models/user');
-const { authenticateToken } = require('../middleware/auth');
-
+const pool = require('../config/db');
+const { authenticateToken, isAdmin } = require('../middleware/auth');
 const router = express.Router();
 
-// 1. GET /api/homepage - Get dashboard data (protected)
-router.get('/', authenticateToken, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ error: 'User  not found' });
+router.use(authenticateToken);
+router.use(isAdmin);
 
-    // Basic dashboard response (extend with user stats, posts, etc.)
-    res.json({
-      message: `Welcome back, ${user.username}!`,
-      user: {
-        id: user.id,
-        email: user.email,
-        username: user.username,
-        profilePic: user.profilepic ? `${process.env.FRONTEND_URL}/images/${user.profilepic}` : `${process.env.FRONTEND_URL}/images/user.png`,
-        role: user.role,
-        emailVerified: user.email_verified,
-        joinedAt: user.created_at
-      },
-      appInfo: {
-        version: '1.0.0',
-        features: ['Profile Update', 'Admin Panel', 'Google Login']
-      }
-    });
-  } catch (error) {
-    console.error('Homepage error:', error);
-    res.status(500).json({ error: 'Failed to load dashboard' });
-  }
+// Get content
+router.get('/', async (req, res) => {
+    const result = await pool.query('SELECT * FROM homepage_content ORDER BY updated_at DESC LIMIT 1');
+    res.json(result.rows[0] || { content_text: 'Default homepage content.' });
 });
 
-// Optional: POST /api/homepage/action - For future actions (e.g., log activity)
-router.post('/action', authenticateToken, (req, res) => {
-  // Placeholder for user actions (e.g., track visits)
-  res.json({ message: 'Action logged', userId: req.user.id });
+// Update content (upsert to id=1 for simplicity)
+router.put('/', async (req, res) => {
+    const { content_text, content_image } = req.body;
+    let result;
+    const existing = await pool.query('SELECT id FROM homepage_content LIMIT 1');
+    if (existing.rows.length > 0) {
+        result = await pool.query(
+            'UPDATE homepage_content SET content_text = $1, content_image = $2, updated_at = NOW() WHERE id = $3 RETURNING *',
+            [content_text, content_image, existing.rows[0].id]
+        );
+    } else {
+        result = await pool.query(
+            'INSERT INTO homepage_content (content_text, content_image) VALUES ($1, $2) RETURNING *',
+            [content_text, content_image]
+        );
+    }
+    res.json(result.rows[0]);
 });
 
 module.exports = router;

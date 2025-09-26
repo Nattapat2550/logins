@@ -1,51 +1,30 @@
-function setupCheckForm() {
-  const form = document.getElementById('checkForm');
-  if (!form) return;
+document.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    let email = localStorage.getItem('tempEmail') || urlParams.get('email');
+    if (!email) window.location.href = 'register.html';
 
-  const tempToken = mainUtils.getStorage('tempToken');
-  if (!tempToken) {
-    showAlert('No verification session. Start over.', 'error');
-    window.location.href = 'register.html';
-    return;
-  }
+    const form = document.getElementById('check-form');
+    const message = document.getElementById('message');
 
-  // Resend link
-  const resendLink = document.querySelector('a[href="register.html"]');
-  resendLink.textContent = 'Resend Code';
-  resendLink.href = '#';
-  resendLink.addEventListener('click', (e) => {
-    e.preventDefault();
-    window.location.reload();  // Reload to resend (or call API again)
-  });
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const code = document.getElementById('code').value.trim();
-    const button = form.querySelector('button');
-    button.disabled = true;
-    button.textContent = 'Verifying...';
-
-    if (!code || code.length !== 6 || !/^\d{6}$/.test(code)) {
-      showAlert('Enter a valid 6-digit code', 'error');
-      button.disabled = false;
-      button.textContent = 'Verify Code';
-      return;
-    }
-
-    try {
-      const data = await mainUtils.apiCall('/api/auth/verify-code', {
-        method: 'POST',
-        body: JSON.stringify({ tempToken, code })
-      });
-      mainUtils.setStorage('token', data.token);  // Temp auth for form
-      mainUtils.setStorage('userId', data.userId);
-      showAlert('Email verified! Complete your profile.', 'success');
-      window.location.href = 'form.html';
-    } catch (error) {
-      // Error shown by apiCall
-    } finally {
-      button.disabled = false;
-      button.textContent = 'Verify Code';
-    }
-  });
-}
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const code = document.getElementById('code').value;
+        try {
+            const response = await fetch(`${BACKEND_URL}/api/auth/verify`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, code })
+            });
+            const data = await response.json();
+            if (response.ok) {
+                setToken(data.token);
+                localStorage.setItem('tempEmail', email);  // Pass to form.html
+                window.location.href = 'form.html';
+            } else {
+                message.innerHTML = '<p class="error">' + data.message + '</p>';
+            }
+        } catch (err) {
+            message.innerHTML = '<p class="error">Error: ' + err.message + '</p>';
+        }
+    });
+});

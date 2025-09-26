@@ -1,71 +1,48 @@
-async function loadSettingsData() {
-  const role = await mainUtils.checkAuth();
-  if (!role) return;  // Redirects if unauth
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadUser ();
 
-  const form = document.getElementById('settingsForm');
-  if (!form) return;
+    const user = await loadUser ();  // Already called, but get data
+    const form = document.getElementById('profile-form');
+    const message = document.getElementById('message');
 
-  try {
-    const data = await mainUtils.apiCall('/api/users/profile');
+    // Prefill form
+    document.getElementById('username').value = user.username || '';
 
-    // Populate form
-    document.getElementById('username').value = data.username || '';
-    const preview = document.getElementById('profilePreview');
-    if (data.profilePic) {
-      preview.src = data.profilePic;
-      preview.classList.remove('hidden');
-    }
-
-    // Profile pic preview on change
-    const fileInput = document.getElementById('profilePic');
-    fileInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (file && file.type.startsWith('image/')) {
-        preview.src = URL.createObjectURL(file);
-        preview.classList.remove('hidden');
-      } else {
-        preview.src = data.profilePic || 'images/user.png';
-      }
-    });
-
-    // Update form submit
     form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const username = document.getElementById('username').value.trim();
-      const file = fileInput.files[0];
-      const button = form.querySelector('button');
-      button.disabled = true;
-      button.textContent = 'Updating...';
+        e.preventDefault();
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('new-password') ? document.getElementById('new-password').value : null;
+        const file = document.getElementById('profile-pic-upload').files[0];
 
-      if (!username || username.length < 3) {
-        mainUtils.showAlert('Username required (min 3 chars)', 'error');
-        button.disabled = false;
-        button.textContent = 'Update Profile';
-        return;
-      }
-
-      try {
         const formData = new FormData();
         formData.append('username', username);
+        if (password) formData.append('password', password);
         if (file) formData.append('profilePic', file);
 
-        const updateData = await mainUtils.apiCall('/api/users/profile', {
-          method: 'PUT',
-          body: formData
-        });
-
-        mainUtils.showAlert('Profile updated successfully!', 'success');
-        preview.src = updateData.profilePic || 'images/user.png';
-        preview.classList.remove('hidden');
-      } catch (error) {
-        // Error shown by apiCall (e.g., "Username already taken")
-      } finally {
-        button.disabled = false;
-        button.textContent = 'Update Profile';
-      }
+        try {
+            const updatedUser  = await apiFetch('/users/profile', {
+                method: 'PUT',
+                body: formData
+            });
+            message.innerHTML = '<p class="success">Profile updated!</p>';
+            // Update profile pic in navbar
+            const profilePic = document.getElementById('profile-pic');
+            if (profilePic) {
+                profilePic.src = updatedUser .profilePic.startsWith('http') ? updatedUser .profilePic : '/images/' + updatedUser .profilePic;
+            }
+        } catch (err) {
+            message.innerHTML = '<p class="error">Update failed: ' + err.message + '</p>';
+        }
     });
-  } catch (error) {
-    // Error shown by apiCall (e.g., 500 → "Failed to fetch profile")
-    mainUtils.showAlert('Failed to load profile. Try again.', 'error');
-  }
+});
+
+async function deleteAccount() {
+    if (!confirm('Are you sure? This cannot be undone.')) return;
+    try {
+        await apiFetch('/users/profile', { method: 'DELETE' });
+        alert('Account deleted successfully.');
+        logout();
+    } catch (err) {
+        alert('Deletion failed: ' + err.message);
+    }
 }

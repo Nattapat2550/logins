@@ -1,41 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login App - Welcome</title>
-  <link rel="stylesheet" href="css/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login App</title>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <nav class="navbar">
-    <a href="index.html" class="logo">Login App</a>
-    <ul id="navLinks">
-      <li><a href="about.html">About</a></li>
-      <li><a href="contact.html">Contact</a></li>
-      <li><a href="register.html">Register</a></li>
-      <li><a href="login.html">Login</a></li>
-      <li><button id="themeToggle" class="theme-toggle">🌙</button></li>
-    </ul>
-  </nav>
-
-  <main>
     <div class="container">
-      <h1>Welcome to Login App</h1>
-      <p>A secure login system with email and Google authentication.</p>
-      <div style="text-align: center; margin-top: 2rem;">
-        <a href="register.html" class="google-btn" style="background: var(--primary-color); color: white; text-decoration: none;">Get Started - Register</a>
-        <p>or <a href="login.html">Login if you have an account</a></p>
-      </div>
+        <h1>Welcome to the Login App</h1>
+        <p>This is a full-stack authentication system with email and Google login.</p>
+        <button onclick="window.location.href='register.html'">Register</button>
+        <button onclick="window.location.href='login.html'">Login</button>
     </div>
-  </main>
-
-  <script src="js/main.js"></script>
-  <script>
-    // Load theme and setup navbar on index
-    document.addEventListener('DOMContentLoaded', () => {
-      initTheme();
-      setupNavbar();
-    });
-  </script>
+    <script src="js/main.js"></script>
 </body>
 </html>

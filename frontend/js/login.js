@@ -1,42 +1,37 @@
-function setupLoginForm() {
-  const form = document.getElementById('loginForm');
-  if (!form) return;
-
-  // Google button (already a link in HTML; no JS needed, but handle post-redirect if error)
-  const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get('error')) {
-    showAlert('Google login failed. Try again.', 'error');
-  }
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value;
-    const button = form.querySelector('button');
-    button.disabled = true;
-    button.textContent = 'Logging in...';
-
-    if (!email || !password || password.length < 6) {
-      showAlert('Valid email and password (min 6 chars) required', 'error');
-      button.disabled = false;
-      button.textContent = 'Login';
-      return;
-    }
-
-    try {
-      const data = await mainUtils.apiCall('/api/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email, password })
-      });
-      mainUtils.setStorage('token', data.token);
-      mainUtils.setStorage('role', data.role);
-      showAlert('Login successful! Redirecting...', 'success');
-      window.location.href = 'home.html';
-    } catch (error) {
-      // Error shown by apiCall (e.g., "Invalid credentials")
-    } finally {
-      button.disabled = false;
-      button.textContent = 'Login';
-    }
-  });
+function togglePassword() {
+    const password = document.getElementById('password');
+    password.type = password.type === 'password' ? 'text' : 'password';
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('login-form');
+    const message = document.getElementById('message');
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        try {
+            const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+            const data = await response.json();
+            if (response.ok) {
+                setToken(data.token);
+                window.location.href = data.redirect;
+            } else {
+                message.innerHTML = '<p class="error">' + data.message + '</p>';
+            }
+        } catch (err) {
+            message.innerHTML = '<p class="error">Error: ' + err.message + '</p>';
+        }
+    });
+
+    // Google button
+    const googleBtn = document.getElementById('google-login');
+    if (googleBtn) {
+        googleBtn.addEventListener('click', googleOAuthRedirect);
+    }
+});
