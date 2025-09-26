@@ -2,11 +2,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('home.html loaded, starting user load...');  // Debug: Entry point
     // Load user without immediate redirect for debug (set to true after fixing)
     const user = await loadUser  (false);
-    if (!user) {
-        console.error('home.js: User load failed completely, redirecting to login');
-        window.location.href = '/home.html';
-        return;
-    }
+
     console.log('home.js: User loaded successfully, updating UI');  // Debug
 
     // Update welcome message
