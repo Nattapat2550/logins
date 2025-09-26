@@ -1,3 +1,6 @@
+if (typeof window.getProtectedUrl !== 'function') {
+    window.getProtectedUrl = (path) => `/api${path.startsWith('/') ? path : `/${path}`}`;
+}
 document.addEventListener('DOMContentLoaded', async () => {
     const user = await loadUser  ();
     if (!user || user.role !== 'admin') {

@@ -14,9 +14,14 @@ const getToken = () => localStorage.getItem('token');
 const setToken = (token) => localStorage.setItem('token', token);
 const removeToken = () => localStorage.removeItem('token');
 
-// API fetch wrapper (handles FormData)
+// API fetch wrapper (handles FormData, with logging for debug)
 const apiFetch = async (url, options = {}) => {
     const token = getToken();
+    console.log('apiFetch called:', url, 'Token present?', !!token);  // Debug: Log each call
+    if (!token && (url.includes('/users/') || url.includes('/admin/') || url.includes('/homepage/'))) {
+        console.warn('Protected API called without token:', url);
+    }
+
     const headers = { ...options.headers };
     if (options.body instanceof FormData) {
         // Don't set Content-Type for FormData (let browser/multer handle)
@@ -26,16 +31,37 @@ const apiFetch = async (url, options = {}) => {
     }
     if (token) {
         headers['Authorization'] = `Bearer ${token}`;
+        console.log('Sending Authorization header with token length:', token.length);  // Debug: Confirm header
     }
-    const response = await fetch(`${BACKEND_URL}${url}`, {
-        ...options,
-        headers
-    });
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Request failed');
+    console.log('Full headers:', headers);  // Debug: See all headers (optional, remove if noisy)
+
+    try {
+        const response = await fetch(`${BACKEND_URL}${url}`, {
+            ...options,
+            headers
+        });
+        console.log('apiFetch response status:', response.status, 'for URL:', url);  // Debug: Status
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            console.error('apiFetch error data:', errorData);  // Debug: Error details
+            if (response.status === 404) {
+                console.error('404 Error: Route not found. Check if /api prefix is missing.');
+            }
+            throw new Error(errorData.message || `HTTP ${response.status}: Request failed`);
+        }
+        const data = await response.json();
+        console.log('apiFetch success data preview:', data.email || data);  // Debug: Response preview (optional)
+        return data;
+    } catch (err) {
+        console.error('apiFetch full error:', err);  // Debug: Network/fetch errors
+        throw err;
     }
-    return response.json();
+};
+
+// Helper to ensure /api prefix for protected routes (prevents 404s)
+const getProtectedUrl = (path) => {
+    if (path.startsWith('/api/')) return path;
+    return `/api${path.startsWith('/') ? path : `/${path}`}`;
 };
 
 // Google OAuth redirect
@@ -118,18 +144,10 @@ const logout = () => {
     window.location.href = '/index.html';
 };
 
-// ... (keep getBackendUrl, BACKEND_URL, getToken, setToken, removeToken, googleOAuthRedirect, toggleTheme, DOMContentLoaded, apiFetch, logout as-is)
-
-// Helper to ensure /api prefix for protected routes (prevents 404s)
-const getProtectedUrl = (path) => {
-    if (path.startsWith('/api/')) return path;
-    return `/api${path.startsWith('/') ? path : `/${path}`}`;
-};
-
-// Load user info (Updated: Use getProtectedUrl, better 404 handling)
-const loadUser     = async (redirectOnFail = true) => {
+// Load user info (for protected pages) - Full updated version with /api fix, validation, logging
+const loadUser  = async (redirectOnFail = true) => {
     const token = getToken();
-    console.log('loadUser    called. Token:', token ? `eyJ... (length: ${token.length})` : 'MISSING');
+    console.log('loadUser  called. Token:', token ? `eyJ... (length: ${token.length})` : 'MISSING');  // Debug
     if (!token) {
         console.log('No token found, redirecting to login');
         if (redirectOnFail) window.location.href = '/login.html';
@@ -138,17 +156,17 @@ const loadUser     = async (redirectOnFail = true) => {
     try {
         console.log('Attempting to fetch /api/users/profile...');
         const user = await apiFetch(getProtectedUrl('users/profile'));  // Fixed: /api prefix
-        console.log('Raw user from API:', user);
+        console.log('Raw user from API:', user);  // Debug: Full object
 
-        // Validate: Ensure user has required fields
+        // Validate: Ensure user has required fields (prevents null/empty issues)
         if (!user || !user.id || !user.email) {
-            console.error('loadUser   : Invalid user data from API:', user);
+            console.error('load:User  Invalid user data from API:', user);
             throw new Error('Invalid user profile received');
         }
 
-        console.log('User    profile loaded successfully:', { id: user.id, email: user.email, role: user.role });
+        console.log('User  profile loaded successfully:', { id: user.id, email: user.email, role: user.role });  // Debug
 
-        // Set navbar elements safely
+        // Set navbar elements safely (only if elements exist)
         const usernameEl = document.getElementById('username');
         if (usernameEl) {
             usernameEl.textContent = user.username || user.email;
@@ -156,27 +174,29 @@ const loadUser     = async (redirectOnFail = true) => {
         const profilePic = document.getElementById('profile-pic');
         if (profilePic) {
             const picSrc = user.profilePic && user.profilePic !== 'user.png' 
-                ? `${BACKEND_URL}/uploads/${user.profilePic}`  // Full URL for Render
+                ? `${BACKEND_URL}/uploads/${user.profilePic}`  // Full URL for Render uploads
                 : (user.profilePic?.startsWith('http') ? user.profilePic : '/images/user.png');
             profilePic.src = picSrc;
             profilePic.alt = user.username || 'Profile';
-            console.log('Profile pic set to:', picSrc);
+            console.log('Profile pic set to:', picSrc);  // Debug
         }
 
-        return user;
+        return user;  // Validated user
     } catch (err) {
-        console.error('loadUser    failed - Error message:', err.message);
+        console.error('loadUser  failed - Error message:', err.message);
         if (err.message.includes('404')) {
             console.error('404 on /api/users/profile - Check backend routes (must start with /api)');
         }
-        console.error('Full loadUser    error:', err);
-        if (getToken()) removeToken();
+        console.error('Full loadUser  error:', err);  // Debug: Stack trace
+        if (getToken()) removeToken();  // Only remove if it existed
         console.log('Token removed due to profile fetch failure');
         if (redirectOnFail) {
             console.log('Redirecting to login due to failure');
             window.location.href = '/login.html';
         }
-        return null;
+        return null;  // Always return null on failure
     }
 };
+
+// Expose helper globally for other JS files (e.g., home.js, admin.js) - Prevents redeclaration conflicts
 window.getProtectedUrl = getProtectedUrl;
