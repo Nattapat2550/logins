@@ -42,3 +42,19 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
+(async () => {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS homepage (
+                id SERIAL PRIMARY KEY,
+                content_text TEXT DEFAULT 'Default homepage content.',
+                content_image TEXT DEFAULT ''
+            );
+            INSERT INTO homepage (id, content_text) VALUES (1, 'Default homepage content.') 
+            ON CONFLICT (id) DO NOTHING;
+        `);
+        console.log('Homepage table initialized');
+    } catch (err) {
+        console.error('Table init error:', err);
+    }
+})();
