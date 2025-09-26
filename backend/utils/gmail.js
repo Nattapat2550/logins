@@ -1,7 +1,7 @@
 const nodemailer = require('nodemailer');
 require('dotenv').config();  // For local dev
 
-const transporter = nodemailer.createTransporter({
+const transporter = nodemailer.createTransport({  // Fixed: createTransport (not createTransporter)
   service: 'gmail',
   auth: {
     user: process.env.SENDER_EMAIL,
