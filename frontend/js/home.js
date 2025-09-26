@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const user = await loadUser  (false);
     if (!user) {
         console.error('home.js: User load failed completely, redirecting to login');
-        window.location.href = '/login.html';
+        window.location.href = '/home.html';
         return;
     }
     console.log('home.js: User loaded successfully, updating UI');  // Debug
