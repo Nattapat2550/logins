@@ -14,12 +14,14 @@ const homepageRoutes = require('./routes/homepage');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
+// Middleware - CORS FIXED: Allow your frontend URL in production
 app.use(cors({
     origin: process.env.NODE_ENV === 'production' 
-        ? ['https://your-frontend.onrender.com', 'http://localhost:3000']  // Update to your frontend URL
+        ? ['https://frontendlogins.onrender.com', 'http://localhost:3000']  // FIXED: Your actual frontend URL + local
         : 'http://localhost:3000',  // Dev
-    credentials: true
+    credentials: true,  // Allows cookies/headers if needed (e.g., for future auth)
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],  // Explicit methods for preflight
+    allowedHeaders: ['Content-Type', 'Authorization']  // For JSON + Bearer token
 }));
 app.use(express.json({ limit: '10mb' }));  // For JSON bodies
 app.use(express.urlencoded({ extended: true }));  // For form data
