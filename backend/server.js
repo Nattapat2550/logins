@@ -50,27 +50,37 @@ app.use((err, req, res, next) => {
 });
 
 // Startup Checks and Logs
-const startup = async () => {
-  // Log env basics (no secrets)
-  console.log('Environment:', process.env.NODE_ENV);
-  console.log('Port:', PORT);
-  console.log('Frontend URL:', process.env.FRONTEND_URL);
-  console.log('Google Callback URI:', process.env.GOOGLE_CALLBACK_URI || 'Not set');
-
-  // Test Gmail (if EMAIL_PASS set)
-  if (process.env.SENDER_EMAIL && process.env.EMAIL_PASS) {
-    await testEmail();
-  } else {
-    console.warn('Gmail not configured - Set EMAIL_PASS for emails');
-  }
-
-  // Warn if JWT missing
-  if (!process.env.JWT_SECRET) {
-    console.error('JWT_SECRET missing - Auth will fail!');
+const startServer = async () => {
+  console.time('server-startup');  // Time full startup
+  try {
+    // Test Gmail early (non-blocking)
+    console.time('gmail-test');
+    await gmail.testEmail();
+    console.timeEnd('gmail-test');
+    // DB connect
+    console.time('db-connect');
+    await sequelize.authenticate();
+    console.timeEnd('db-connect');
+    console.log('Connected to PostgreSQL');
+    // Sync models (if dev)
+    if (process.env.NODE_ENV !== 'production') {
+      console.time('db-sync');
+      await sequelize.sync({ alter: true });  // Or { force: true } for reset
+      console.timeEnd('db-sync');
+    }
+    console.timeEnd('server-startup');
+    console.log(`Server running on port ${PORT}`);
+    console.log(`Health check: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/health`);  // Wait, backend health
+  } catch (error) {
+    console.error('Startup error:', error);
     process.exit(1);
   }
 };
-
+startServer();
+// New: Health endpoint for warmer (fast response)
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', timestamp: new Date().toISOString(), uptime: process.uptime() });
+});
 // Start Server
 startup().then(() => {
   app.listen(PORT, () => {

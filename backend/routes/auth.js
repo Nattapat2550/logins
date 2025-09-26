@@ -8,31 +8,62 @@ const passport = require('passport');
 
 const router = express.Router();
 
-// 1. POST /api/auth/check-email - Check availability and send verification code
-router.post('/check-email', async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ error: 'Email required' });
+// ... (rest of file unchanged)
 
+// POST /api/auth/check-email - Send verification code
+router.post('/check-email', async (req, res) => {
+  console.time('check-email-total');  // Start total timer
+  const { email } = req.body;
+
+  if (!email || !validator.isEmail(email)) {
+    console.timeEnd('check-email-total');
+    return res.status(400).json({ error: 'Valid email required' });
+  }
+
+  try {
+    console.time('db-insert');  // Time DB op
+    // Check if user exists
     const existingUser  = await User.findByEmail(email);
     if (existingUser  && existingUser .email_verified) {
-      return res.status(400).json({ error: 'Email already registered' });
+      console.timeEnd('db-insert');
+      console.timeEnd('check-email-total');
+      return res.status(400).json({ error: 'Email already registered and verified' });
     }
 
-    // Generate and send code
-    const code = generateCode();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);  // 10 min
-    await sendVerificationEmail(email, code);
+    // Create/update pending user
+    const tempToken = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 10 * 60 * 1000);  // 10 min
 
-    // Temp token for verification (stores code)
-    const tempToken = jwt.sign({ email, code, expiresAt: expiresAt.getTime() }, process.env.JWT_SECRET, { expiresIn: '10m' });
+    if (existingUser ) {
+      await User.updatePending(email, tempToken, expires);
+    } else {
+      await User.createPending(email, tempToken, expires);
+    }
+    console.timeEnd('db-insert');  // End DB timer
 
-    res.json({ message: 'Verification code sent', tempToken });
+    console.time('email-send');  // Time email
+    const code = Math.floor(100000 + Math.random() * 900000).toString();  // 6-digit
+    await gmail.sendVerificationEmail(email, code);
+    console.timeEnd('email-send');  // End email timer
+
+    // Store code in DB or cache (for verify; here in session-like via tempToken)
+    await TempToken.create({ token: tempToken, data: code, expires });  // Assuming TempToken model exists or add it
+    // Note: If no TempToken table, store code in User.pending_code (add column if needed)
+
+    console.timeEnd('check-email-total');  // End total
+    res.json({ 
+      message: 'Verification code sent', 
+      tempToken,  // For frontend to use in verify
+      expires: expires.toISOString() 
+    });
   } catch (error) {
     console.error('Check-email error:', error);
-    res.status(500).json({ error: 'Failed to send verification email' });
+    console.timeEnd('check-email-total');
+    res.status(500).json({ error: 'Failed to send verification code' });
   }
 });
+
+// ... (rest of routes unchanged)
 
 // 2. POST /api/auth/verify-code - Verify code and create pending user
 router.post('/verify-code', async (req, res) => {
