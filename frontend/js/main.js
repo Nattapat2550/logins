@@ -1,202 +1,141 @@
-// Backend URL configuration
-const getBackendUrl = () => {
-    // Detect production (Render) or local
-    if (window.location.hostname.includes('onrender.com') || window.location.hostname.includes('render')) {
-        return 'https://backendlogins.onrender.com';  // Update to your Render backend URL
-    }
-    return 'http://localhost:5000';
-};
+// Backend URL (update for local/prod if needed)
+const BACKEND_URL = 'https://backendlogins.onrender.com';  // Or use process.env in a build tool
 
-const BACKEND_URL = getBackendUrl();
+// Token management (localStorage)
+function getToken() {
+    return localStorage.getItem('token');
+}
 
-// Token management
-const getToken = () => localStorage.getItem('token');
-const setToken = (token) => localStorage.setItem('token', token);
-const removeToken = () => localStorage.removeItem('token');
-
-// API fetch wrapper (handles FormData, with logging for debug)
-const apiFetch = async (url, options = {}) => {
-    const token = getToken();
-    console.log('apiFetch called:', url, 'Token present?', !!token);  // Debug: Log each call
-    if (!token && (url.includes('/users/') || url.includes('/admin/') || url.includes('/homepage/'))) {
-        console.warn('Protected API called without token:', url);
-    }
-
-    const headers = { ...options.headers };
-    if (options.body instanceof FormData) {
-        // Don't set Content-Type for FormData (let browser/multer handle)
-        delete headers['Content-Type'];
-    } else if (!options.headers || !options.headers['Content-Type']) {
-        headers['Content-Type'] = 'application/json';
-    }
+function setToken(token) {
     if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-        console.log('Sending Authorization header with token length:', token.length);  // Debug: Confirm header
+        localStorage.setItem('token', token);
+        console.log('main.js: Token stored (length:', token.length, ')');
+    } else {
+        localStorage.removeItem('token');
+        console.log('main.js: Token removed');
     }
-    console.log('Full headers:', headers);  // Debug: See all headers (optional, remove if noisy)
+}
+
+// Optional: Get cached user (from localStorage)
+function getUser () {
+    const userStr = localStorage.getItem('user');
+    return userStr ? JSON.stringify(userStr) : null;
+}
+
+function setUser (user) {
+    if (user) {
+        localStorage.setItem('user', JSON.stringify(user));
+        console.log('main.js: User cached:', user.email || user.username);
+    } else {
+        localStorage.removeItem('user');
+    }
+}
+
+// Google OAuth redirect (called from button clicks in login/register)
+function googleOAuthRedirect() {
+    console.log('main.js: Initiating Google OAuth redirect');
+    window.location.href = `${BACKEND_URL}/api/auth/google`;
+}
+
+// Optional: apiFetch wrapper (uses token in headers; fallback to direct fetch if not needed)
+async function apiFetch(url, options = {}) {
+    const token = getToken();
+    console.log('main.js: apiFetch called:', url, 'Token present?', !!token);
+    
+    const fullUrl = url.startsWith('http') ? url : `${BACKEND_URL}${url.startsWith('/') ? url : `/${url}`}`;
+    
+    const fetchOptions = {
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` }),
+            ...options.headers
+        }
+    };
 
     try {
-        const response = await fetch(`${BACKEND_URL}${url}`, {
-            ...options,
-            headers
-        });
-        console.log('apiFetch response status:', response.status, 'for URL:', url);  // Debug: Status
+        const response = await fetch(fullUrl, fetchOptions);
+        console.log('main.js: apiFetch response status:', response.status, 'for URL:', url);
+        
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            console.error('apiFetch error data:', errorData);  // Debug: Error details
-            if (response.status === 404) {
-                console.error('404 Error: Route not found. Check if /api prefix is missing.');
-            }
-            throw new Error(errorData.message || `HTTP ${response.status}: Request failed`);
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.message || `HTTP ${response.status}: ${response.statusText}`);
         }
-        const data = await response.json();
-        console.log('apiFetch success data preview:', data.email || data);  // Debug: Response preview (optional)
-        return data;
+        
+        return await response.json();
     } catch (err) {
-        console.error('apiFetch full error:', err);  // Debug: Network/fetch errors
+        console.error('main.js: apiFetch error:', err);
         throw err;
     }
-};
+}
 
-// Helper to ensure /api prefix for protected routes (prevents 404s)
-const getProtectedUrl = (path) => {
-    if (path.startsWith('/api/')) return path;
-    return `/api${path.startsWith('/') ? path : `/${path}`}`;
-};
+// Logout function (clear token/user, redirect to index/login)
+function logout() {
+    setToken(null);
+    setUser (null);
+    localStorage.removeItem('tempEmail');  // Clean up from register flow
+    console.log('main.js: Logged out, redirecting to index.html');
+    window.location.href = '/index.html';  // Or '/login.html'
+}
 
-// Google OAuth redirect
-const googleOAuthRedirect = () => {
-    window.location.href = `${BACKEND_URL}/api/auth/google`;
-};
-
-// Theme toggle
-const toggleTheme = () => {
-    document.body.classList.toggle('dark-theme');
-    localStorage.setItem('theme', document.body.classList.contains('dark-theme') ? 'dark' : 'light');
-};
-
-// Load theme and handle OAuth callback
+// On page load: Handle URL params from Google callback (store token, clean URL)
 document.addEventListener('DOMContentLoaded', () => {
-    // Load theme
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    if (savedTheme === 'dark') {
-        document.body.classList.add('dark-theme');
-    }
-
-    // Navbar dropdown (if present)
-    const profilePic = document.querySelector('.profile-pic');
-    if (profilePic) {
-        profilePic.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const dropdown = document.querySelector('.dropdown-content');
-            if (dropdown) {
-                dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
-            }
-        });
-        // Close on outside click
-        document.addEventListener('click', () => {
-            const dropdown = document.querySelector('.dropdown-content');
-            if (dropdown) dropdown.style.display = 'none';
-        });
-    }
-
-    // Theme toggle button (if present)
-    const themeToggle = document.getElementById('theme-toggle');
-    if (themeToggle) {
-        themeToggle.addEventListener('click', toggleTheme);
-    }
-
-    // Handle Google OAuth callback params
+    console.log('main.js: DOM loaded');
+    
     const urlParams = new URLSearchParams(window.location.search);
-    const callbackToken = urlParams.get('token');
-    const callbackRedirect = urlParams.get('redirect') || '/home.html';
-    const googleUsername = urlParams.get('username');
-
-    if (callbackToken) {
-        setToken(callbackToken);
-        // Clean URL
-        window.history.replaceState({}, document.title, window.location.pathname);
-        // Prefill username if on form.html
-        if (window.location.pathname.includes('form.html') && googleUsername) {
-            const usernameField = document.getElementById('username');
-            if (usernameField) usernameField.value = googleUsername;
-            // Hide password for Google users
-            const passwordField = document.getElementById('password');
-            if (passwordField) {
-                passwordField.style.display = 'none';
-                const passwordLabel = passwordField.closest('label') || document.querySelector('label[for="password"]');
-                if (passwordLabel) passwordLabel.style.display = 'none';
-            }
+    const tokenFromUrl = urlParams.get('token');
+    const emailFromUrl = urlParams.get('email');
+    const usernameFromUrl = urlParams.get('username');
+    
+    if (tokenFromUrl) {
+        console.log('main.js: Detected token in URL params, storing it');
+        setToken(tokenFromUrl);
+        
+        // Cache user info if provided
+        if (emailFromUrl || usernameFromUrl) {
+            setUser ({
+                email: emailFromUrl || '',
+                username: usernameFromUrl || '',
+                // Add more if needed (e.g., role)
+            });
         }
-        // Redirect
-        setTimeout(() => {
-            window.location.href = callbackRedirect;
-        }, 500);
-        return;  // Don't load user yet
+        
+        // Clean URL (remove query params to avoid re-processing)
+        const newUrl = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, document.title, newUrl);
+        console.log('main.js: URL cleaned after storing token');
     }
-
-    // Load user if on protected page (call loadUser  () in page JS)
+    
+    // Optional: Check token on load and redirect if invalid/expired (e.g., on protected pages)
+    const token = getToken();
+    if (window.location.pathname.includes('home') && !token) {
+        console.log('main.js: No token on protected page, redirecting to login');
+        window.location.href = '/login.html';
+    }
+    
+    // Optional: Add global logout listener (e.g., for navbar button)
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', logout);
+    }
+    
+    // Make functions global for other JS files (login.js, etc.)
+    window.googleOAuthRedirect = googleOAuthRedirect;
+    window.getToken = getToken;
+    window.setToken = setToken;
+    window.getUser  = getUser ;
+    window.setUser  = setUser ;
+    window.logout = logout;
+    window.apiFetch = apiFetch;  // If you want to use the wrapper
 });
 
-// Logout
-const logout = () => {
-    removeToken();
-    window.location.href = '/index.html';
-};
-
-// Load user info (for protected pages) - Full updated version with /api fix, validation, logging
-const loadUser  = async (redirectOnFail = true) => {
-    const token = getToken();
-    console.log('loadUser  called. Token:', token ? `eyJ... (length: ${token.length})` : 'MISSING');  // Debug
-    if (!token) {
-        console.log('No token found, redirecting to login');
-        if (redirectOnFail) window.location.href = '/login.html';
-        return null;
-    }
+// Optional: Check token expiration (call on protected pages if needed)
+function isTokenValid(token) {
+    if (!token) return false;
     try {
-        console.log('Attempting to fetch /api/users/profile...');
-        const user = await apiFetch(getProtectedUrl('users/profile'));  // Fixed: /api prefix
-        console.log('Raw user from API:', user);  // Debug: Full object
-
-        // Validate: Ensure user has required fields (prevents null/empty issues)
-        if (!user || !user.id || !user.email) {
-            console.error('load:User  Invalid user data from API:', user);
-            throw new Error('Invalid user profile received');
-        }
-
-        console.log('User  profile loaded successfully:', { id: user.id, email: user.email, role: user.role });  // Debug
-
-        // Set navbar elements safely (only if elements exist)
-        const usernameEl = document.getElementById('username');
-        if (usernameEl) {
-            usernameEl.textContent = user.username || user.email;
-        }
-        const profilePic = document.getElementById('profile-pic');
-        if (profilePic) {
-            const picSrc = user.profilePic && user.profilePic !== 'user.png' 
-                ? `${BACKEND_URL}/uploads/${user.profilePic}`  // Full URL for Render uploads
-                : (user.profilePic?.startsWith('http') ? user.profilePic : '/images/user.png');
-            profilePic.src = picSrc;
-            profilePic.alt = user.username || 'Profile';
-            console.log('Profile pic set to:', picSrc);  // Debug
-        }
-
-        return user;  // Validated user
-    } catch (err) {
-        console.error('loadUser  failed - Error message:', err.message);
-        if (err.message.includes('404')) {
-            console.error('404 on /api/users/profile - Check backend routes (must start with /api)');
-        }
-        console.error('Full loadUser  error:', err);  // Debug: Stack trace
-        if (getToken()) removeToken();  // Only remove if it existed
-        console.log('Token removed due to profile fetch failure');
-        if (redirectOnFail) {
-            console.log('Redirecting to login due to failure');
-            window.location.href = '/login.html';
-        }
-        return null;  // Always return null on failure
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload.exp * 1000 > Date.now();  // Check expiry
+    } catch {
+        return false;
     }
-};
-
-// Expose helper globally for other JS files (e.g., home.js, admin.js) - Prevents redeclaration conflicts
-window.getProtectedUrl = getProtectedUrl;
+}
