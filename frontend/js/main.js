@@ -118,10 +118,10 @@ const logout = () => {
     window.location.href = '/index.html';
 };
 
-// Load user info (for protected pages)
-const loadUser   = async (redirectOnFail = true) => {
+// Load user info (Updated: Validate user before return, prevent null access)
+const loadUser    = async (redirectOnFail = true) => {
     const token = getToken();
-    console.log('loadUser  called. Token:', token ? `eyJ... (length: ${token.length})` : 'MISSING');  // Debug: Token value (truncated)
+    console.log('loadUser   called. Token:', token ? `eyJ... (length: ${token.length})` : 'MISSING');  // Debug
     if (!token) {
         console.log('No token found, redirecting to login');
         if (redirectOnFail) window.location.href = '/login.html';
@@ -130,30 +130,41 @@ const loadUser   = async (redirectOnFail = true) => {
     try {
         console.log('Attempting to fetch /users/profile...');
         const user = await apiFetch('/users/profile');
-        console.log('User  profile loaded successfully:', { id: user.id, email: user.email, role: user.role });  // Debug: User details
-        // Set navbar elements if present
+        console.log('Raw user from API:', user);  // Debug: Full object
+
+        // Validate: Ensure user has required fields (prevents null/empty issues)
+        if (!user || !user.id || !user.email) {
+            console.error('loadUser  : Invalid user data from API:', user);
+            throw new Error('Invalid user profile received');
+        }
+
+        console.log('User   profile loaded successfully:', { id: user.id, email: user.email, role: user.role });  // Debug
+
+        // Set navbar elements safely (only if elements exist)
         const usernameEl = document.getElementById('username');
-        if (usernameEl) usernameEl.textContent = user.username || user.email;
+        if (usernameEl) {
+            usernameEl.textContent = user.username || user.email;
+        }
         const profilePic = document.getElementById('profile-pic');
         if (profilePic) {
-            // Fix: Use full backend URL for uploaded pics (e.g., /uploads/filename)
             const picSrc = user.profilePic && user.profilePic !== 'user.png' 
                 ? `${BACKEND_URL}/uploads/${user.profilePic}` 
-                : (user.profilePic.startsWith('http') ? user.profilePic : '/images/user.png');
+                : (user.profilePic?.startsWith('http') ? user.profilePic : '/images/user.png');
             profilePic.src = picSrc;
             profilePic.alt = user.username || 'Profile';
             console.log('Profile pic set to:', picSrc);  // Debug
         }
-        return user;
+
+        return user;  // Validated user
     } catch (err) {
-        console.error('loadUser  failed - Error message:', err.message);
-        console.error('Full loadUser  error:', err);  // Debug: Stack trace
-        removeToken();
+        console.error('loadUser   failed - Error message:', err.message);
+        console.error('Full loadUser   error:', err);  // Debug
+        if (getToken()) removeToken();  // Only remove if it existed
         console.log('Token removed due to profile fetch failure');
         if (redirectOnFail) {
             console.log('Redirecting to login due to failure');
             window.location.href = '/login.html';
         }
-        return null;
+        return null;  // Always return null on failure
     }
 };
