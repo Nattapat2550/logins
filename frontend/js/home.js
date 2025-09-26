@@ -1,39 +1,41 @@
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('home.html loaded, starting user load...');  // Debug
+// Import helper from main.js (assuming it's global; if not, define here)
+const getProtectedUrl = window.getProtectedUrl || ((path) => `/api${path.startsWith('/') ? path : `/${path}`}`);
 
-    // Use .then() for better async control (prevents race conditions)
-    loadUser  (false)
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('home.html loaded, starting user load...');
+
+    // Use .then() for better async control
+    loadUser   (false)
         .then((user) => {
-            console.log('home.js: loadUser  promise resolved with user:', user ? 'exists' : 'null');  // Debug
-            if (!user || !user.email) {  // Stricter check: Ensure user has email (basic validation)
+            console.log('home.js: loadUser   promise resolved with user:', user ? 'exists' : 'null');
+            if (!user || !user.email) {  // Strict check: No null access
                 console.error('home.js: Invalid or missing user data, redirecting to login');
                 window.location.href = '/login.html';
-                return;  // Exit early, no UI updates
+                return;  // Exit: No UI updates if invalid
             }
 
-            console.log('home.js: User loaded successfully, updating UI');  // Debug
+            console.log('home.js: User loaded successfully, updating UI');
 
-            // Safe UI updates: Check elements exist
+            // Safe UI updates: user is validated
             const welcomeEl = document.getElementById('welcome');
             if (welcomeEl) {
-                // Safe access: user is validated above
-                welcomeEl.textContent = `Hello, ${user.username || user.email}!`;
-                console.log('home.js: Welcome message set');  // Debug
+                welcomeEl.textContent = `Hello, ${user.username || user.email}!`;  // Safe: user exists
+                console.log('home.js: Welcome message set');
             } else {
                 console.warn('home.js: #welcome element not found');
             }
 
-            // Load homepage content (independent of user)
+            // Load homepage content (now with /api prefix)
             loadHomepageContent();
         })
         .catch((err) => {
-            console.error('home.js: loadUser  promise rejected:', err);  // Catch any unhandled errors
+            console.error('home.js: loadUser   promise rejected:', err);
             window.location.href = '/login.html';
         });
 
-    // Separate function for content (runs even if user fails, but won't in practice)
+    // Separate function for content (fixed URL)
     function loadHomepageContent() {
-        apiFetch('/homepage/')
+        apiFetch(getProtectedUrl('homepage/'))  // Fixed: /api/homepage/
             .then((content) => {
                 const contentEl = document.getElementById('homepage-content');
                 if (contentEl) {

@@ -118,29 +118,37 @@ const logout = () => {
     window.location.href = '/index.html';
 };
 
-// Load user info (Updated: Validate user before return, prevent null access)
-const loadUser    = async (redirectOnFail = true) => {
+// ... (keep getBackendUrl, BACKEND_URL, getToken, setToken, removeToken, googleOAuthRedirect, toggleTheme, DOMContentLoaded, apiFetch, logout as-is)
+
+// Helper to ensure /api prefix for protected routes (prevents 404s)
+const getProtectedUrl = (path) => {
+    if (path.startsWith('/api/')) return path;
+    return `/api${path.startsWith('/') ? path : `/${path}`}`;
+};
+
+// Load user info (Updated: Use getProtectedUrl, better 404 handling)
+const loadUser     = async (redirectOnFail = true) => {
     const token = getToken();
-    console.log('loadUser   called. Token:', token ? `eyJ... (length: ${token.length})` : 'MISSING');  // Debug
+    console.log('loadUser    called. Token:', token ? `eyJ... (length: ${token.length})` : 'MISSING');
     if (!token) {
         console.log('No token found, redirecting to login');
         if (redirectOnFail) window.location.href = '/login.html';
         return null;
     }
     try {
-        console.log('Attempting to fetch /users/profile...');
-        const user = await apiFetch('/users/profile');
-        console.log('Raw user from API:', user);  // Debug: Full object
+        console.log('Attempting to fetch /api/users/profile...');
+        const user = await apiFetch(getProtectedUrl('users/profile'));  // Fixed: /api prefix
+        console.log('Raw user from API:', user);
 
-        // Validate: Ensure user has required fields (prevents null/empty issues)
+        // Validate: Ensure user has required fields
         if (!user || !user.id || !user.email) {
-            console.error('loadUser  : Invalid user data from API:', user);
+            console.error('loadUser   : Invalid user data from API:', user);
             throw new Error('Invalid user profile received');
         }
 
-        console.log('User   profile loaded successfully:', { id: user.id, email: user.email, role: user.role });  // Debug
+        console.log('User    profile loaded successfully:', { id: user.id, email: user.email, role: user.role });
 
-        // Set navbar elements safely (only if elements exist)
+        // Set navbar elements safely
         const usernameEl = document.getElementById('username');
         if (usernameEl) {
             usernameEl.textContent = user.username || user.email;
@@ -148,23 +156,26 @@ const loadUser    = async (redirectOnFail = true) => {
         const profilePic = document.getElementById('profile-pic');
         if (profilePic) {
             const picSrc = user.profilePic && user.profilePic !== 'user.png' 
-                ? `${BACKEND_URL}/uploads/${user.profilePic}` 
+                ? `${BACKEND_URL}/uploads/${user.profilePic}`  // Full URL for Render
                 : (user.profilePic?.startsWith('http') ? user.profilePic : '/images/user.png');
             profilePic.src = picSrc;
             profilePic.alt = user.username || 'Profile';
-            console.log('Profile pic set to:', picSrc);  // Debug
+            console.log('Profile pic set to:', picSrc);
         }
 
-        return user;  // Validated user
+        return user;
     } catch (err) {
-        console.error('loadUser   failed - Error message:', err.message);
-        console.error('Full loadUser   error:', err);  // Debug
-        if (getToken()) removeToken();  // Only remove if it existed
+        console.error('loadUser    failed - Error message:', err.message);
+        if (err.message.includes('404')) {
+            console.error('404 on /api/users/profile - Check backend routes (must start with /api)');
+        }
+        console.error('Full loadUser    error:', err);
+        if (getToken()) removeToken();
         console.log('Token removed due to profile fetch failure');
         if (redirectOnFail) {
             console.log('Redirecting to login due to failure');
             window.location.href = '/login.html';
         }
-        return null;  // Always return null on failure
+        return null;
     }
 };
