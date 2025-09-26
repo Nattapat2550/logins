@@ -119,31 +119,39 @@ const logout = () => {
 };
 
 // Load user info (for protected pages)
-const loadUser   = async (redirectOnFail = true) => {  // Optional param for debug
+const loadUser   = async (redirectOnFail = true) => {
     const token = getToken();
+    console.log('loadUser  called. Token:', token ? `eyJ... (length: ${token.length})` : 'MISSING');  // Debug: Token value (truncated)
     if (!token) {
         console.log('No token found, redirecting to login');
         if (redirectOnFail) window.location.href = '/login.html';
         return null;
     }
     try {
-        console.log('Loading user profile with token...');  // Debug log
+        console.log('Attempting to fetch /users/profile...');
         const user = await apiFetch('/users/profile');
-        console.log('User  profile loaded:', user.email, 'role:', user.role);  // Debug log
+        console.log('User  profile loaded successfully:', { id: user.id, email: user.email, role: user.role });  // Debug: User details
         // Set navbar elements if present
         const usernameEl = document.getElementById('username');
         if (usernameEl) usernameEl.textContent = user.username || user.email;
         const profilePic = document.getElementById('profile-pic');
         if (profilePic) {
-            profilePic.src = user.profilePic && !user.profilePic.startsWith('http') ? `${BACKEND_URL}/uploads/${user.profilePic}` : (user.profilePic || '/images/user.png');
+            // Fix: Use full backend URL for uploaded pics (e.g., /uploads/filename)
+            const picSrc = user.profilePic && user.profilePic !== 'user.png' 
+                ? `${BACKEND_URL}/uploads/${user.profilePic}` 
+                : (user.profilePic.startsWith('http') ? user.profilePic : '/images/user.png');
+            profilePic.src = picSrc;
             profilePic.alt = user.username || 'Profile';
+            console.log('Profile pic set to:', picSrc);  // Debug
         }
         return user;
     } catch (err) {
-        console.error('User  load failed:', err.message);  // Better logging
-        console.error('Full error:', err);  // For stack trace
+        console.error('loadUser  failed - Error message:', err.message);
+        console.error('Full loadUser  error:', err);  // Debug: Stack trace
         removeToken();
+        console.log('Token removed due to profile fetch failure');
         if (redirectOnFail) {
+            console.log('Redirecting to login due to failure');
             window.location.href = '/login.html';
         }
         return null;
