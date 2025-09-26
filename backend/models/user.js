@@ -7,7 +7,12 @@ const User = {
         return result.rows[0];
     },
     findById: async (id) => {
-        const result = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+    // Ensure id is integer
+        const intId = parseInt(id, 10);
+        if (isNaN(intId)) {
+          throw new Error('Invalid user ID');
+        }
+        const result = await pool.query('SELECT * FROM users WHERE id = $1', [intId]);
         return result.rows[0];
     },
     create: async (userData) => {

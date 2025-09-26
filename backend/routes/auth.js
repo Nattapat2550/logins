@@ -59,13 +59,21 @@ router.post('/complete', async (req, res) => {
 // Email login
 router.post('/login', async (req, res) => {
     const { email, password } = req.body;
+    console.log('Login attempt for email:', email);  // Debug log
     const user = await User.findByEmail(email);
-    if (!user || !await User.comparePassword(password, user.password)) {
+    if (!user) {
+        console.log('User  not found:', email);
         return res.status(401).json({ message: 'Invalid credentials' });
     }
-
+    const passwordMatch = await User.comparePassword(password, user.password);
+    if (!passwordMatch) {
+        console.log('Password mismatch for:', email);
+        return res.status(401).json({ message: 'Invalid credentials' });
+    }
+    console.log('Login successful for user ID:', user.id, 'role:', user.role);  // Debug log
     const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
-    res.json({ token, redirect: user.role === 'admin' ? '/admin.html' : '/home.html' });
+    const redirect = user.role === 'admin' ? '/admin.html' : '/home.html';
+    res.json({ token, redirect });
 });
 
 // Google OAuth

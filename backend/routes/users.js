@@ -11,8 +11,13 @@ router.use(authenticateToken);
 
 // Get user profile
 router.get('/profile', async (req, res) => {
+    console.log('Fetching profile for user ID from token:', req.user.id);  // Debug log
     const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ message: 'User  not found' });
+    if (!user) {
+        console.log('User  not found in DB for ID:', req.user.id);
+        return res.status(404).json({ message: 'User  not found' });
+    }
+    console.log('Profile fetched successfully for:', user.email);  // Debug log
     res.json(user);
 });
 

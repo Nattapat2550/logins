@@ -119,27 +119,33 @@ const logout = () => {
 };
 
 // Load user info (for protected pages)
-const loadUser  = async () => {
+const loadUser   = async (redirectOnFail = true) => {  // Optional param for debug
     const token = getToken();
     if (!token) {
-        window.location.href = '/login.html';
+        console.log('No token found, redirecting to login');
+        if (redirectOnFail) window.location.href = '/login.html';
         return null;
     }
     try {
+        console.log('Loading user profile with token...');  // Debug log
         const user = await apiFetch('/users/profile');
+        console.log('User  profile loaded:', user.email, 'role:', user.role);  // Debug log
         // Set navbar elements if present
         const usernameEl = document.getElementById('username');
         if (usernameEl) usernameEl.textContent = user.username || user.email;
         const profilePic = document.getElementById('profile-pic');
         if (profilePic) {
-            profilePic.src = user.profilePic.startsWith('http') ? user.profilePic : '/images/' + user.profilePic;
+            profilePic.src = user.profilePic && !user.profilePic.startsWith('http') ? `${BACKEND_URL}/uploads/${user.profilePic}` : (user.profilePic || '/images/user.png');
             profilePic.alt = user.username || 'Profile';
         }
         return user;
     } catch (err) {
-        console.error('User  load failed:', err);
+        console.error('User  load failed:', err.message);  // Better logging
+        console.error('Full error:', err);  // For stack trace
         removeToken();
-        window.location.href = '/login.html';
+        if (redirectOnFail) {
+            window.location.href = '/login.html';
+        }
         return null;
     }
 };
