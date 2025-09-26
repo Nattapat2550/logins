@@ -1,8 +1,9 @@
 const express = require('express');
 const passport = require('passport');
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
-const pool = require('../config/db');
+const { pool } = require('../config/db');
 const User = require('../models/user');
 const { generateCode } = require('../utils/generateCode');
 const { sendVerificationEmail } = require('../utils/gmail');
@@ -75,19 +76,74 @@ router.post('/login', async (req, res) => {
     const redirect = user.role === 'admin' ? '/admin.html' : '/home.html';
     res.json({ token, redirect });
 });
-
-// Google OAuth
-router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
-
+passport.use(new GoogleStrategy({
+    clientID: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL: '/api/auth/google/callback'  // Relative to backend
+}, async (accessToken, refreshToken, profile, done) => {
+    try {
+        console.log('Google OAuth callback: Processing profile for', profile.emails[0].value);
+        
+        const { emails, displayName, photos } = profile;
+        const email = emails[0].value;
+        const username = displayName.givenName || email.split('@')[0];
+        const profilePic = photos[0]?.value || '/images/user.png';
+        const googleId = profile.id;
+        // Check if user exists
+        let result = await pool.query('SELECT * FROM users WHERE email = $1 OR google_id = $2', [email, googleId]);
+        let user = result.rows[0];
+        if (!user) {
+            // Create new user (default role: user, no password for Google)
+            const hashedPassword = await bcrypt.hash('google_temp_pass', 10);  // Placeholder
+            result = await pool.query(
+                'INSERT INTO users (email, username, password, role, profile_pic, google_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+                [email, username, hashedPassword, 'user', profilePic, googleId]
+            );
+            user = result.rows[0];
+            console.log('Created new Google user ID:', user.id);
+        } else {
+            // Update if needed (e.g., sync profile pic)
+            if (!user.google_id) {
+                await pool.query('UPDATE users SET google_id = $1 WHERE id = $2', [googleId, user.id]);
+            }
+            console.log('Found existing Google user ID:', user.id);
+        }
+        return done(null, user);
+            } catch (err) {
+        console.error('Google OAuth user processing error:', err);
+        return done(err, null);
+    }
+}));
+// Serialize/deserialize user (for session, but we use JWT so minimal)
+passport.serializeUser ((user, done) => done(null, user.id));
+passport.deserializeUser (async (id, done) => {
+    const result = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+    done(null, result.rows[0]);
+});
+// Routes
+// Initiate Google OAuth
+router.get('/google', passport.authenticate('google', { 
+    scope: ['profile', 'email'] 
+}));
 router.get('/google/callback', 
-    passport.authenticate('google', { failureRedirect: `${process.env.FRONTEND_URL}/login.html` }), 
-    (req, res) => {
-        const token = jwt.sign({ id: req.user.id, role: req.user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
-        const tempUsername = req.session.tempUsername || '';
-        delete req.session.tempUsername;
-        let redirectUrl = req.user.username ? (req.user.role === 'admin' ? '/admin.html' : '/home.html') : '/form.html';
-        let extraParams = tempUsername ? `&username=${encodeURIComponent(tempUsername)}` : '';
-        res.redirect(`${process.env.FRONTEND_URL}${redirectUrl}?token=${token}${extraParams}`);
+    passport.authenticate('google', { session: false, failureRedirect: '/login.html' }),  // No session, redirect on fail
+    async (req, res) => {
+        try {
+            console.log('Google callback success for user ID:', req.user.id);
+            
+            // Generate JWT
+            const token = jwt.sign(
+                { userId: req.user.id },
+                process.env.JWT_SECRET,
+                { expiresIn: '7d' }
+            );
+            // Redirect to frontend with token (as query param)
+            const redirectUrl = `${process.env.FRONTEND_URL || 'https://your-frontend.onrender.com'}/?token=${token}&redirect=/home.html&username=${encodeURIComponent(req.user.username || req.user.email)}`;
+            res.redirect(redirectUrl);
+        } catch (err) {
+            console.error('Google callback JWT error:', err);
+            res.status(500).json({ message: 'OAuth callback failed' });
+        }
     }
 );
 
