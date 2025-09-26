@@ -179,3 +179,4 @@ const loadUser     = async (redirectOnFail = true) => {
         return null;
     }
 };
+window.getProtectedUrl = getProtectedUrl;

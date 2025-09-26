@@ -4,10 +4,21 @@ const getProtectedUrl = window.getProtectedUrl || ((path) => `/api${path.startsW
 document.addEventListener('DOMContentLoaded', () => {
     console.log('home.html loaded, starting user load...');
 
+    // Safe fallback for getProtectedUrl (no redeclaration if already global from main.js)
+    if (typeof window.getProtectedUrl === 'undefined') {
+        window.getProtectedUrl = (path) => {
+            if (path.startsWith('/api/')) return path;
+            return `/api${path.startsWith('/') ? path : `/${path}`}`;
+        };
+        console.log('home.js: Defined local getProtectedUrl fallback');
+    } else {
+        console.log('home.js: Using global getProtectedUrl from main.js');
+    }
+
     // Use .then() for better async control
-    loadUser   (false)
+    loadUser    (false)
         .then((user) => {
-            console.log('home.js: loadUser   promise resolved with user:', user ? 'exists' : 'null');
+            console.log('home.js: loadUser    promise resolved with user:', user ? 'exists' : 'null');
             if (!user || !user.email) {  // Strict check: No null access
                 console.error('home.js: Invalid or missing user data, redirecting to login');
                 window.location.href = '/login.html';
@@ -25,17 +36,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.warn('home.js: #welcome element not found');
             }
 
-            // Load homepage content (now with /api prefix)
+            // Load homepage content (now with /api prefix via helper)
             loadHomepageContent();
         })
         .catch((err) => {
-            console.error('home.js: loadUser   promise rejected:', err);
+            console.error('home.js: loadUser    promise rejected:', err);
             window.location.href = '/login.html';
         });
 
     // Separate function for content (fixed URL)
     function loadHomepageContent() {
-        apiFetch(getProtectedUrl('homepage/'))  // Fixed: /api/homepage/
+        apiFetch(window.getProtectedUrl('homepage/'))  // Uses global/helper: /api/homepage/
             .then((content) => {
                 const contentEl = document.getElementById('homepage-content');
                 if (contentEl) {
