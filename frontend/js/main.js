@@ -1,139 +1,120 @@
-const API_BASE = 'https://backendlogins.onrender.com/api'; // Change to https://backendlogins.onrender.com/api for production
-
-// Theme Toggle
-function initTheme() {
-  const savedTheme = localStorage.getItem('theme') || 'light';
-  document.body.setAttribute('data-theme', savedTheme);
-  const toggle = document.getElementById('themeToggle');
-  if (toggle) toggle.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
-}
-
-function toggleTheme() {
-  const current = document.body.getAttribute('data-theme');
-  const newTheme = current === 'light' ? 'dark' : 'light';
-  document.body.setAttribute('data-theme', newTheme);
-  localStorage.setItem('theme', newTheme);
-  const toggle = document.getElementById('themeToggle');
-  if (toggle) toggle.textContent = newTheme === 'dark' ? '☀️' : '🌙';
-}
-
-// Auth Check (for protected pages)
-async function checkAuth(redirectIfUnauthorized = true) {
-  const token = localStorage.getItem('token');
-  if (!token) {
-    if (redirectIfUnauthorized) window.location.href = 'login.html';
-    return null;
-  }
+// Token Validation (simple check; backend verifies fully)
+function validateToken(token) {
+  if (!token || typeof token !== 'string' || token.length < 10) return false;
   try {
-    const res = await fetch(`${API_BASE}/users/profile`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    if (res.ok) {
-      const user = await res.json();
-      return user;
-    } else {
-      localStorage.removeItem('token');
-      if (redirectIfUnauthorized) window.location.href = 'login.html';
-      return null;
+    // Basic JWT check (no full decode; backend handles)
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.exp > Date.now() / 1000;  // Not expired
+  } catch (e) {
+    console.warn('Token validation failed:', e);
+    return false;
+  }
+}
+
+// API Call Helper (with auth token, error handling)
+async function apiCall(endpoint, options = {}) {
+  const token = getStorage('token');
+  const url = `${API_BASE}${endpoint}`;
+  const config = {
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers
+    },
+    ...options
+  };
+
+  if (token && validateToken(token)) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  try {
+    const response = await fetch(url, config);
+    const data = await response.json();
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        logout();  // Token invalid/expired
+        throw new Error('Session expired. Please login again.');
+      }
+      throw new Error(data.error || `HTTP ${response.status}`);
     }
-  } catch (err) {
-    console.error('Auth check failed:', err);
-    if (redirectIfUnauthorized) window.location.href = 'login.html';
-    return null;
+
+    return data;
+  } catch (error) {
+    console.error('API call error:', error);
+    showAlert(error.message, 'error');
+    throw error;
   }
 }
 
-// Navbar Injection
-function renderNavbar(user = null) {
-  const navbar = document.getElementById('navbar');
-  if (!navbar) return;
+// Show Alert (success/error; auto-hide after 5s)
+function showAlert(message, type = 'error') {
+  const alert = document.getElementById('alert');
+  if (!alert) return;
 
-  let profileHtml = '';
-  if (user) {
-    const picSrc = user.profilePic || 'images/user.png';
-    profileHtml = `
-      <div class="profile" onclick="toggleDropdown()">
-        <img src="${picSrc}" alt="Profile" class="profile-pic">
-        <div class="dropdown" id="dropdown">
-          <a href="settings.html">Settings</a>
-          <a href="#" onclick="logout()">Logout</a>
-        </div>
-      </div>
-    `;
-  } else {
-    profileHtml = '<span>Guest</span>';
-  }
+  alert.textContent = message;
+  alert.className = `alert alert-${type}`;
+  alert.classList.remove('hidden');
 
-  navbar.innerHTML = `
-    <div class="logo">My Website</div>
-    <nav>
-      <a href="about.html">About</a>
-      <a href="contact.html">Contact</a>
-      ${user ? `<button id="themeToggle" class="theme-toggle" onclick="toggleTheme()">🌙</button>` : ''}
-      ${profileHtml}
-    </nav>
-  `;
+  setTimeout(() => {
+    alert.classList.add('hidden');
+  }, 5000);
 }
 
-// Toggle Dropdown
-function toggleDropdown() {
-  const dropdown = document.getElementById('dropdown');
-  dropdown.classList.toggle('show');
-}
-
-// Logout
+// Logout (clear storage, redirect to index)
 function logout() {
-  localStorage.removeItem('token');
+  setStorage('token', null);
+  setStorage('role', null);
   window.location.href = 'index.html';
 }
 
-async function apiCall(url, options = {}) {
-  const defaults = {
-    method: 'GET',
-    headers: { 'Content-Type': 'application/json' }
-  };
-  const config = { ...defaults, ...options };
-  
-  // Add token if present (skip for login/register)
-  const token = localStorage.getItem('token');
-  if (token && !url.includes('/auth/login') && !url.includes('/auth/register')) {
-    config.headers.Authorization = `Bearer ${token}`;
+// Check Auth (for protected pages; redirect if unauth)
+async function checkAuth() {
+  const token = getStorage('token');
+  if (!token || !validateToken(token)) {
+    window.location.href = 'login.html';
+    return false;
   }
-  
-  // Handle body for POST/PUT (JSON.stringify if object)
-  if (options.body && typeof options.body === 'object' && options.body !== null) {
-    config.body = JSON.stringify(options.body);
+
+  // Refresh role from storage or API if needed
+  let role = getStorage('role');
+  if (!role) {
+    try {
+      const user = await apiCall('/api/users/profile');
+      role = user.role;
+      setStorage('role', role);
+    } catch (e) {
+      logout();  // Invalid token
+      return false;
+    }
   }
-  
+
+  return role;
+}
+
+// Get User Role (from storage or API)
+async function getUserRole() {
+  const role = getStorage('role');
+  if (role) return role;
+
   try {
-    const res = await fetch(url, config);
-    // DO NOT throw here - return res for caller to handle status (e.g., 401 with body)
-    return res;
-  } catch (error) {
-    console.error('API call network error:', error);
-    throw error;  // Only throw true network/fetch errors (e.g., offline)
+    const user = await apiCall('/api/users/profile');
+    setStorage('role', user.role);
+    return user.role;
+  } catch (e) {
+    return null;
   }
 }
 
-// Init on load
-document.addEventListener('DOMContentLoaded', () => {
-  initTheme();
-  if (window.location.pathname.includes('home.html') || window.location.pathname.includes('settings.html') || window.location.pathname.includes('admin.html')) {
-    checkAuth().then(user => {
-      renderNavbar(user);
-      if (user && window.location.pathname.includes('admin.html') && user.role !== 'admin') {
-        window.location.href = 'home.html';
-      } else if (user && window.location.pathname.includes('home.html') && user.role === 'admin') {
-        window.location.href = 'admin.html';
-      }
-    });
-  } else {
-    renderNavbar();
-  }
-  // Close dropdown on outside click
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('.profile')) {
-      document.getElementById('dropdown')?.classList.remove('show');
-    }
+// Export for other JS files (if using modules; here as global for simplicity)
+window.mainUtils = {
+  getStorage, setStorage, apiCall, showAlert, logout, checkAuth, getUserRole, validateToken
+};
+
+// Auto-init on DOM load (if called)
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    const themeToggle = document.getElementById('themeToggle');
+    if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
   });
-});
+}

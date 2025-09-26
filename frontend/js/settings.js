@@ -1,78 +1,71 @@
-let currentUser ;
+async function loadSettingsData() {
+  const role = await mainUtils.checkAuth();
+  if (!role) return;  // Redirects if unauth
 
-document.addEventListener('DOMContentLoaded', async () => {
-  currentUser  = await checkAuth();
-  if (!currentUser ) return;
-
-  document.getElementById('currentUsername').textContent = `Username: ${currentUser .username}`;
-  document.getElementById('currentPic').src = currentUser .profilePic || 'images/user.png';
-  document.getElementById('username').value = currentUser .username;
-});
-
-async function updateProfile() {
-  const username = document.getElementById('username').value;
-  const profilePicFile = document.getElementById('profilePic').files[0];
-
-  if (!username) return showError('Enter username');
+  const form = document.getElementById('settingsForm');
+  if (!form) return;
 
   try {
-    let formData = new FormData();
-    formData.append('username', username);
-    if (profilePicFile) formData.append('profilePic', profilePicFile);
+    const data = await mainUtils.apiCall('/api/users/profile');
 
-    const res = await fetch(`${API_BASE}/users/profile`, {
-      method: 'PUT',
-      body: formData
-    });
-    if (res.ok) {
-      showSuccess('Profile updated!');
-      // Refresh user data
-      const refreshed = await fetch(`${API_BASE}/users/profile`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      }).then(r => r.json());
-      currentUser  = refreshed;
-      document.getElementById('currentUsername').textContent = `Username: ${currentUser .username}`;
-      if (currentUser .profilePic) document.getElementById('currentPic').src = currentUser .profilePic;
-      // Update navbar
-      renderNavbar(currentUser );
-    } else {
-      const error = await res.json();
-      showError(error.error || 'Update failed');
+    // Populate form
+    document.getElementById('username').value = data.username || '';
+    const preview = document.getElementById('profilePreview');
+    if (data.profilePic) {
+      preview.src = data.profilePic;
+      preview.classList.remove('hidden');
     }
-  } catch (err) {
-    showError(err.message);
-  }
-}
 
-async function deleteAccount() {
-  if (!confirm('Are you sure? This cannot be undone.')) return;
-
-  try {
-    const res = await fetch(`${API_BASE}/users/profile`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    // Profile pic preview on change
+    const fileInput = document.getElementById('profilePic');
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file && file.type.startsWith('image/')) {
+        preview.src = URL.createObjectURL(file);
+        preview.classList.remove('hidden');
+      } else {
+        preview.src = data.profilePic || 'images/user.png';
+      }
     });
-    if (res.ok) {
-      showSuccess('Account deleted. Redirecting...');
-      localStorage.removeItem('token');
-      setTimeout(() => {
-        window.location.href = 'index.html';
-      }, 1000);
-    } else {
-      showError('Delete failed');
-    }
-  } catch (err) {
-    showError(err.message);
+
+    // Update form submit
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('username').value.trim();
+      const file = fileInput.files[0];
+      const button = form.querySelector('button');
+      button.disabled = true;
+      button.textContent = 'Updating...';
+
+      if (!username || username.length < 3) {
+        mainUtils.showAlert('Username required (min 3 chars)', 'error');
+        button.disabled = false;
+        button.textContent = 'Update Profile';
+        return;
+      }
+
+      try {
+        const formData = new FormData();
+        formData.append('username', username);
+        if (file) formData.append('profilePic', file);
+
+        const updateData = await mainUtils.apiCall('/api/users/profile', {
+          method: 'PUT',
+          body: formData
+        });
+
+        mainUtils.showAlert('Profile updated successfully!', 'success');
+        preview.src = updateData.profilePic || 'images/user.png';
+        preview.classList.remove('hidden');
+      } catch (error) {
+        // Error shown by apiCall (e.g., "Username already taken")
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Update Profile';
+      }
+    });
+  } catch (error) {
+    // Error shown by apiCall (e.g., 500 → "Failed to fetch profile")
+    mainUtils.showAlert('Failed to load profile. Try again.', 'error');
   }
-}
-
-function showError(msg) {
-  document.getElementById('error').textContent = msg;
-  document.getElementById('success').classList.add('hidden');
-}
-
-function showSuccess(msg) {
-  document.getElementById('success').textContent = msg;
-  document.getElementById('success').classList.remove('hidden');
-  document.getElementById('error').textContent = '';
 }

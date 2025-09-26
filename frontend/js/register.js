@@ -1,25 +1,34 @@
-async function checkEmail() {
-  const email = document.getElementById('email').value;
-  if (!email) return showError('Enter email');
+function setupRegisterForm() {
+  const form = document.getElementById('registerForm');
+  if (!form) return;
 
-  try {
-    const res = await apiCall('/auth/register/email', {
-      method: 'POST',
-      body: JSON.stringify({ email })
-    });
-    if (res.duplicate) {
-      showError('Email already registered');
-    } else if (res.sent) {
-      localStorage.setItem('pendingEmail', email);
-      window.location.href = 'check.html';
-    } else {
-      showError('Failed to send code');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('email').value.trim();
+    const button = form.querySelector('button');
+    button.disabled = true;
+    button.textContent = 'Sending...';
+
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showAlert('Valid email required', 'error');
+      button.disabled = false;
+      button.textContent = 'Send Verification Code';
+      return;
     }
-  } catch (err) {
-    showError(err.message);
-  }
-}
 
-function showError(msg) {
-  document.getElementById('error').textContent = msg;
+    try {
+      const data = await mainUtils.apiCall('/api/auth/check-email', {
+        method: 'POST',
+        body: JSON.stringify({ email })
+      });
+      mainUtils.setStorage('tempToken', data.tempToken);  // Store for check.js
+      showAlert('Verification code sent! Check your email.', 'success');
+      window.location.href = 'check.html';
+    } catch (error) {
+      // Error already shown by apiCall
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Send Verification Code';
+    }
+  });
 }

@@ -1,83 +1,43 @@
-let currentEmail = '';
+function setupResetForm() {
+  const form = document.getElementById('resetForm');
+  if (!form) return;
 
-async function sendResetCode() {
-  const email = document.getElementById('email').value;
-  if (!email) return showError('Enter email');
-
-  try {
-    const res = await fetch(`${API_BASE}/auth/forgot-password`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
-    });
-    const data = await res.json();
-    if (data.sent) {
-      currentEmail = email;
-      document.getElementById('step1').classList.add('hidden');
-      document.getElementById('step2').classList.remove('hidden');
-      showSuccess('Code sent! Check your email.');
-    } else {
-      showError('Email not found');
-    }
-  } catch (err) {
-    showError(err.message);
+  const urlParams = new URLSearchParams(window.location.search);
+  const token = urlParams.get('token');
+  if (!token) {
+    showAlert('Invalid reset link. Start over.', 'error');
+    window.location.href = 'login.html';
+    return;
   }
-}
+  document.getElementById('token').value = token;
 
-async function verifyResetCode() {
-  const code = document.getElementById('code').value;
-  if (!code) return showError('Enter code');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const newPassword = document.getElementById('newPassword').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+    const button = form.querySelector('button');
+    button.disabled = true;
+    button.textContent = 'Resetting...';
 
-  try {
-    const res = await fetch(`${API_BASE}/auth/reset/verify`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: currentEmail, code })
-    });
-    const data = await res.json();
-    if (data.valid) {
-      document.getElementById('step2').classList.add('hidden');
-      document.getElementById('step3').classList.remove('hidden');
-      showSuccess('Code verified!');
-    } else {
-      showError('Invalid code');
+    if (!newPassword || newPassword.length < 6 || newPassword !== confirmPassword) {
+      showAlert('New password required and must match (min 6 chars)', 'error');
+      button.disabled = false;
+      button.textContent = 'Reset Password';
+      return;
     }
-  } catch (err) {
-    showError(err.message);
-  }
-}
 
-async function setNewPassword() {
-  const newPw = document.getElementById('newPassword').value;
-  const confirmPw = document.getElementById('confirmPassword').value;
-  if (newPw !== confirmPw) return showError('Passwords do not match');
-  if (newPw.length < 6) return showError('Password too short');
-
-  try {
-    const res = await fetch(`${API_BASE}/auth/reset-password`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: currentEmail, newPassword: newPw })
-    });
-    const data = await res.json();
-    if (data.success) {
-      showSuccess('Password reset! Redirecting to login...');
-      setTimeout(() => {
-        window.location.href = 'login.html';
-      }, 2000);
+    try {
+      await mainUtils.apiCall('/api/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({ token, newPassword })
+      });
+      showAlert('Password reset successful! You can now login.', 'success');
+      window.location.href = 'login.html';
+    } catch (error) {
+      // Error shown by apiCall (e.g., "Invalid or expired reset token")
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Reset Password';
     }
-  } catch (err) {
-    showError(err.message);
-  }
-}
-
-function showError(msg) {
-  document.getElementById('error').textContent = msg;
-  document.getElementById('success').classList.add('hidden');
-}
-
-function showSuccess(msg) {
-  document.getElementById('success').textContent = msg;
-  document.getElementById('success').classList.remove('hidden');
-  document.getElementById('error').textContent = '';
+  });
 }

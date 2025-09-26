@@ -3,21 +3,38 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Register</title>
+  <title>Register - Login App</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <div id="navbar"></div>
-  <div class="container">
-    <h1>Register</h1>
-    <form id="registerForm">
-      <input type="email" id="email" placeholder="Email" required>
-      <button type="button" onclick="checkEmail()">Check Email & Send Code</button>
-      <div id="error"></div>
-      <button type="button" onclick="window.location.href='https://accounts.google.com/o/oauth2/auth?client_id=GOOGLE_CLIENT_ID&redirect_uri=GOOGLE_CALLBACK_URI&scope=email%20profile&response_type=code&access_type=offline'">Google Login</button> <!-- Update URLs with actual -->
-    </form>
-  </div>
+  <nav class="navbar">
+    <a href="index.html" class="logo">Login App</a>
+    <ul id="navLinks">
+      <li><a href="login.html">Login</a></li>
+      <li><button id="themeToggle" class="theme-toggle">🌙</button></li>
+    </ul>
+  </nav>
+
+  <main>
+    <div class="container">
+      <h1>Register</h1>
+      <p>Enter your email to start registration.</p>
+      <form id="registerForm">
+        <input type="email" id="email" placeholder="Enter your email" required>
+        <button type="submit">Send Verification Code</button>
+      </form>
+      <div id="alert" class="alert hidden"></div>
+    </div>
+  </main>
+
   <script src="js/main.js"></script>
   <script src="js/register.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      initTheme();
+      setupNavbar();
+      setupRegisterForm();
+    });
+  </script>
 </body>
 </html>

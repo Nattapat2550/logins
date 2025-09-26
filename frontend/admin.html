@@ -3,40 +3,36 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Panel</title>
+  <title>Admin - Login App</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <div id="navbar"></div>
-  <div class="container">
-    <h1>Admin Panel</h1>
-    
-    <!-- Homepage Content Editor -->
-    <h2>Edit Homepage Content</h2>
-    <textarea id="homepageContent" rows="5" cols="50" placeholder="Current homepage content..."></textarea>
-    <br>
-    <button onclick="updateHomepage()">Save Homepage Content</button>
-    <div id="hpError"></div>
+  <nav class="navbar" id="navbar">
+    <a href="home.html" class="logo">Login App</a>
+    <ul id="navLinks">
+      <li><a href="home.html">Home</a></li>
+      <li><a href="settings.html">Settings</a></li>
+      <li><button id="logoutBtn" class="secondary">Logout</button></li>
+      <li><button id="themeToggle" class="theme-toggle">🌙</button></li>
+    </ul>
+  </nav>
 
-    <!-- Users Management -->
-    <h2>Manage Users</h2>
-    <table id="usersTable">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Email</th>
-          <th>Username</th>
-          <th>Profile Pic</th>
-          <th>Role</th>
-          <th>Created</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-    <div id="usersError"></div>
-  </div>
+  <main>
+    <div class="container">
+      <h1>Admin Panel - User Management</h1>
+      <div id="userList" class="user-list"></div>
+      <div id="alert" class="alert hidden"></div>
+    </div>
+  </main>
+
   <script src="js/main.js"></script>
   <script src="js/admin.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      initTheme();
+      setupNavbar();
+      loadAdminUsers();
+    });
+  </script>
 </body>
 </html>

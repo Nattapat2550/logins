@@ -1,40 +1,43 @@
-// backend/routes/users.js
 const express = require('express');
 const multer = require('multer');
+const path = require('path');
 const User = require('../models/user');
 const { authenticateToken } = require('../middleware/auth');
+
 const router = express.Router();
 
-// Multer setup for profile pic updates (memory storage for base64 conversion; 5MB limit)
-const upload = multer({
-  storage: multer.memoryStorage(),
+// Multer setup for profile pic upload (to uploads/ folder)
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, 'uploads/'),
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'profile-' + req.user.id + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+const upload = multer({ 
+  storage, 
   limits: { fileSize: 5 * 1024 * 1024 },  // 5MB
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed'), false);
-    }
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('Only images allowed'), false);
   }
 });
 
-// 1. GET /api/users/profile - Fetch current user profile
+// 1. GET /api/users/profile - Get current user profile
 router.get('/profile', authenticateToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
-    if (!user) {
-      return res.status(404).json({ error: 'User  not found' });
-    }
+    if (!user) return res.status(404).json({ error: 'User  not found' });
 
-    // Exclude sensitive fields
-    const { password, ...profile } = user;
-
-    // Enhancement: Add default profile image if none set
-    if (!profile.profilepic) {
-      profile.profilepic = `${process.env.FRONTEND_URL || 'https://frontendlogins.onrender.com'}/images/user.png`;
-    }
-
-    res.json({ profile });
+    res.json({
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      profilePic: user.profilepic ? `${process.env.FRONTEND_URL}/images/${user.profilepic}` : '/images/user.png',  // Default image
+      role: user.role,
+      emailVerified: user.email_verified,
+      createdAt: user.created_at
+    });
   } catch (error) {
     console.error('Get profile error:', error);
     res.status(500).json({ error: 'Failed to fetch profile' });
@@ -45,60 +48,27 @@ router.get('/profile', authenticateToken, async (req, res) => {
 router.put('/profile', authenticateToken, upload.single('profilePic'), async (req, res) => {
   try {
     const { username } = req.body;
-    const updates = {};
+    const profilePic = req.file ? req.file.filename : req.body.profilePic;  // From upload or existing URL
 
-    if (username !== undefined) {
-      if (!username || username.length < 3) {
-        return res.status(400).json({ error: 'Username required (at least 3 chars)' });
-      }
-      updates.username = username;
-    }
+    if (!username) return res.status(400).json({ error: 'Username required for update' });
 
-    // Profile pic base64 (only if file uploaded)
-    if (req.file) {
-      updates.profilePic = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
-    }
+    const user = await User.updateProfile(req.user.id, username, profilePic);
+    if (!user) return res.status(404).json({ error: 'User  not found' });
 
-    if (Object.keys(updates).length === 0) {
-      return res.status(400).json({ error: 'No fields to update' });
-    }
-
-    const updatedUser  = await User.update(req.user.id, updates);
-    if (!updatedUser ) {
-      return res.status(404).json({ error: 'Update failed' });
-    }
-
-    // Return updated profile (exclude password)
-    const { password, ...profile } = updatedUser ;
-
-    // Enhancement: Add default profile image if none set (after update)
-    if (!profile.profilepic) {
-      profile.profilepic = `${process.env.FRONTEND_URL || 'https://frontendlogins.onrender.com'}/images/user.png`;
-    }
-
-    res.json({ profile });
+    res.json({
+      message: 'Profile updated',
+      username: user.username,
+      profilePic: user.profilepic ? `${process.env.FRONTEND_URL}/images/${user.profilepic}` : '/images/user.png'
+    });
   } catch (error) {
     console.error('Update profile error:', error);
-    if (error.message === 'Only image files are allowed') {
-      return res.status(400).json({ error: 'Only image files are allowed' });
+    if (error.message.includes('already')) {
+      res.status(400).json({ error: error.message });
+    } else if (error.message.includes('Only images')) {
+      res.status(400).json({ error: 'Invalid image file' });
+    } else {
+      res.status(500).json({ error: 'Update failed' });
     }
-    res.status(500).json({ error: 'Failed to update profile' });
-  }
-});
-
-// 3. DELETE /api/users/profile - Delete account (hard delete)
-router.delete('/profile', authenticateToken, async (req, res) => {
-  try {
-    const deleted = await User.delete(req.user.id);
-    if (!deleted) {
-      return res.status(404).json({ error: 'User  not found' });
-    }
-
-    // Invalidate token (client-side: clear localStorage)
-    res.json({ success: true, message: 'Account deleted' });
-  } catch (error) {
-    console.error('Delete account error:', error);
-    res.status(500).json({ error: 'Failed to delete account' });
   }
 });
 

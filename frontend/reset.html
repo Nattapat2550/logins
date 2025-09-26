@@ -3,32 +3,41 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reset Password</title>
+  <title>Reset Password - Login App</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <div id="navbar"></div>
-  <div class="container">
-    <h1>Reset Password</h1>
-    <div id="step1">
-      <form id="forgotForm">
-        <input type="email" id="email" placeholder="Enter your email" required>
-        <button type="button" onclick="sendResetCode()">Send Code</button>
+  <nav class="navbar">
+    <a href="index.html" class="logo">Login App</a>
+    <ul id="navLinks">
+      <li><a href="login.html">Login</a></li>
+      <li><button id="themeToggle" class="theme-toggle">🌙</button></li>
+    </ul>
+  </nav>
+
+  <main>
+    <div class="container">
+      <h1>Reset Your Password</h1>
+      <p>Enter a new password (min 6 characters).</p>
+      <form id="resetForm">
+        <input type="password" id="newPassword" placeholder="New Password" required minlength="6">
+        <input type="password" id="confirmPassword" placeholder="Confirm New Password" required minlength="6">
+        <input type="hidden" id="token">
+        <button type="submit">Reset Password</button>
       </form>
+      <div id="alert" class="alert hidden"></div>
+      <p><a href="login.html">Back to Login</a></p>
     </div>
-    <div id="step2" class="hidden">
-      <input type="text" id="code" placeholder="Enter reset code" maxlength="6" required>
-      <button type="button" onclick="verifyResetCode()">Verify Code</button>
-    </div>
-    <div id="step3" class="hidden">
-      <input type="password" id="newPassword" placeholder="New Password" required>
-      <input type="password" id="confirmPassword" placeholder="Confirm New Password" required>
-      <button type="button" onclick="setNewPassword()">Set Password</button>
-    </div>
-    <div id="error"></div>
-    <div id="success" class="hidden"></div>
-  </div>
+  </main>
+
   <script src="js/main.js"></script>
   <script src="js/reset.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      initTheme();
+      setupNavbar();
+      setupResetForm();
+    });
+  </script>
 </body>
 </html>

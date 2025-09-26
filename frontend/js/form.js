@@ -1,126 +1,97 @@
-// frontend/js/form.js
-const API_BASE = 'https://backendlogins.onrender.com/api';  // Your backend URL
+function setupForm() {
+  const form = document.getElementById('formForm');
+  if (!form) return;
 
-// Helper: Show error message
-function showError(message) {
-  const msgDiv = document.getElementById('message');
-  msgDiv.innerHTML = `<div class="error">${message}</div>`;
-  msgDiv.style.display = 'block';
-}
+  // Parse URL params (Google redirect)
+  const urlParams = new URLSearchParams(window.location.search);
+  const isGoogle = urlParams.get('google') === 'true';
+  const googleTempToken = urlParams.get('token');
+  const prefillEmail = urlParams.get('email') || '';
+  const prefillUsername = urlParams.get('username') || '';
+  const prefillPic = urlParams.get('profilePic') || '';
 
-// Helper: Show success message
-function showSuccess(message) {
-  const msgDiv = document.getElementById('message');
-  msgDiv.innerHTML = `<div class="success">${message}</div>`;
-  msgDiv.style.display = 'block';
-}
+  document.getElementById('google').value = isGoogle ? 'true' : 'false';
+  if (googleTempToken) document.getElementById('tempToken').value = googleTempToken;
 
-// Image preview on file select
-document.addEventListener('DOMContentLoaded', function() {
-  const profilePicInput = document.getElementById('profilePic');
+  if (isGoogle) {
+    document.getElementById('passwordGroup').classList.add('hidden');  // No password for Google
+    if (prefillUsername) document.getElementById('username').value = prefillUsername;
+  }
+
+  // Profile pic preview
+  const fileInput = document.getElementById('profilePic');
   const preview = document.getElementById('profilePreview');
-  
-  profilePicInput.addEventListener('change', function(event) {
-    const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        preview.src = e.target.result;  // Show uploaded image preview
-      };
-      reader.readAsDataURL(file);
-    } else {
-      preview.src = 'images/user.png';  // Reset to default if cleared
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file && file.type.startsWith('image/')) {
+      preview.src = URL.createObjectURL(file);
+      preview.classList.remove('hidden');
     }
   });
 
-  // Pre-fill form from localStorage/URL (after verification or Google)
-  const urlParams = new URLSearchParams(window.location.search);
-  const pendingEmail = localStorage.getItem('pendingEmail') || urlParams.get('email');
-  const prefillUsername = urlParams.get('username') || '';
-  const prefillProfilePic = urlParams.get('profilePic') || '';
-  const isGoogle = urlParams.get('google') === 'true' || localStorage.getItem('tempToken') !== null;
-
-  if (pendingEmail) {
-    document.getElementById('pendingEmail').textContent = pendingEmail;
-    document.getElementById('emailDisplay').style.display = 'block';
+  // If prefill pic (Google), show it
+  if (prefillPic) {
+    preview.src = prefillPic;
+    preview.classList.remove('hidden');
   }
 
-  if (prefillUsername) {
-    document.getElementById('username').value = prefillUsername;
-  }
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+    const google = document.getElementById('google').value === 'true';
+    const tempToken = document.getElementById('tempToken').value;
+    const file = fileInput.files[0];
 
-  if (prefillProfilePic && prefillProfilePic !== '') {
-    document.getElementById('profilePreview').src = prefillProfilePic;  // From Google
-  }
+    const button = form.querySelector('button');
+    button.disabled = true;
+    button.textContent = 'Completing...';
 
-  // Hide password for Google flow
-  if (isGoogle) {
-    document.getElementById('passwordGroup').classList.add('hidden');
-    document.getElementById('password').removeAttribute('required');
-  }
-});
-
-// Complete registration submission
-async function completeRegistration() {
-  const username = document.getElementById('username').value.trim();
-  const password = document.getElementById('password').value;
-  const profilePicFile = document.getElementById('profilePic').files[0];
-  const pendingEmail = localStorage.getItem('pendingEmail') || new URLSearchParams(window.location.search).get('email');
-  const isGoogle = new URLSearchParams(window.location.search).get('google') === 'true' || localStorage.getItem('tempToken') !== null;
-
-  // Validation
-  if (!username || username.length < 3) {
-    return showError('Username required (at least 3 characters)');
-  }
-  if (!pendingEmail) {
-    return showError('Email not found. Please verify first.');
-  }
-  if (!isGoogle && (!password || password.length < 6)) {
-    return showError('Password required (at least 6 characters)');
-  }
-
-  try {
-    const formData = new FormData();
-    formData.append('username', username);
-    formData.append('email', pendingEmail);
-    if (!isGoogle) {
-      formData.append('password', password);
-    }
-    formData.append('google', isGoogle ? 'true' : 'false');
-    
-    // Only append file if selected (otherwise backend gets null)
-    if (profilePicFile) {
-      formData.append('profilePic', profilePicFile);
+    if (!username || username.length < 3) {
+      showAlert('Username required (min 3 chars)', 'error');
+      button.disabled = false;
+      button.textContent = 'Complete Registration';
+      return;
     }
 
-    // For Google: Include temp token if available (from callback)
-    const tempToken = localStorage.getItem('tempToken') || new URLSearchParams(window.location.search).get('token');
-    if (tempToken) {
-      formData.append('token', tempToken);
+    if (!google && (!password || password.length < 6 || password !== confirmPassword)) {
+      showAlert('Password required and must match (min 6 chars)', 'error');
+      button.disabled = false;
+      button.textContent = 'Complete Registration';
+      return;
     }
 
-    const res = await fetch(`${API_BASE}/auth/register/complete`, {
-      method: 'POST',
-      body: formData  // Browser sets Content-Type: multipart/form-data
-    });
-
-    const data = await res.json();
-
-    if (res.ok && data.success) {
-      // Store token and clean up
-      localStorage.setItem('token', data.token);
-      localStorage.removeItem('pendingEmail');
-      localStorage.removeItem('tempToken');
-      
-      showSuccess('Profile saved successfully! Redirecting...');
-      setTimeout(() => {
-        window.location.href = 'home.html';  // Or dashboard
-      }, 1500);
-    } else {
-      showError(data.error || 'Registration failed. Please try again.');
+    if (google && !tempToken) {
+      showAlert('Google session invalid. Try again.', 'error');
+      button.disabled = false;
+      button.textContent = 'Complete Registration';
+      return;
     }
-  } catch (error) {
-    console.error('Registration error:', error);
-    showError('Network error: ' + error.message);
-  }
+
+    try {
+      const formData = new FormData();
+      formData.append('username', username);
+      if (!google) formData.append('password', password);
+      formData.append('google', google);
+      if (google) formData.append('tempToken', tempToken);
+      if (file) formData.append('profilePic', file);
+
+      const data = await mainUtils.apiCall('/api/auth/register/complete', {
+        method: 'POST',
+        body: formData,
+        headers: { 'Content-Type': 'multipart/form-data' }  // Multer expects this, but fetch sets auto
+      });
+
+      mainUtils.setStorage('token', data.token);
+      mainUtils.setStorage('role', data.role);
+      showAlert('Registration complete! Redirecting...', 'success');
+      window.location.href = 'home.html';
+    } catch (error) {
+      // Error shown by apiCall
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Complete Registration';
+    }
+  });
 }

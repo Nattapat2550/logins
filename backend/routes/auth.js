@@ -1,299 +1,218 @@
-// backend/routes/auth.js
 const express = require('express');
-const multer = require('multer');
-const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const passport = require('passport');
+const { generateCode, isValidCode } = require('../utils/generateCode');
+const { sendVerificationEmail, sendResetEmail } = require('../utils/gmail');
 const User = require('../models/user');
-const { sendEmail } = require('../utils/gmail');
+const { authenticateToken } = require('../middleware/auth');
+const passport = require('passport');
+
 const router = express.Router();
 
-// Multer setup for file uploads (memory storage for base64 conversion; 5MB limit)
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },  // 5MB
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed'), false);
-    }
-  }
-});
-
-// Helper: Generate 6-digit code
-function generateCode() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
-
-// 1. Check Email for Registration (POST /api/auth/register/email)
-router.post('/register/email', async (req, res) => {
+// 1. POST /api/auth/check-email - Check availability and send verification code
+router.post('/check-email', async (req, res) => {
   try {
     const { email } = req.body;
-    if (!email) {
-      return res.status(400).json({ error: 'Email required' });
-    }
+    if (!email) return res.status(400).json({ error: 'Email required' });
 
-    // Check duplicate
-    const existingUser  = await User.findByEmail(email);
-    if (existingUser ) {
-      return res.json({ duplicate: true, sent: false });
-    }
-
-    // Generate and store code (in-memory; expires 10 min)
-    const code = generateCode();
-    req.app.locals.verificationCodes = req.app.locals.verificationCodes || {};
-    req.app.locals.verificationCodes[email] = {
-      code,
-      expires: Date.now() + 10 * 60 * 1000  // 10 minutes
-    };
-
-    // Send email
-    const textBody = `Your verification code is: ${code}. It expires in 10 minutes.`;
-    const sent = await sendEmail(email, 'Email Verification Code', textBody);
-
-    res.json({ duplicate: false, sent });
-  } catch (error) {
-    console.error('Email check error:', error);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// 2. Verify Code (POST /api/auth/register/verify)
-router.post('/register/verify', async (req, res) => {
-  try {
-    const { email, code } = req.body;
-    if (!email || !code) {
-      return res.status(400).json({ error: 'Email and code required', valid: false });
-    }
-
-    const stored = req.app.locals.verificationCodes?.[email];
-    if (!stored || Date.now() > stored.expires || stored.code !== code) {
-      return res.json({ valid: false });
-    }
-
-    // Mark as verified (store pending email in session or localStorage via frontend)
-    delete req.app.locals.verificationCodes[email];  // Clean up
-    res.json({ valid: true });
-  } catch (error) {
-    console.error('Verify code error:', error);
-    res.status(500).json({ error: 'Server error', valid: false });
-  }
-});
-
-// 3. Complete Registration (POST /api/auth/register/complete) - With Multer for File
-router.post('/register/complete', upload.single('profilePic'), async (req, res) => {
-  try {
-    const { username, email, password, google } = req.body;
-    const isGoogle = google === 'true';
-
-    // Validate
-    if (!username || !email) {
-      return res.status(400).json({ error: 'Username and email required' });
-    }
-    if (!isGoogle && (!password || password.length < 6)) {
-      return res.status(400).json({ error: 'Password required (at least 6 characters)' });
-    }
-
-    // Check if pending (from verification or Google)
     const existingUser  = await User.findByEmail(email);
     if (existingUser  && existingUser .email_verified) {
-      return res.status(400).json({ error: 'User  already registered' });
+      return res.status(400).json({ error: 'Email already registered' });
     }
 
-    // Hash password (skip for Google)
-    let hashedPassword = null;
-    if (!isGoogle && password) {
-      hashedPassword = await bcrypt.hash(password, 10);
-    }
+    // Generate and send code
+    const code = generateCode();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);  // 10 min
+    await sendVerificationEmail(email, code);
 
-    // Profile pic base64
-    let profilePic = null;
-    if (req.file) {
-      profilePic = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
-    }
+    // Temp token for verification (stores code)
+    const tempToken = jwt.sign({ email, code, expiresAt: expiresAt.getTime() }, process.env.JWT_SECRET, { expiresIn: '10m' });
 
-    // Create user
-    const newUser  = await User.create({
-      email,
-      username,
-      password: hashedPassword,
-      profilePic,
-      role: 'user',
-      emailVerified: true  // Verified via code or Google
-    });
-
-    // Generate JWT
-    const token = jwt.sign(
-      { id: newUser .id, email: newUser .email, role: newUser .role },
-      process.env.JWT_SECRET,
-      { expiresIn: '1h' }
-    );
-
-    res.json({ success: true, token });
+    res.json({ message: 'Verification code sent', tempToken });
   } catch (error) {
-    console.error('Complete registration error:', error);
-    res.status(500).json({ error: 'Registration failed' });
+    console.error('Check-email error:', error);
+    res.status(500).json({ error: 'Failed to send verification email' });
   }
 });
 
-// 4. Login (POST /api/auth/login)
-router.post('/login', async (req, res) => {
+// 2. POST /api/auth/verify-code - Verify code and create pending user
+router.post('/verify-code', async (req, res) => {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password required' });
+    const { tempToken, code } = req.body;
+    if (!tempToken || !code || !isValidCode(code)) {
+      return res.status(400).json({ error: 'Valid token and 6-digit code required' });
     }
-    // Find user
-    const user = await User.findByEmail(email);
+
+    const decoded = jwt.verify(tempToken, process.env.JWT_SECRET);
+    if (decoded.code !== code || Date.now() > decoded.expiresAt) {
+      return res.status(400).json({ error: 'Invalid or expired code' });
+    }
+
+    let user = await User.findByEmail(decoded.email);
     if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });  // Don't reveal email exists
+      user = await User.createPending(decoded.email);
     }
-    if (!user.email_verified) {
-      return res.status(401).json({ error: 'Please verify your email first' });  // More specific
+
+    const authToken = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    res.json({ message: 'Email verified', token: authToken, userId: user.id });
+  } catch (error) {
+    console.error('Verify-code error:', error);
+    if (error.name === 'TokenExpiredError' || error.name === 'JsonWebTokenError') {
+      res.status(400).json({ error: 'Invalid token' });
+    } else {
+      res.status(500).json({ error: 'Verification failed' });
     }
-    // Verify password
-    const isValidPassword = await User.verifyPassword(email, password);
-    if (!isValidPassword) {
-      return res.status(401).json({ error: 'Invalid password' });  // More specific
+  }
+});
+
+// 3. POST /api/auth/register/complete - Complete profile (after verify or Google)
+router.post('/register/complete', authenticateToken, async (req, res) => {
+  try {
+    const { username, password, profilePic, google = false, tempToken: googleTempToken } = req.body;
+    const userId = req.user.id;
+
+    if (!username) return res.status(400).json({ error: 'Username required' });
+    if (!google && !password) return res.status(400).json({ error: 'Password required for email registration' });
+
+    let googleId = null;
+    let googleData = null;
+    if (google && googleTempToken) {
+      googleData = jwt.verify(googleTempToken, process.env.JWT_SECRET);
+      if (googleData.type !== 'google_temp') {
+        return res.status(400).json({ error: 'Invalid Google temp token' });
+      }
+      googleId = googleData.googleId;
     }
-    // Generate JWT
+
+    const user = await User.completeRegistration(
+      userId, username, password, profilePic, googleId
+    );
+
+    if (!user) return res.status(404).json({ error: 'User  not found' });
+
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
-    res.json({ token, role: user.role });
+    res.json({ token, role: user.role, message: 'Registration complete' });
+  } catch (error) {
+    console.error('Register complete error:', error);
+    if (error.message.includes('already')) {
+      res.status(400).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'Registration failed' });
+    }
+  }
+});
+
+// 4. POST /api/auth/login - Email/password login
+router.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
+
+    const isValid = await User.verifyPassword(email, password);
+    const user = await User.findByEmail(email);
+
+    if (!isValid || !user || !user.email_verified) {
+      return res.status(401).json({ error: user?.email_verified ? 'Invalid credentials' : 'Please verify your email first' });
+    }
+
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+    res.json({ token, role: user.role, message: 'Login successful' });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Login failed' });
   }
 });
 
-// 5. Google OAuth Start (GET /api/auth/google) - Passport handles
-router.get('/google', passport.authenticate('google', {
-  scope: ['profile', 'email']
+// 5. GET /api/auth/google - Initiate Google login
+router.get('/google', passport.authenticate('google', { 
+  scope: ['profile', 'email'] 
 }));
 
-// 6. Google Callback (GET /api/auth/google/callback)
-router.get('/google/callback',
-  passport.authenticate('google', { session: false, failureRedirect: '/api/auth/google/failure' }),
-  async (req, res) => {
+// 6. GET /api/auth/google/callback - Google callback (primary URI)
+router.get('/google/callback', 
+  passport.authenticate('google', { 
+    session: false, 
+    failureRedirect: `${process.env.FRONTEND_URL}/login.html?error=google_failed` 
+  }),
+  (req, res) => {
     try {
-      const profile = req.user;  // From Passport serialize
-      const email = profile.emails[0].value;
-      const username = profile.displayName || profile.emails[0].value.split('@')[0];
-      const profilePic = profile.photos[0]?.value || null;
+      const { user, token, tempToken, email, username, profilePic } = req.user || {};
 
-      // Check if user exists
-      let user = await User.findByEmail(email);
-      if (!user) {
-        // Create new user (Google verified)
-        user = await User.create({
-          email,
-          username,
-          profilePic,  // URL from Google
-          role: 'user',
-          emailVerified: true
+      if (token) {
+        // Existing user: Redirect to home with token
+        res.redirect(`${process.env.FRONTEND_URL}/home.html?token=${token}`);
+      } else if (tempToken) {
+        // New user: Redirect to form with tempToken and pre-fill
+        const params = new URLSearchParams({
+          google: 'true',
+          token: tempToken,
+          email: email || '',
+          username: username || '',
+          profilePic: profilePic || ''
         });
-      } else if (!user.email_verified) {
-        // Complete pending user
-        await User.update(user.id, { username, profilePic });
+        res.redirect(`${process.env.FRONTEND_URL}/form.html?${params}`);
+      } else {
+        res.redirect(`${process.env.FRONTEND_URL}/login.html?error=google_error`);
       }
-
-      // Generate JWT
-      const token = jwt.sign(
-        { id: user.id, email: user.email, role: user.role },
-        process.env.JWT_SECRET,
-        { expiresIn: '1h' }
-      );
-
-      // Redirect to frontend with token (for localStorage)
-      const frontendUrl = `${process.env.FRONTEND_URL}/form.html?token=${token}&google=true&username=${encodeURIComponent(username)}&profilePic=${encodeURIComponent(profilePic || '')}`;
-      res.redirect(frontendUrl);
     } catch (error) {
       console.error('Google callback error:', error);
-      res.redirect(`${process.env.FRONTEND_URL}/register.html?error=google_failed`);
+      res.redirect(`${process.env.FRONTEND_URL}/login.html?error=google_error`);
     }
   }
 );
 
-// 7. Google Failure (GET /api/auth/google/failure)
-router.get('/google/failure', (req, res) => {
-  res.redirect(`${process.env.FRONTEND_URL}/register.html?error=google_auth_failed`);
+// 7. GET /oauth2callback - Alias for secondary GOOGLE_REDIRECT_URI (optional)
+router.get('/oauth2callback', (req, res) => {
+  // Redirect to primary callback (or handle separately if needed)
+  res.redirect('/api/auth/google/callback');
 });
 
-// 8. Forgot Password (POST /api/auth/forgot-password)
+// 8. POST /api/auth/forgot-password - Send reset email
 router.post('/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
-    if (!email) {
-      return res.status(400).json({ error: 'Email required', sent: false });
-    }
+    if (!email) return res.status(400).json({ error: 'Email required' });
 
     const user = await User.findByEmail(email);
-    if (!user) {
-      return res.json({ sent: false });  // Don't reveal if email exists
-    }
+    if (!user) return res.status(404).json({ error: 'Email not found' });
 
-    // Generate and store reset code
-    const code = generateCode();
-    req.app.locals.resetCodes = req.app.locals.resetCodes || {};
-    req.app.locals.resetCodes[email] = {
-      code,
-      expires: Date.now() + 10 * 60 * 1000
-    };
+    const resetToken = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    await User.setResetToken(email, resetToken);
+    await sendResetEmail(email, resetToken, process.env.FRONTEND_URL);
 
-    // Send email
-    const textBody = `Your password reset code is: ${code}. It expires in 10 minutes.`;
-    const sent = await sendEmail(email, 'Password Reset Code', textBody);
-
-    res.json({ sent });
+    res.json({ message: 'Reset email sent' });
   } catch (error) {
-    console.error('Forgot password error:', error);
-    res.status(500).json({ error: 'Server error', sent: false });
+    console.error('Forgot-password error:', error);
+    res.status(500).json({ error: 'Failed to send reset email' });
   }
 });
 
-// 9. Verify Reset Code (POST /api/auth/reset/verify)
-router.post('/reset/verify', async (req, res) => {
-  try {
-    const { email, code } = req.body;
-    if (!email || !code) {
-      return res.status(400).json({ error: 'Email and code required', valid: false });
-    }
-
-    const stored = req.app.locals.resetCodes?.[email];
-    if (!stored || Date.now() > stored.expires || stored.code !== code) {
-      return res.json({ valid: false });
-    }
-
-    delete req.app.locals.resetCodes[email];  // Clean up
-    res.json({ valid: true });
-  } catch (error) {
-    console.error('Reset verify error:', error);
-    res.status(500).json({ error: 'Server error', valid: false });
-  }
-});
-
-// 10. Set New Password (POST /api/auth/reset-password)
+// 9. POST /api/auth/reset-password - Reset password with token
 router.post('/reset-password', async (req, res) => {
   try {
-    const { email, newPassword } = req.body;
-    if (!email || !newPassword || newPassword.length < 6) {
-      return res.status(400).json({ error: 'Valid email and password (6+ chars) required', success: false });
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword || newPassword.length < 6) {
+      return res.status(400).json({ error: 'Valid token and password (min 6 chars) required' });
     }
 
-    const user = await User.findByEmail(email);
-    if (!user) {
-      return res.status(404).json({ error: 'User  not found', success: false });
-    }
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    await User.resetPassword(token, newPassword);
 
-    await User.updatePassword(user.id, newPassword);
-    res.json({ success: true });
+    res.json({ message: 'Password reset successful' });
   } catch (error) {
-    console.error('Reset password error:', error);
-    res.status(500).json({ error: 'Password reset failed', success: false });
+    console.error('Reset-password error:', error);
+    if (error.message.includes('expired') || error.message.includes('Invalid')) {
+      res.status(400).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'Reset failed' });
+    }
   }
 });
 

@@ -1,54 +1,66 @@
-// backend/utils/gmail.js
-const { google } = require("googleapis");
-const MailComposer = require("nodemailer/lib/mail-composer");
-require('dotenv').config();
+const nodemailer = require('nodemailer');
+require('dotenv').config();  // For local dev
 
-const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  process.env.GOOGLE_REDIRECT_URI
-);
-
-oauth2Client.setCredentials({
-  refresh_token: process.env.REFRESH_TOKEN,
+const transporter = nodemailer.createTransporter({
+  service: 'gmail',
+  auth: {
+    user: process.env.SENDER_EMAIL,
+    pass: process.env.EMAIL_PASS  // Must set EMAIL_PASS in env (Gmail app password)
+  }
 });
 
-const gmail = google.gmail({ version: "v1", auth: oauth2Client });
-
-async function sendEmail(to, subject, text) {
+// Test connection (call on startup)
+async function testEmail() {
   try {
-    const mail = new MailComposer({
-      to,
-      text,  // Plain text body (e.g., verification message)
-      subject,
-      from: process.env.SENDER_EMAIL,
-    });
-
-    const message = await new Promise((resolve, reject) => {
-      mail.compile().build((err, msg) => {
-        if (err) reject(err);
-        else resolve(msg);
-      });
-    });
-
-    const encodedMessage = Buffer.from(message)
-      .toString("base64")
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=+$/, "");
-
-    const res = await gmail.users.messages.send({
-      userId: "me",
-      requestBody: {
-        raw: encodedMessage,
-      },
-    });
-
-    return true;  // Success (you can return res.data if you need the message ID)
+    await transporter.verify();
+    console.log('Gmail transporter ready');
   } catch (error) {
-    console.error('Gmail API Error:', error);
-    return false;  // Failure
+    console.error('Gmail config error - Check EMAIL_PASS:', error);
   }
 }
 
-module.exports = { sendEmail };
+// Send verification email
+async function sendVerificationEmail(email, code) {
+  try {
+    await transporter.sendMail({
+      from: `"Login App" <${process.env.SENDER_EMAIL}>`,
+      to: email,
+      subject: 'Verify Your Email Address',
+      html: `
+        <h2>Email Verification</h2>
+        <p>Your verification code is: <strong>${code}</strong></p>
+        <p>This code expires in 10 minutes.</p>
+        <p>If you didn't request this, ignore this email.</p>
+      `
+    });
+    console.log(`Verification email sent to ${email}`);
+  } catch (error) {
+    console.error('Send verification email error:', error);
+    throw new Error('Failed to send verification email');
+  }
+}
+
+// Send reset password email
+async function sendResetEmail(email, token, frontendUrl) {
+  try {
+    const resetLink = `${frontendUrl}/reset.html?token=${token}`;
+    await transporter.sendMail({
+      from: `"Login App" <${process.env.SENDER_EMAIL}>`,
+      to: email,
+      subject: 'Password Reset Request',
+      html: `
+        <h2>Reset Your Password</h2>
+        <p>Click the link below to reset your password:</p>
+        <a href="${resetLink}">Reset Password</a>
+        <p>This link expires in 1 hour.</p>
+        <p>If you didn't request this, ignore this email.</p>
+      `
+    });
+    console.log(`Reset email sent to ${email}`);
+  } catch (error) {
+    console.error('Send reset email error:', error);
+    throw new Error('Failed to send reset email');
+  }
+}
+
+module.exports = { transporter, sendVerificationEmail, sendResetEmail, testEmail };

@@ -3,22 +3,39 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Verify Email</title>
+  <title>Verify Email - Login App</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <div id="navbar"></div>
-  <div class="container">
-    <h1>Enter Verification Code</h1>
-    <p>Check your email for the 6-digit code.</p>
-    <form id="checkForm">
-      <input type="text" id="code" placeholder="Enter 6-digit code" maxlength="6" required>
-      <button type="button" onclick="verifyCode()">Verify</button>
-    </form>
-    <div id="error"></div>
-    <div id="success" class="hidden"></div>
-  </div>
+  <nav class="navbar">
+    <a href="index.html" class="logo">Login App</a>
+    <ul id="navLinks">
+      <li><a href="register.html">Back to Register</a></li>
+      <li><button id="themeToggle" class="theme-toggle">🌙</button></li>
+    </ul>
+  </nav>
+
+  <main>
+    <div class="container">
+      <h1>Verify Your Email</h1>
+      <p>Enter the 6-digit code sent to your email.</p>
+      <form id="checkForm">
+        <input type="text" id="code" placeholder="Enter 6-digit code" maxlength="6" required>
+        <button type="submit">Verify Code</button>
+      </form>
+      <div id="alert" class="alert hidden"></div>
+      <p><a href="register.html">Didn't receive code? Resend</a></p>
+    </div>
+  </main>
+
   <script src="js/main.js"></script>
   <script src="js/check.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      initTheme();
+      setupNavbar();
+      setupCheckForm();
+    });
+  </script>
 </body>
 </html>

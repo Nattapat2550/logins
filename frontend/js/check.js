@@ -1,33 +1,51 @@
-async function verifyCode() {
-  const code = document.getElementById('code').value;
-  const email = localStorage.getItem('pendingEmail');
-  if (!email || !code) return showError('Email or code missing');
+function setupCheckForm() {
+  const form = document.getElementById('checkForm');
+  if (!form) return;
 
-  try {
-    const res = await apiCall('/auth/register/verify', {
-      method: 'POST',
-      body: JSON.stringify({ email, code })
-    });
-    if (res.valid) {
-      showSuccess('Verified! Redirecting...');
-      setTimeout(() => {
-        window.location.href = 'form.html';
-      }, 1000);
-    } else {
-      showError('Invalid or expired code');
-    }
-  } catch (err) {
-    showError(err.message);
+  const tempToken = mainUtils.getStorage('tempToken');
+  if (!tempToken) {
+    showAlert('No verification session. Start over.', 'error');
+    window.location.href = 'register.html';
+    return;
   }
-}
 
-function showError(msg) {
-  document.getElementById('error').textContent = msg;
-  document.getElementById('success').classList.add('hidden');
-}
+  // Resend link
+  const resendLink = document.querySelector('a[href="register.html"]');
+  resendLink.textContent = 'Resend Code';
+  resendLink.href = '#';
+  resendLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    window.location.reload();  // Reload to resend (or call API again)
+  });
 
-function showSuccess(msg) {
-  document.getElementById('success').textContent = msg;
-  document.getElementById('success').classList.remove('hidden');
-  document.getElementById('error').textContent = '';
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const code = document.getElementById('code').value.trim();
+    const button = form.querySelector('button');
+    button.disabled = true;
+    button.textContent = 'Verifying...';
+
+    if (!code || code.length !== 6 || !/^\d{6}$/.test(code)) {
+      showAlert('Enter a valid 6-digit code', 'error');
+      button.disabled = false;
+      button.textContent = 'Verify Code';
+      return;
+    }
+
+    try {
+      const data = await mainUtils.apiCall('/api/auth/verify-code', {
+        method: 'POST',
+        body: JSON.stringify({ tempToken, code })
+      });
+      mainUtils.setStorage('token', data.token);  // Temp auth for form
+      mainUtils.setStorage('userId', data.userId);
+      showAlert('Email verified! Complete your profile.', 'success');
+      window.location.href = 'form.html';
+    } catch (error) {
+      // Error shown by apiCall
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Verify Code';
+    }
+  });
 }
