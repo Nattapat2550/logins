@@ -1,32 +1,43 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reset Password</title>
-  <link rel="stylesheet" href="css/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reset Password - Login App</title>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <nav><!-- Navbar as above --></nav>
-  <main>
-    <div class="card">
-      <h1>Reset Password</h1>
-      <div id="forgot-section">
-        <form id="forgot-form">
-          <input type="email" id="forgot-email" placeholder="Enter email" required>
-          <button type="submit">Send Reset Link</button>
-        </form>
-      </div>
-      <div id="reset-section" style="display:none;">
-        <form id="reset-form">
-          <input type="hidden" id="reset-token">
-          <input type="password" id="new-password" placeholder="New Password" required>
-          <button type="submit">Reset</button>
-        </form>
-      </div>
-    </div>
-  </main>
-  <script src="js/main.js"></script>
-  <script src="js/reset.js"></script>
+    <header>
+        <h1>Reset Password</h1>
+        <nav><ul></ul></nav>
+    </header>
+    <main>
+        <div id="requestMode">
+            <form id="requestForm">
+                <label for="resetEmail">Email:</label>
+                <input type="email" id="resetEmail" required maxlength="254">
+                <button type="button" id="resetRequestBtn">Send Reset Link</button>
+                <div id="error"></div>
+                <div id="success"></div>
+            </form>
+        </div>
+        <div id="tokenMode" style="display: none;">
+            <form id="resetPasswordForm">
+                <label for="resetPassword">New Password (8+ chars, letter + number):</label>
+                <input type="password" id="resetPassword" required minlength="8">
+                <label for="resetConfirmPassword">Confirm New Password:</label>
+                <input type="password" id="resetConfirmPassword" required minlength="8">
+                <button type="button" id="resetConfirmBtn">Reset Password</button>
+                <div id="error"></div>
+                <div id="success"></div>
+            </form>
+        </div>
+        <p><a href="login.html">Back to Login</a></p>
+    </main>
+    <footer>
+        <p>&copy; 2023 Login App</p>
+    </footer>
+    <script src="js/main.js" defer></script>
+    <script src="js/reset.js" defer></script>
 </body>
 </html>

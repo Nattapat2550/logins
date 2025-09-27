@@ -1,37 +1,33 @@
-// frontend/js/register.js
-// Register page: Email form + Google button
-
 document.addEventListener('DOMContentLoaded', () => {
-  const form = document.getElementById('register-form');
-  const googleBtn = document.getElementById('google-register');
+    const form = document.getElementById('registerForm');
+    const emailInput = document.getElementById('emailInput');
+    const registerBtn = document.getElementById('registerBtn');
+    const googleBtn = document.getElementById('googleBtn');
 
-  if (googleBtn) {
-    googleBtn.addEventListener('click', () => {
-      window.location.href = `${API_BASE}/api/auth/google?from=register`;
-    });
-  }
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('email').value.trim();
-    if (!email) return alert('Email required');
-
-    try {
-      const data = await apiFetch('/api/auth/register', {
-        method: 'POST',
-        body: JSON.stringify({ email })
-      });
-      alert('Verification code sent! Check your email.');
-      window.location.href = `check.html?userId=${data.userId}`;
-    } catch (err) {
-      console.error('Register error:', err);
-      if (err.message.includes('Email exists')) {
-        alert(`Email "${email}" is already registered. Try logging in or use a different email.`);
-        // Optional: Redirect to login
-        // window.location.href = 'login.html';
-      } else {
-        alert(`Registration failed: ${err.message}`);
-      }
+    // Email validation (basic RFC)
+    function validateEmail(email) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 254;
     }
-  });
+
+    registerBtn.addEventListener('click', async () => {
+        const email = emailInput.value.trim();
+        if (!validateEmail(email)) {
+            showMessage('Please enter a valid email.', 'error');
+            return;
+        }
+        try {
+            registerBtn.disabled = true;
+            const data = await apiFetch('/api/auth/register', { method: 'POST', body: { email } });
+            showMessage(data.message, 'success');
+            window.location.href = `check.html?email=${encodeURIComponent(email)}`;
+        } catch (err) {
+            // Handled in apiFetch
+        } finally {
+            registerBtn.disabled = false;
+        }
+    });
+
+    googleBtn.addEventListener('click', () => {
+        window.location.href = `${BACKEND_URL}/api/auth/google?remember=false`;
+    });
 });

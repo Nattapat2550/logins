@@ -1,22 +1,18 @@
-// Home page: Dashboard, fetch user and homepage content
-
-document.addEventListener('DOMContentLoaded', async () => {
-  try {
-    // Fetch user
-    const user = await apiFetch('/api/users/me');
-    document.getElementById('username').textContent = user.username;
-    if (user.profile_pic) {
-      document.getElementById('profile-pic').src = user.profile_pic;
+document.addEventListener('DOMContentLoaded', () => {
+    async function loadHome() {
+        try {
+            const [userRes, contentRes] = await Promise.all([
+                apiFetch('/api/users/me'),
+                apiFetch('/api/homepage/content')
+            ]);
+            const user = userRes.data;
+            const content = contentRes.data.content;
+            document.getElementById('welcome').textContent = `Welcome, ${user.username}!`;
+            document.getElementById('homepageContent').innerHTML = `<p>${content}</p>`;
+        } catch (err) {
+            showMessage('Failed to load home content.', 'error');
+            window.location.href = '/login.html';
+        }
     }
-
-    // Fetch homepage content
-    const content = await apiFetch('/api/homepage');
-    content.forEach(item => {
-      const section = document.getElementById(item.section);
-      if (section) section.innerHTML = item.content;
-    });
-  } catch (err) {
-    // Auth check in main.js handles redirect
-    console.error(err);
-  }
+    loadHome();
 });

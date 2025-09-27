@@ -1,29 +1,47 @@
-// Login page: Email/password + Google
-
 document.addEventListener('DOMContentLoaded', () => {
-  const form = document.getElementById('login-form');
-  const googleBtn = document.getElementById('google-login');
+    const emailInput = document.getElementById('loginEmail');
+    const passwordInput = document.getElementById('loginPassword');
+    const rememberCheckbox = document.getElementById('rememberCheckbox');
+    const hideCheckbox = document.getElementById('hidePasswordCheckbox');
+    const loginBtn = document.getElementById('loginBtn');
+    const googleBtn = document.getElementById('googleBtn');
 
-  if (googleBtn) {
-    googleBtn.addEventListener('click', () => {
-      window.location.href = `${API_BASE}/api/auth/google?from=login`;
+    // Toggle password visibility
+    hideCheckbox.addEventListener('change', () => {
+        passwordInput.type = hideCheckbox.checked ? 'text' : 'password';
     });
-  }
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    if (!email || !password) return alert('Fields required');
-
-    try {
-      await apiFetch('/api/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email, password })
-      });
-      window.location.href = 'home.html';
-    } catch (err) {
-      alert(err.message);
+    function validateEmail(email) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 254;
     }
-  });
+
+    function validatePassword(password) {
+        return password.length >= 8;
+    }
+
+    loginBtn.addEventListener('click', async () => {
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
+        const remember = rememberCheckbox.checked;
+        if (!validateEmail(email) || !validatePassword(password)) {
+            showMessage('Valid email and password required.', 'error');
+            return;
+        }
+        try {
+            loginBtn.disabled = true;
+            const data = await apiFetch('/api/auth/login', { method: 'POST', body: { email, password, remember } });
+            showMessage(data.message, 'success');
+            const redirect = data.data?.redirect || '/home.html';
+            window.location.href = redirect;
+        } catch (err) {
+            // Handled
+        } finally {
+            loginBtn.disabled = false;
+        }
+    });
+
+    googleBtn.addEventListener('click', () => {
+        const remember = rememberCheckbox.checked ? 'true' : 'false';
+        window.location.href = `${BACKEND_URL}/api/auth/google?remember=${remember}`;
+    });
 });

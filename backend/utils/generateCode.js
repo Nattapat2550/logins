@@ -1,5 +1,7 @@
-const generateCode = () => {
-  return Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit random
-};
+const crypto = require('crypto');
+
+function generateCode() {
+  return crypto.randomInt(0, 999999).toString().padStart(6, '0');
+}
 
 module.exports = { generateCode };

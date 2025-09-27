@@ -1,24 +1,48 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin</title>
-  <link rel="stylesheet" href="css/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Login App</title>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <nav><!-- Navbar as above --></nav>
-  <main>
-    <div class="card">
-      <h1>Admin Dashboard</h1>
-      <h2>Manage Users</h2>
-      <ul id="user-list"></ul>
-      <h2>Edit Homepage Content</h2>
-      <div id="edit-hero" class="hidden"></div> <!-- JS populates -->
-      <div id="edit-about" class="hidden"></div>
-    </div>
-  </main>
-  <script src="js/main.js"></script>
-  <script src="js/admin.js"></script>
+    <header>
+        <h1>Admin Dashboard</h1>
+        <nav><ul></ul></nav>
+    </header>
+    <main>
+        <h2>Manage Users</h2>
+        <table id="usersTable">
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Role</th>
+                    <th>Profile Pic</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <div class="pagination">
+            <button id="loadMore">Load More Users</button>
+        </div>
+        <div id="error"></div>
+        <div id="success"></div>
+
+        <h2>Homepage Content</h2>
+        <textarea id="homepageContent" rows="5" cols="50" placeholder="Enter homepage content..."></textarea>
+        <br>
+        <button id="saveHomepageBtn">Save Content</button>
+        <div id="error-home"></div>
+        <div id="success-home"></div>
+
+        <p><a href="home.html">Back to Home</a></p>
+    </main>
+    <footer>
+        <p>&copy; 2023 Login App</p>
+    </footer>
+    <script src="js/main.js" defer></script>
+    <script src="js/admin.js" defer></script>
 </body>
 </html>

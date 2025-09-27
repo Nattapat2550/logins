@@ -1,23 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Verify Email</title>
-  <link rel="stylesheet" href="css/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Code - Login App</title>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <nav><!-- Navbar as above --></nav>
-  <main>
-    <div class="card">
-      <h1>Verify Your Email</h1>
-      <form id="verify-form">
-        <input type="text" id="code" placeholder="Enter 6-digit code" maxlength="6" required>
-        <button type="submit">Verify</button>
-      </form>
-    </div>
-  </main>
-  <script src="js/main.js"></script>
-  <script src="js/check.js"></script>
+    <header>
+        <h1>Verify Email</h1>
+        <nav><ul></ul></nav>
+    </header>
+    <main>
+        <form id="verifyForm">
+            <label for="codeInput">6-Digit Code:</label>
+            <input type="text" id="codeInput" required maxlength="6" pattern="[0-9]{6}">
+            <button type="button" id="verifyBtn">Verify</button>
+            <div id="error"></div>
+            <div id="success"></div>
+        </form>
+        <p id="emailDisplay"></p>
+        <p>Didn't receive? <a href="register.html">Resend</a></p>
+    </main>
+    <footer>
+        <p>&copy; 2023 Login App</p>
+    </footer>
+    <script src="js/main.js" defer></script>
+    <script src="js/check.js" defer></script>
 </body>
 </html>

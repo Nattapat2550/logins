@@ -1,31 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>About</title>
-  <link rel="stylesheet" href="css/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About - Login App</title>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <nav><!-- Navbar as above --></nav>
-  <main>
-    <div class="card">
-      <h1>About Us</h1>
-      <div id="about"><!-- Dynamic from /api/homepage --></div>
-    </div>
-  </main>
-  <script src="js/main.js"></script>
-  <script>
-    // Load content
-    fetch('/api/homepage')
-      .then(res => res.json())
-      .then(content => {
-        content.forEach(item => {
-          if (item.section === 'about') {
-            document.getElementById('about').innerHTML = item.content;
-          }
-        });
-      });
-  </script>
+    <header>
+        <h1>About</h1>
+        <nav><ul></ul></nav>
+    </header>
+    <main>
+        <h2>About Login App</h2>
+        <p>This is a full-stack web application for user authentication, including email verification, password management, Google OAuth, and admin features. Built with Node.js/Express, PostgreSQL, and vanilla JS frontend.</p>
+        <p>Key features: Secure login, role-based access, email sending via Gmail API, and production-ready deployment on Render.</p>
+        <p><a href="home.html">Back to Home</a> | <a href="contact.html">Contact</a></p>
+    </main>
+    <footer>
+        <p>&copy; 2023 Login App</p>
+    </footer>
+    <script src="js/main.js" defer></script>
 </body>
 </html>

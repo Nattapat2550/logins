@@ -1,237 +1,104 @@
-// frontend/js/main.js
-// Common utilities: Theme toggle, navbar, auth check, logout, and API helper
+// Shared utilities for all pages
+const BACKEND_URL = 'https://backendlogins.onrender.com'; // Adjust for local: http://localhost:5000
+const FRONTEND_URL = 'https://frontendlogins.onrender.com'; // Adjust for local
 
-// API base URL: Relative for same-domain (production); update for local dev
-const API_BASE = 'https://backendlogins.onrender.com'; // e.g., 'http://localhost:5000' if backend on different port
-
-// Theme toggle
-const toggleTheme = () => {
-  const body = document.body;
-  body.classList.toggle('dark-mode');
-  const isDark = body.classList.contains('dark-mode');
-  localStorage.setItem('dark-mode', isDark);
-  
-  // Update button text
-  const toggleBtn = document.getElementById('theme-toggle');
-  if (toggleBtn) {
-    toggleBtn.textContent = isDark ? 'Light' : 'Dark';
-  }
-};
-
-// Load theme on init
-document.addEventListener('DOMContentLoaded', () => {
-  // Load saved theme
-  const isDark = localStorage.getItem('dark-mode') === 'true';
-  if (isDark) {
-    document.body.classList.add('dark-mode');
-  }
-  
-  // Setup theme toggle button
-  const toggleBtn = document.getElementById('theme-toggle');
-  if (toggleBtn) {
-    toggleBtn.addEventListener('click', toggleTheme);
-    toggleBtn.textContent = document.body.classList.contains('dark-mode') ? 'Light' : 'Dark';
-  }
-  
-  // Setup navbar (auth-dependent)
-  setupNavbar();
-  
-  // Auth check for protected pages
-  const protectedPages = ['home.html', 'settings.html', 'admin.html'];
-  const currentPage = window.location.pathname.split('/').pop();
-  if (protectedPages.includes(currentPage)) {
-    checkAuth();
-  }
-});
-
-// Setup navbar (dynamic login/logout and admin link)
-const setupNavbar = async () => {
-  const authButtons = document.getElementById('auth-buttons');
-  if (!authButtons) return;
-
-  try {
-    const res = await fetch(`${API_BASE}/api/users/me`, { credentials: 'include' });
-    if (res.ok) {
-      const user = await res.json();
-      authButtons.innerHTML = `
-        <button onclick="showProfile()">Profile</button>
-        <button onclick="logout()">Logout</button>
-      `;
-      
-      // Show/hide admin link based on role
-      const adminLink = document.getElementById('admin-link');
-      if (adminLink) {
-        adminLink.style.display = user.role === 'admin' ? 'block' : 'none';
-      }
-    } else {
-      authButtons.innerHTML = `
-        <a href="login.html">Login</a>
-        <a href="register.html">Register</a>
-      `;
-      
-      // Hide admin link if not logged in
-      const adminLink = document.getElementById('admin-link');
-      if (adminLink) {
-        adminLink.style.display = 'none';
-      }
+// Fetch wrapper with credentials and JSON handling
+async function apiFetch(endpoint, options = {}) {
+  const url = `${BACKEND_URL}${endpoint}`;
+  const config = {
+    ...options,
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers
     }
-  } catch (err) {
-    console.error('Navbar auth check error:', err);
-    authButtons.innerHTML = `
-      <a href="login.html">Login</a>
-      <a href="register.html">Register</a>
-    `;
-    
-    // Hide admin link on error
-    const adminLink = document.getElementById('admin-link');
-    if (adminLink) {
-      adminLink.style.display = 'none';
-    }
-  }
-};
-
-// Check auth and redirect if needed (for protected pages)
-const checkAuth = async () => {
-  try {
-    const res = await fetch(`${API_BASE}/api/users/me`, { credentials: 'include' });
-    if (!res.ok) {
-      window.location.href = 'login.html?error=unauthorized';
-      return;
-    }
-    
-    const user = await res.json();
-    
-    // Special check for admin page
-    const currentPage = window.location.pathname.split('/').pop();
-    if (currentPage === 'admin.html' && user.role !== 'admin') {
-      window.location.href = 'home.html?error=not_admin';
-      return;
-    }
-    
-    // Update UI with user info if needed (e.g., welcome message)
-    const welcomeEl = document.getElementById('welcome-user');
-    if (welcomeEl) {
-      welcomeEl.textContent = `Welcome, ${user.username}!`;
-    }
-  } catch (err) {
-    console.error('Auth check error:', err);
-    window.location.href = 'login.html?error=auth_failed';
-  }
-};
-
-// Fetch current user role (helper)
-const fetchUserRole = async () => {
-  try {
-    const res = await fetch(`${API_BASE}/api/users/me`, { credentials: 'include' });
-    if (res.ok) {
-      const user = await res.json();
-      return user.role;
-    }
-    return null;
-  } catch (err) {
-    console.error('Fetch role error:', err);
-    return null;
-  }
-};
-
-// Logout: Clear cookie and redirect
-const logout = async () => {
-  try {
-    // Optional: Call backend logout if implemented (clears server-side if needed)
-    await fetch(`${API_BASE}/api/auth/logout`, { 
-      method: 'POST', 
-      credentials: 'include' 
-    }).catch(() => {}); // Ignore if endpoint doesn't exist
-    
-    // Client-side cookie clear (httpOnly limits full effect, but helps)
-    document.cookie = 'jwt=; Max-Age=0; path=/; domain=' + window.location.hostname;
-  } catch (err) {
-    console.error('Logout error:', err);
-  }
-  
-  // Redirect to index
-  window.location.href = 'index.html';
-};
-
-// Show profile (e.g., alert username or update navbar)
-const showProfile = async () => {
-  try {
-    const res = await fetch(`${API_BASE}/api/users/me`, { credentials: 'include' });
-    if (res.ok) {
-      const user = await res.json();
-      alert(`Logged in as: ${user.username} (${user.role})\nEmail: ${user.email}`);
-      // Optional: Redirect to settings
-      // window.location.href = 'settings.html';
-    } else {
-      alert('Profile fetch failed. Please log in again.');
-      logout();
-    }
-  } catch (err) {
-    console.error('Show profile error:', err);
-    alert('Error loading profile.');
-  }
-};
-
-// Generic fetch helper with robust error handling (prevents "Unexpected end of JSON input")
-const apiFetch = async (url, options = {}) => {
-  const defaults = { 
-    credentials: 'include', 
-    headers: { 'Content-Type': 'application/json' } 
   };
-  
+  if (options.body && typeof options.body === 'object') {
+    config.body = JSON.stringify(options.body);
+  }
   try {
-    const res = await fetch(`${API_BASE}${url}`, { ...defaults, ...options });
-    
-    if (!res.ok) {
-      let errorMsg = `HTTP ${res.status}: Request failed`;
-      
-      // Try to parse error as JSON if possible
-      const contentType = res.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        try {
-          const errorData = await res.json();
-          errorMsg = errorData.error || errorMsg;
-        } catch (parseErr) {
-          console.error('Error parsing JSON error response:', parseErr);
-        }
-      } else {
-        // Non-JSON error (e.g., HTML error page from server)
-        try {
-          const text = await res.text();
-          console.error(`Non-JSON error response for ${url}:`, text.substring(0, 500)); // Log first 500 chars
-          errorMsg = 'Server error (check console for details)';
-        } catch (textErr) {
-          console.error('Failed to read error text:', textErr);
-        }
-      }
-      
-      throw new Error(errorMsg);
+    const res = await fetch(url, config);
+    const data = await res.json();
+    if (!data.success) {
+      throw new Error(data.error || 'Unknown error');
     }
-    
-    // Handle success response
-    const contentType = res.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-      // Safely parse JSON
-      try {
-        return await res.json();
-      } catch (jsonErr) {
-        console.error(`JSON parse error for ${url}:`, jsonErr);
-        throw new Error('Invalid JSON response from server');
-      }
-    } else {
-      // Non-JSON success (e.g., empty body or plain text)
-      const text = await res.text();
-      console.warn(`Non-JSON success response for ${url}:`, text || '(empty)');
-      return text ? { raw: text } : { message: 'OK' }; // Fallback object
+    return data;
+  } catch (err) {
+    showMessage(`Error: ${err.message}`, 'error');
+    throw err;
+  }
+}
+
+// Show success/error message (uses #success/#error elements if present)
+function showMessage(msg, type = 'success') {
+  const el = document.getElementById(type);
+  if (el) {
+    el.textContent = msg;
+    el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 5000);
+  } else {
+    alert(msg); // Fallback
+  }
+}
+
+// Update nav (load user, show profile/logout if auth)
+async function updateNav() {
+  const nav = document.querySelector('nav');
+  if (!nav) return;
+  try {
+    const data = await apiFetch('/api/users/me');
+    const user = data.data;
+    const profileLi = document.createElement('li');
+    profileLi.innerHTML = `<img src="${user.profile_picture || '/images/user.png'}" alt="Profile" class="profile"> <span>${user.username}</span>`;
+    const logoutLi = document.createElement('li');
+    logoutLi.innerHTML = `<button id="logoutBtn">Logout</button>`;
+    nav.querySelector('ul').append(profileLi, logoutLi);
+    document.getElementById('logoutBtn')?.addEventListener('click', logout);
+    // Show admin link if admin
+    if (user.role === 'admin') {
+      const adminLi = document.createElement('li');
+      adminLi.innerHTML = `<a href="admin.html">Admin</a>`;
+      nav.querySelector('ul').append(adminLi);
     }
   } catch (err) {
-    console.error(`API fetch error for ${url}:`, err);
-    throw err; // Re-throw for caller to handle (e.g., alert)
+    // Not auth: hide nav or show login/register
+    nav.innerHTML = '<ul><li><a href="login.html">Login</a></li><li><a href="register.html">Register</a></li></ul>';
   }
-};
-
-// Export for use in other JS files (if using modules; otherwise global)
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { apiFetch, toggleTheme, checkAuth, setupNavbar };
 }
-// Globals are already available in browser scope
+
+// Logout
+async function logout() {
+  try {
+    await apiFetch('/api/auth/logout', { method: 'POST' });
+    localStorage.removeItem('theme');
+    window.location.href = '/login.html';
+  } catch (err) {
+    window.location.href = '/login.html'; // Force redirect
+  }
+}
+
+// Theme toggle (for settings)
+function toggleTheme() {
+  const isDark = document.body.classList.toggle('dark');
+  localStorage.setItem('theme', isDark ? 'dark' : 'light');
+}
+
+// Init theme on load
+function initTheme() {
+  const theme = localStorage.getItem('theme') || 'light';
+  if (theme === 'dark') document.body.classList.add('dark');
+}
+
+// Export for other JS (vanilla, so global)
+window.apiFetch = apiFetch;
+window.updateNav = updateNav;
+window.logout = logout;
+window.toggleTheme = toggleTheme;
+window.initTheme = initTheme;
+window.showMessage = showMessage;
+
+// Auto-init on DOM load
+document.addEventListener('DOMContentLoaded', () => {
+  initTheme();
+  updateNav();
+});

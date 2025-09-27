@@ -1,25 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Settings</title>
-  <link rel="stylesheet" href="css/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Login App</title>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <nav><!-- Navbar as above --></nav>
-  <main>
-    <div class="card">
-      <h1>Settings</h1>
-      <img id="profile-pic-preview" src="/images/user.png" alt="Profile" class="profile-pic">
-      <form id="settings-form">
-        <input type="text" id="username" placeholder="Username" required>
-        <button type="submit">Update Profile</button>
-      </form>
-      <button id="delete-btn" style="background:red;">Delete Account</button>
-    </div>
-  </main>
-  <script src="js/main.js"></script>
-  <script src="js/settings.js"></script>
+    <header>
+        <h1>Settings</h1>
+        <nav><ul></ul></nav>
+    </header>
+    <main>
+        <form id="settingsForm">
+            <label for="settingsUsername">Username:</label>
+            <input type="text" id="settingsUsername" minlength="3" maxlength="30">
+            <label for="passwordInput">New Password:</label>
+            <input type="password" id="passwordInput" minlength="8">
+            <label for="avatarInput">Profile Picture:</label>
+            <input type="file" id="avatarInput" accept="image/jpeg,image/png">
+            <img id="currentAvatar" src="/images/user.png" alt="Current Avatar" class="profile" style="display: none;">
+            <label><input type="checkbox" id="themeToggle"> Dark Theme</label>
+            <button type="button" id="saveSettingsBtn">Save</button>
+            <button type="button" id="deleteAccountBtn" style="background: red;">Delete Account</button>
+            <div id="error"></div>
+            <div id="success"></div>
+        </form>
+    </main>
+    <footer>
+        <p>&copy; 2023 Login App</p>
+    </footer>
+    <script src="js/main.js" defer></script>
+    <script src="js/settings.js" defer></script>
 </body>
 </html>

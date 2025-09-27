@@ -1,152 +1,199 @@
-const { pool } = require('../config/db');
+const pool = require('../config/db');
 const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 
-const createPendingUser  = async (email) => {
-  const query = 'INSERT INTO users (email) VALUES ($1) RETURNING id';
-  const { rows } = await pool.query(query, [email]);
-  return rows[0].id;
-};
+const saltRounds = 12;
 
-const verifyCode = async (userId, code) => {
-  const query = `
-    SELECT * FROM verification_codes 
-    WHERE user_id = $1 AND code = $2 AND expiry > NOW()
-  `;
-  const { rows } = await pool.query(query, [userId, code]);
-  if (rows.length === 0) return false;
-
-  await pool.query('DELETE FROM verification_codes WHERE user_id = $1', [userId]);
-  await pool.query('UPDATE users SET is_email_verified = TRUE, updated_at = NOW() WHERE id = $1', [userId]);
-  return true;
-};
-
-const completeProfile = async (userId, username, password) => {
-  const hashed = await bcrypt.hash(password, 10);
-  const query = `
-    UPDATE users 
-    SET username = $1, password_hash = $2, updated_at = NOW() 
-    WHERE id = $3 RETURNING *
-  `;
-  const { rows } = await pool.query(query, [username, hashed, userId]);
-  return rows[0];
-};
-
-const findByEmail = async (email) => {
-  const query = 'SELECT * FROM users WHERE email = $1';
-  const { rows } = await pool.query(query, [email]);
-  return rows[0];
-};
-
-const findByOauthId = async (provider, oauthId) => {
-  const query = 'SELECT * FROM users WHERE oauth_provider = $1 AND oauth_id = $2';
-  const { rows } = await pool.query(query, [provider, oauthId]);
-  return rows[0];
-};
-
-const createOrLinkOauthUser  = async (email, username, provider, oauthId, picture) => {
-  let user = await findByEmail(email);
-  if (!user) {
-    const query = `
-      INSERT INTO users (email, username, oauth_provider, oauth_id, profile_pic, is_email_verified, role)
-      VALUES ($1, $2, $3, $4, $5, TRUE, 'user') RETURNING *
-    `;
-    const { rows } = await pool.query(query, [email, username || email.split('@')[0], provider, oauthId, picture || '/images/user.png']);
-    user = rows[0];
-  } else if (!user.oauth_provider) {
-    await pool.query('UPDATE users SET oauth_provider = $1, oauth_id = $2, profile_pic = $3, is_email_verified = TRUE WHERE id = $4', 
-      [provider, oauthId, picture || user.profile_pic, user.id]);
+// Helper to run parameterized query
+async function query(text, params) {
+  const client = await pool.connect();
+  try {
+    const res = await client.query(text, params);
+    return res;
+  } finally {
+    client.release();
   }
-  return user;
-};
+}
 
-const validatePassword = async (email, password) => {
-  const user = await findByEmail(email);
-  if (!user || !user.password_hash) return null;
-  const match = await bcrypt.compare(password, user.password_hash);
-  return match ? user : null;
-};
-
-const generateJwt = (user) => {
-  return jwt.sign(
-    { id: user.id, role: user.role },
-    process.env.JWT_SECRET,
-    { expiresIn: '24h' }
+// Create user (email only, unverified)
+async function createUser (email) {
+  const lowerEmail = email.toLowerCase().trim();
+  const existing = await findUserByEmail(lowerEmail);
+  if (existing) throw new Error('EMAIL_ALREADY_REGISTERED');
+  const res = await query(
+    'INSERT INTO users (email) VALUES ($1) RETURNING id',
+    [lowerEmail]
   );
-};
+  return res.rows[0].id;
+}
 
-const updateProfile = async (userId, updates) => {
-  const fields = Object.keys(updates).map((key, i) => `${key} = $${i + 1}`).join(', ');
-  const values = Object.values(updates);
-  values.push(userId);
-  const query = `UPDATE users SET ${fields}, updated_at = NOW() WHERE id = $${values.length} RETURNING *`;
-  const { rows } = await pool.query(query, values);
-  return rows[0];
-};
+// Find user by email
+async function findUserByEmail(email) {
+  const lowerEmail = email.toLowerCase().trim();
+  const res = await query('SELECT * FROM users WHERE LOWER(email) = $1', [lowerEmail]);
+  return res.rows[0];
+}
 
-const deleteUser  = async (userId) => {
-  await pool.query('DELETE FROM users WHERE id = $1', [userId]);
-};
+// Find user by ID
+async function findUserById(id) {
+  const res = await query('SELECT id, email, username, profile_picture, role, is_email_verified, created_at FROM users WHERE id = $1', [id]);
+  return res.rows[0];
+}
 
-const getAllUsers = async () => {
-  const query = 'SELECT id, email, username, role, is_email_verified, created_at FROM users';
-  const { rows } = await pool.query(query);
-  return rows;
-};
+// Set password hash
+async function setPassword(userId, password) {
+  const hash = await bcrypt.hash(password, saltRounds);
+  await query('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, userId]);
+}
 
-const updateUserRole = async (userId, role) => {
-  const query = 'UPDATE users SET role = $1, updated_at = NOW() WHERE id = $2 RETURNING *';
-  const { rows } = await pool.query(query, [role, userId]);
-  return rows[0];
-};
+// Set username (validate: 3-30 chars, letters/numbers/._-, unique case-insensitive)
+async function setUsername(userId, username) {
+  const trimmed = username.trim();
+  if (trimmed.length < 3 || trimmed.length > 30 || !/^[a-zA-Z0-9._-]+$/.test(trimmed)) {
+    throw new Error('INVALID_INPUT');
+  }
+  const lowerTrimmed = trimmed.toLowerCase();
+  const existing = await query('SELECT id FROM users WHERE LOWER(username) = $1 AND id != $2', [lowerTrimmed, userId]);
+  if (existing.rows.length > 0) throw new Error('INVALID_INPUT'); // username taken
+  await query('UPDATE users SET username = $1 WHERE id = $2', [trimmed, userId]);
+}
 
-const saveVerificationCode = async (userId, code, expiry) => {
-  await pool.query('DELETE FROM verification_codes WHERE user_id = $1', [userId]);
-  const query = 'INSERT INTO verification_codes (user_id, code, expiry) VALUES ($1, $2, $3)';
-  await pool.query(query, [userId, code, expiry]);
-};
+// Set profile picture URL
+async function setProfilePicture(userId, url) {
+  await query('UPDATE users SET profile_picture = $1 WHERE id = $2', [url, userId]);
+}
 
-const saveResetToken = async (userId, token, expiry) => {
-  await pool.query('DELETE FROM password_reset_tokens WHERE user_id = $1', [userId]);
-  const query = 'INSERT INTO password_reset_tokens (user_id, token, expiry) VALUES ($1, $2, $3)';
-  await pool.query(query, [userId, token, expiry]);
-};
+// Set role
+async function setRole(userId, role) {
+  if (!['user', 'admin'].includes(role)) throw new Error('INVALID_INPUT');
+  await query('UPDATE users SET role = $1 WHERE id = $2', [role, userId]);
+}
 
-const validateResetToken = async (token) => {
-  const query = `
-    SELECT * FROM password_reset_tokens 
-    WHERE token = $1 AND expiry > NOW() AND NOT used
-  `;
-  const { rows } = await pool.query(query, [token]);
-  return rows[0];
-};
+// Create verification code (6 digits, expires in 15 min)
+async function createVerificationCode(userId, code) {
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+  await query(
+    'INSERT INTO verification_codes (user_id, code, expires_at) VALUES ($1, $2, $3)',
+    [userId, code, expiresAt]
+  );
+}
 
-const useResetToken = async (token) => {
-  await pool.query('UPDATE password_reset_tokens SET used = TRUE WHERE token = $1', [token]);
-};
+// Verify code and mark email verified (transactional)
+async function verifyCode(userId, code) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const res = await client.query(
+      'SELECT * FROM verification_codes WHERE user_id = $1 AND code = $2 AND expires_at > NOW()',
+      [userId, code]
+    );
+    if (res.rows.length === 0) {
+      await client.query('ROLLBACK');
+      throw new Error('INVALID_OR_EXPIRED_CODE');
+    }
+    await client.query('UPDATE users SET is_email_verified = TRUE WHERE id = $1', [userId]);
+    await client.query('DELETE FROM verification_codes WHERE user_id = $1 AND code = $2', [userId, code]);
+    await client.query('COMMIT');
+    return true;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
 
-const updatePassword = async (userId, hashedPassword) => {
-  const query = 'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2 RETURNING *';
-  const { rows } = await pool.query(query, [hashedPassword, userId]);
-  return rows[0];
-};
+// Create reset token (expires in 1 hour)
+async function createResetToken(userId) {
+  const token = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+  await query(
+    'INSERT INTO reset_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
+    [userId, token, expiresAt]
+  );
+  return token;
+}
+
+// Use reset token (validate and get userId)
+async function useResetToken(token) {
+  const res = await query(
+    'SELECT user_id FROM reset_tokens WHERE token = $1 AND expires_at > NOW()',
+    [token]
+  );
+  if (res.rows.length === 0) throw new Error('INVALID_OR_EXPIRED_CODE');
+  await query('DELETE FROM reset_tokens WHERE token = $1', [token]);
+  return res.rows[0].user_id;
+}
+
+// List users (paginated, admin only)
+async function listUsers(page = 1, limit = 10) {
+  const offset = (page - 1) * limit;
+  const res = await query(
+    'SELECT id, email, username, profile_picture, role, is_email_verified, created_at FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2',
+    [limit, offset]
+  );
+  const countRes = await query('SELECT COUNT(*) FROM users');
+  return { users: res.rows, total: parseInt(countRes.rows[0].count), page, limit };
+}
+
+// Update user (partial, admin or self)
+async function updateUser (userId, updates) {
+  const fields = [];
+  const params = [];
+  let idx = 1;
+  if (updates.username) {
+    fields.push(`username = $${idx++}`);
+    params.push(updates.username);
+  }
+  if (updates.password_hash) {
+    fields.push(`password_hash = $${idx++}`);
+    params.push(updates.password_hash);
+  }
+  if (updates.role) {
+    fields.push(`role = $${idx++}`);
+    params.push(updates.role);
+  }
+  if (updates.profile_picture) {
+    fields.push(`profile_picture = $${idx++}`);
+    params.push(updates.profile_picture);
+  }
+  params.push(userId);
+  if (fields.length === 0) throw new Error('INVALID_INPUT');
+  const queryStr = `UPDATE users SET ${fields.join(', ')} WHERE id = $${idx}`;
+  await query(queryStr, params);
+}
+
+// Delete user
+async function deleteUser (userId) {
+  await query('DELETE FROM users WHERE id = $1', [userId]);
+}
+
+// Get homepage content
+async function getHomepageContent() {
+  const res = await query('SELECT content FROM homepage_content WHERE id = 1');
+  return res.rows[0]?.content || 'Default content';
+}
+
+// Update homepage content
+async function updateHomepageContent(content) {
+  await query('UPDATE homepage_content SET content = $1 WHERE id = 1', [content]);
+}
 
 module.exports = {
-  createPendingUser ,
+  createUser ,
+  findUserByEmail,
+  findUserById,
+  setPassword,
+  setUsername,
+  setProfilePicture,
+  setRole,
+  createVerificationCode,
   verifyCode,
-  completeProfile,
-  findByEmail,
-  findByOauthId,
-  createOrLinkOauthUser ,
-  validatePassword,
-  generateJwt,
-  updateProfile,
-  deleteUser ,
-  getAllUsers,
-  updateUserRole,
-  saveVerificationCode,
-  saveResetToken,
-  validateResetToken,
+  createResetToken,
   useResetToken,
-  updatePassword
+  listUsers,
+  updateUser ,
+  deleteUser ,
+  getHomepageContent,
+  updateHomepageContent
 };
