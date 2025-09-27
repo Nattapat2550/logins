@@ -1,3 +1,4 @@
+// frontend/js/register.js
 // Register page: Email form + Google button
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -12,7 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const email = document.getElementById('email').value;
+    const email = document.getElementById('email').value.trim();
     if (!email) return alert('Email required');
 
     try {
@@ -20,10 +21,17 @@ document.addEventListener('DOMContentLoaded', () => {
         method: 'POST',
         body: JSON.stringify({ email })
       });
-      alert('Verification code sent!');
+      alert('Verification code sent! Check your email.');
       window.location.href = `check.html?userId=${data.userId}`;
     } catch (err) {
-      alert(err.message);
+      console.error('Register error:', err);
+      if (err.message.includes('Email exists')) {
+        alert(`Email "${email}" is already registered. Try logging in or use a different email.`);
+        // Optional: Redirect to login
+        // window.location.href = 'login.html';
+      } else {
+        alert(`Registration failed: ${err.message}`);
+      }
     }
   });
 });

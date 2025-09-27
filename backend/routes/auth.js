@@ -18,25 +18,31 @@ const oauth2Client = new google.auth.OAuth2(
 
 // Register: Send verification code
 router.post('/register', async (req, res) => {
-  const { email } = req.body;
-  if (!email) return res.status(400).json({ error: 'Email required' });
-
-  try {
-    const existing = await userModel.findByEmail(email);
-    if (existing) return res.status(400).json({ error: 'Email exists' });
-
-    const userId = await userModel.createPendingUser (email);
-    const code = generateCode();
-    const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min
-    await userModel.saveVerificationCode(userId, code, expiry);
-    await sendVerificationEmail(email, code);
-
-    // Return userId for frontend to use in next step
-    res.status(201).json({ message: 'Verification code sent', userId });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
+     const { email } = req.body;
+     if (!email) return res.status(400).json({ error: 'Email required' });
+     try {
+       let existing = await userModel.findByEmail(email);
+       if (existing) {
+         // If pending (no username/password and unverified), allow re-send
+         if (existing.username && existing.password_hash && existing.is_email_verified) {
+           return res.status(400).json({ error: 'Email exists' });
+         }
+         // Else: Re-use existing pending user
+         const userId = existing.id;
+         console.log(`Re-sending verification for pending user ${userId}`);
+       } else {
+         const userId = await userModel.createPendingUser (email);
+         existing = { id: userId }; // For below
+       }
+       const code = generateCode();
+       const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+       await userModel.saveVerificationCode(existing.id, code, expiry);
+       await sendVerificationEmail(email, code);
+       res.status(201).json({ message: 'Verification code sent', userId: existing.id });
+     } catch (err) {
+       console.error('Register error:', err);
+       res.status(500).json({ error: 'Server error' });
+     }
 });
 
 // Verify code (assumes frontend passes userId from register response)
