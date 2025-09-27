@@ -1,30 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home</title>
-    <link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <nav class="navbar">
-        <div class="navbar-brand">Login App</div>
-        <div class="dropdown">
-            <img id="profile-pic" class="profile-pic" src="/images/user.png" alt="Profile">
-            <div class="dropdown-content">
-                <a href="settings.html">Settings</a>
-                <a href="about.html">About</a>
-                <a href="contact.html">Contact</a>
-                <a href="#" onclick="logout()">Logout</a>
-            </div>
-        </div>
-    </nav>
-    <div class="container">
-        <h1>Welcome Home!</h1>
-        <p id="welcome">Loading...</p>
-        <div id="homepage-content">Loading content...</div>
+  <nav><!-- Navbar as above --></nav>
+  <main>
+    <div class="card">
+      <h1>Welcome, <span id="username"></span>!</h1>
+      <img id="profile-pic" src="/images/user.png" alt="Profile" class="profile-pic">
+      <div id="hero"></div>
+      <div id="about"></div>
+      <p>Your dashboard. <a href="settings.html">Edit Profile</a></p>
     </div>
-    <script src="js/main.js"></script>
-    <script src="js/home.js"></script>
+  </main>
+  <script src="js/main.js"></script>
+  <script src="js/home.js"></script>
 </body>
 </html>

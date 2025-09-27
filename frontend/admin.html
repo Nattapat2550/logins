@@ -1,55 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard</title>
-    <link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <nav class="navbar">
-        <div class="navbar-brand">Admin Panel</div>
-        <div class="dropdown">
-            <img id="profile-pic" class="profile-pic" src="/images/user.png" alt="Profile">
-            <div class="dropdown-content">
-                <a href="home.html">Home</a>
-                <a href="settings.html">Settings</a>
-                <a href="about.html">About</a>
-                <a href="contact.html">Contact</a>
-                <a href="#" onclick="logout()">Logout</a>
-            </div>
-        </div>
-    </nav>
-    <div class="container">
-        <h1>Admin Dashboard</h1>
-        
-        <!-- User Management -->
-        <h2>Manage Users</h2>
-        <table id="users-table">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Email</th>
-                    <th>Username</th>
-                    <th>Role</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- Loaded dynamically -->
-            </tbody>
-        </table>
-
-        <!-- Homepage Content -->
-        <h2>Homepage Content</h2>
-        <form id="content-form">
-            <textarea id="content-text" placeholder="Content Text" rows="5"></textarea>
-            <input type="text" id="content-image" placeholder="Image URL (optional)">
-            <button type="submit">Update Content</button>
-        </form>
-        <div id="message"></div>
+  <nav><!-- Navbar as above --></nav>
+  <main>
+    <div class="card">
+      <h1>Admin Dashboard</h1>
+      <h2>Manage Users</h2>
+      <ul id="user-list"></ul>
+      <h2>Edit Homepage Content</h2>
+      <div id="edit-hero" class="hidden"></div> <!-- JS populates -->
+      <div id="edit-about" class="hidden"></div>
     </div>
-    <script src="js/main.js"></script>
-    <script src="js/admin.js"></script>
+  </main>
+  <script src="js/main.js"></script>
+  <script src="js/admin.js"></script>
 </body>
 </html>

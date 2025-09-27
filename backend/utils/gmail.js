@@ -1,34 +1,52 @@
 const { google } = require('googleapis');
-const { generateCode } = require('./generateCode');
-require('dotenv').config();
 
-const oAuth2Client = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_REDIRECT_URI
+const oauth2Client = new google.auth.OAuth2(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  process.env.GOOGLE_REDIRECT_URI
 );
 
-oAuth2Client.setCredentials({ refresh_token: process.env.REFRESH_TOKEN });
+// Set refresh token for Gmail API
+oauth2Client.setCredentials({ refresh_token: process.env.REFRESH_TOKEN });
 
-const sendVerificationEmail = async (email, code) => {
-    try {
-        const accessToken = await oAuth2Client.getAccessToken();
-        const gmail = google.gmail({ version: 'v1', auth: oAuth2Client });
+const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
-        const message = `To: ${email}\r\nSubject: Your Verification Code\r\n\r\nYour 6-digit verification code is: ${code}. It expires in 10 minutes.`;
-        const encodedMessage = Buffer.from(message).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const sendEmail = async (to, subject, html) => {
+  try {
+    const message = [
+      'From: ' + process.env.SENDER_EMAIL,
+      'To: ' + to,
+      'Subject: ' + subject,
+      'MIME-Version: 1.0',
+      'Content-Type: text/html; charset=utf-8',
+      'Content-Transfer-Encoding: base64',
+      '',
+      Buffer.from(html).toString('base64')
+    ].join('\n').replace(/\n\n/g, '\n').trim();
 
-        await gmail.users.messages.send({
-            userId: 'me',
-            requestBody: {
-                raw: encodedMessage
-            }
-        });
-        console.log('Verification email sent to', email);
-    } catch (error) {
-        console.error('Error sending email:', error);
-        throw error;
-    }
+    const res = await gmail.users.messages.send({
+      userId: 'me',
+      requestBody: {
+        raw: Buffer.from(message).toString('base64')
+      }
+    });
+    console.log('Email sent:', res.data.id);
+  } catch (err) {
+    console.error('Gmail error:', err);
+    throw new Error('Failed to send email');
+  }
 };
 
-module.exports = { sendVerificationEmail };
+const sendVerificationEmail = async (email, code) => {
+  const subject = 'Your Verification Code';
+  const html = `<h2>Verification Code</h2><p>Your code is: <strong>${code}</strong></p><p>Expires in 10 minutes.</p>`;
+  await sendEmail(email, subject, html);
+};
+
+const sendResetEmail = async (email, resetUrl) => {
+  const subject = 'Password Reset';
+  const html = `<h2>Reset Your Password</h2><p>Click <a href="${resetUrl}">here</a> to reset your password. Link expires in 1 hour.</p>`;
+  await sendEmail(email, subject, html);
+};
+
+module.exports = { sendVerificationEmail, sendResetEmail };

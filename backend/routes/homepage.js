@@ -1,52 +1,42 @@
 const express = require('express');
-const router = express.Router();
-const { authenticateToken, isAdmin } = require('../middleware/auth');
-const { pool } = require('../config/db');  // Import: Now works if db.js exports it
+const { pool } = require('../config/db');
+const { authenticate, requireAdmin } = require('../middleware/auth');
 
-// GET homepage content (viewable by all logged-in users)
-router.get('/', authenticateToken, async (req, res) => {
-    try {
-        console.log('Fetching homepage content for user ID:', req.user.id);
-        
-        // Safety check: Ensure pool is defined
-        if (!pool || typeof pool.query !== 'function') {
-            throw new Error('Database pool not initialized');
-        }
-        
-        const result = await pool.query('SELECT * FROM homepage LIMIT 1');
-        const content = result.rows[0] || { 
-            content_text: 'Default homepage content.', 
-            content_image: '' 
-        };
-        console.log('Homepage content fetched successfully');
-        res.json(content);
-    } catch (err) {
-        console.error('Homepage GET error:', err.message || err.stack || err);  // Full error details
-        res.status(500).json({ message: 'Server error fetching content' });
-    }
+const router = express.Router();
+
+// Get homepage content (public)
+router.get('/', async (req, res) => {
+  try {
+    const query = 'SELECT section, content FROM homepage_content ORDER BY id';
+    const { rows } = await pool.query(query);
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
 });
 
-// PUT homepage content (editable by admins only)
-router.put('/', authenticateToken, isAdmin, async (req, res) => {
-    const { content_text, content_image } = req.body;
-    try {
-        console.log('Updating homepage content for admin ID:', req.user.id);
-        
-        if (!pool || typeof pool.query !== 'function') {
-            throw new Error('Database pool not initialized');
-        }
-        
-        const result = await pool.query(
-            'INSERT INTO homepage (id, content_text, content_image) VALUES (1, $1, $2) ' +
-            'ON CONFLICT (id) DO UPDATE SET content_text = $1, content_image = $2 RETURNING *',
-            [content_text || 'Default homepage content.', content_image || '']
-        );
-        console.log('Homepage content updated successfully');
-        res.json(result.rows[0]);
-    } catch (err) {
-        console.error('Homepage PUT error:', err.message || err.stack || err);
-        res.status(500).json({ message: 'Server error updating content' });
+// Update content (admin only)
+router.put('/:section', authenticate, requireAdmin, async (req, res) => {
+  const { section } = req.params;
+  const { content } = req.body;
+  if (!content) return res.status(400).json({ error: 'Content required' });
+
+  try {
+    const query = 'UPDATE homepage_content SET content = $1, updated_by = $2, updated_at = NOW() WHERE section = $3 RETURNING *';
+    const { rows } = await pool.query(query, [content, req.user.id, section]);
+    if (rows.length === 0) {
+      // Insert if not exists
+      const insertQuery = 'INSERT INTO homepage_content (section, content, updated_by) VALUES ($1, $2, $3) RETURNING *';
+      const { rows: newRows } = await pool.query(insertQuery, [section, content, req.user.id]);
+      res.json(newRows[0]);
+    } else {
+      res.json(rows[0]);
     }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
 });
 
 module.exports = router;

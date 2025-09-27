@@ -1,141 +1,122 @@
-// Backend URL (update for local/prod if needed)
-const BACKEND_URL = 'https://backendlogins.onrender.com';  // Or use process.env in a build tool
+// Common utilities: Theme toggle, navbar, auth check, logout
 
-// Token management (localStorage)
-function getToken() {
-    return localStorage.getItem('token');
-}
+const API_BASE = ''; // Relative to same domain; change to 'http://localhost:5000' for local dev if separate
 
-function setToken(token) {
-    if (token) {
-        localStorage.setItem('token', token);
-        console.log('main.js: Token stored (length:', token.length, ')');
-    } else {
-        localStorage.removeItem('token');
-        console.log('main.js: Token removed');
-    }
-}
+// Theme toggle
+const toggleTheme = () => {
+  const body = document.body;
+  const isDark = body.classList.contains('dark-mode');
+  body.classList.toggle('dark-mode');
+  localStorage.setItem('dark-mode', !isDark);
+};
 
-// Optional: Get cached user (from localStorage)
-function getUser () {
-    const userStr = localStorage.getItem('user');
-    return userStr ? JSON.stringify(userStr) : null;
-}
-
-function setUser (user) {
-    if (user) {
-        localStorage.setItem('user', JSON.stringify(user));
-        console.log('main.js: User cached:', user.email || user.username);
-    } else {
-        localStorage.removeItem('user');
-    }
-}
-
-// Google OAuth redirect (called from button clicks in login/register)
-function googleOAuthRedirect() {
-    console.log('main.js: Initiating Google OAuth redirect');
-    window.location.href = `${BACKEND_URL}/api/auth/google`;
-}
-
-// Optional: apiFetch wrapper (uses token in headers; fallback to direct fetch if not needed)
-async function apiFetch(url, options = {}) {
-    const token = getToken();
-    console.log('main.js: apiFetch called:', url, 'Token present?', !!token);
-    
-    const fullUrl = url.startsWith('http') ? url : `${BACKEND_URL}${url.startsWith('/') ? url : `/${url}`}`;
-    
-    const fetchOptions = {
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...(token && { 'Authorization': `Bearer ${token}` }),
-            ...options.headers
-        }
-    };
-
-    try {
-        const response = await fetch(fullUrl, fetchOptions);
-        console.log('main.js: apiFetch response status:', response.status, 'for URL:', url);
-        
-        if (!response.ok) {
-            const errData = await response.json().catch(() => ({}));
-            throw new Error(errData.message || `HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        return await response.json();
-    } catch (err) {
-        console.error('main.js: apiFetch error:', err);
-        throw err;
-    }
-}
-
-// Logout function (clear token/user, redirect to index/login)
-function logout() {
-    setToken(null);
-    setUser (null);
-    localStorage.removeItem('tempEmail');  // Clean up from register flow
-    console.log('main.js: Logged out, redirecting to index.html');
-    window.location.href = '/index.html';  // Or '/login.html'
-}
-
-// On page load: Handle URL params from Google callback (store token, clean URL)
+// Load theme on init
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('main.js: DOM loaded');
-    
-    const urlParams = new URLSearchParams(window.location.search);
-    const tokenFromUrl = urlParams.get('token');
-    const emailFromUrl = urlParams.get('email');
-    const usernameFromUrl = urlParams.get('username');
-    
-    if (tokenFromUrl) {
-        console.log('main.js: Detected token in URL params, storing it');
-        setToken(tokenFromUrl);
-        
-        // Cache user info if provided
-        if (emailFromUrl || usernameFromUrl) {
-            setUser ({
-                email: emailFromUrl || '',
-                username: usernameFromUrl || '',
-                // Add more if needed (e.g., role)
-            });
-        }
-        
-        // Clean URL (remove query params to avoid re-processing)
-        const newUrl = window.location.pathname + window.location.hash;
-        window.history.replaceState({}, document.title, newUrl);
-        console.log('main.js: URL cleaned after storing token');
-    }
-    
-    // Optional: Check token on load and redirect if invalid/expired (e.g., on protected pages)
-    const token = getToken();
-    if (window.location.pathname.includes('home') && !token) {
-        console.log('main.js: No token on protected page, redirecting to login');
-        window.location.href = '/login.html';
-    }
-    
-    // Optional: Add global logout listener (e.g., for navbar button)
-    const logoutBtn = document.getElementById('logout-btn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', logout);
-    }
-    
-    // Make functions global for other JS files (login.js, etc.)
-    window.googleOAuthRedirect = googleOAuthRedirect;
-    window.getToken = getToken;
-    window.setToken = setToken;
-    window.getUser  = getUser ;
-    window.setUser  = setUser ;
-    window.logout = logout;
-    window.apiFetch = apiFetch;  // If you want to use the wrapper
+  const isDark = localStorage.getItem('dark-mode') === 'true';
+  if (isDark) document.body.classList.add('dark-mode');
+  
+  // Navbar setup
+  setupNavbar();
+  
+  // Theme toggle button
+  const toggleBtn = document.getElementById('theme-toggle');
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', toggleTheme);
+    toggleBtn.textContent = document.body.classList.contains('dark-mode') ? 'Light' : 'Dark';
+  }
+  
+  // Auth check for protected pages
+  const protectedPages = ['home.html', 'settings.html', 'admin.html'];
+  if (protectedPages.includes(window.location.pathname.split('/').pop())) {
+    checkAuth();
+  }
 });
 
-// Optional: Check token expiration (call on protected pages if needed)
-function isTokenValid(token) {
-    if (!token) return false;
-    try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        return payload.exp * 1000 > Date.now();  // Check expiry
-    } catch {
-        return false;
+// Setup navbar (dynamic login/logout)
+const setupNavbar = () => {
+  const authButtons = document.getElementById('auth-buttons');
+  if (!authButtons) return;
+
+  // Check if logged in
+  fetch(`${API_BASE}/api/users/me`, { credentials: 'include' })
+    .then(res => {
+      if (res.ok) {
+        authButtons.innerHTML = `
+          <button onclick="showProfile()">Profile</button>
+          <button onclick="logout()">Logout</button>
+        `;
+        // Show admin link if admin
+        fetchUserRole().then(role => {
+          const adminLink = document.getElementById('admin-link');
+            if (adminLink) adminLink.style.display = role === 'admin' ? 'block' : 'none';
+        });
+      } else {
+        authButtons.innerHTML = `
+          <a href="login.html">Login</a>
+          <a href="register.html">Register</a>
+        `;
+      }
+    })
+    .catch(() => {
+      authButtons.innerHTML = `
+        <a href="login.html">Login</a>
+        <a href="register.html">Register</a>
+      `;
+    });
+};
+
+// Check auth and redirect if needed
+const checkAuth = async () => {
+  try {
+    const res = await fetch(`${API_BASE}/api/users/me`, { credentials: 'include' });
+    if (!res.ok) {
+      window.location.href = 'login.html';
+      return;
     }
-}
+    const user = await res.json();
+    // For admin.html, check role
+    if (window.location.pathname.includes('admin.html') && user.role !== 'admin') {
+      window.location.href = 'home.html';
+    }
+  } catch (err) {
+    window.location.href = 'login.html';
+  }
+};
+
+// Fetch current user role
+const fetchUserRole = async () => {
+  const res = await fetch(`${API_BASE}/api/users/me`, { credentials: 'include' });
+  if (res.ok) {
+    const user = await res.json();
+    return user.role;
+  }
+  return null;
+};
+
+// Logout: Clear cookie by setting maxAge=0 or backend endpoint if added
+const logout = () => {
+  fetch(`${API_BASE}/api/auth/logout`, { method: 'POST', credentials: 'include' }) // Optional backend logout
+    .catch(() => {}); // Ignore errors
+  document.cookie = 'jwt=; Max-Age=0; path=/;'; // Client-side clear (works for httpOnly in some cases; better via backend)
+  window.location.href = 'index.html';
+};
+
+// Show profile (e.g., username in navbar)
+const showProfile = async () => {
+  const res = await fetch(`${API_BASE}/api/users/me`, { credentials: 'include' });
+  if (res.ok) {
+    const user = await res.json();
+    alert(`Logged in as: ${user.username}`);
+  }
+};
+
+// Generic fetch helper with error handling
+const apiFetch = async (url, options = {}) => {
+  const defaults = { credentials: 'include', headers: { 'Content-Type': 'application/json' } };
+  const res = await fetch(`${API_BASE}${url}`, { ...defaults, ...options });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Request failed');
+  }
+  return res.json();
+};

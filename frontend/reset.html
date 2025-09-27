@@ -1,27 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reset Password</title>
-    <link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reset Password</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <div class="container">
-        <h1>Reset Password</h1>
-        <form id="reset-request">
-            <input type="email" id="email" placeholder="Email" required>
-            <button type="submit">Send Reset Code</button>
+  <nav><!-- Navbar as above --></nav>
+  <main>
+    <div class="card">
+      <h1>Reset Password</h1>
+      <div id="forgot-section">
+        <form id="forgot-form">
+          <input type="email" id="forgot-email" placeholder="Enter email" required>
+          <button type="submit">Send Reset Link</button>
         </form>
-        <form id="reset-form" style="display:none;">
-            <input type="text" id="code" placeholder="Verification Code" required>
-            <input type="password" id="new-password" placeholder="New Password" required>
-            <button type="submit">Reset Password</button>
+      </div>
+      <div id="reset-section" style="display:none;">
+        <form id="reset-form">
+          <input type="hidden" id="reset-token">
+          <input type="password" id="new-password" placeholder="New Password" required>
+          <button type="submit">Reset</button>
         </form>
-        <p><a href="login.html">Back to Login</a></p>
-        <div id="message"></div>
+      </div>
     </div>
-    <script src="js/main.js"></script>
-    <script src="js/reset.js"></script>
+  </main>
+  <script src="js/main.js"></script>
+  <script src="js/reset.js"></script>
 </body>
 </html>

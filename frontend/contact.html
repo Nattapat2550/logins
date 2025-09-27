@@ -1,38 +1,48 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contact</title>
-    <link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <nav class="navbar">
-        <div class="navbar-brand">Login App</div>
-        <div class="dropdown">
-            <img id="profile-pic" class="profile-pic" src="/images/user.png" alt="Profile">
-            <div class="dropdown-content">
-                <a href="home.html">Home</a>
-                <a href="settings.html">Settings</a>
-                <a href="about.html">About</a>
-                <a href="#" onclick="logout()">Logout</a>
-            </div>
-        </div>
-    </nav>
-    <div class="container">
-        <h1>Contact Us</h1>
-        <p>Email: support@example.com</p>
-        <form>
-            <input type="text" placeholder="Your Email">
-            <textarea placeholder="Message" rows="4"></textarea>
-            <button type="submit">Send</button>
-        </form>
+  <nav>
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="contact.html">Contact</a></li>
+      <li><a href="register.html">Register</a></li>
+      <li><a href="login.html">Login</a></li>
+      <li><a href="home.html">Dashboard</a></li>
+      <li><a href="settings.html">Settings</a></li>
+      <li><a href="admin.html" id="admin-link" style="display:none;">Admin</a></li>
+      <li><a href="reset.html">Reset Password</a></li>
+    </ul>
+    <div>
+      <button id="theme-toggle">Dark</button>
+      <div id="auth-buttons"></div>
     </div>
-    <script src="js/main.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', async () => {
-            await loadUser ();
-        });
-    </script>
+  </nav>
+  <main>
+    <div class="card">
+      <h1>Contact Us</h1>
+      <p>Get in touch for support or inquiries.</p>
+      <form> <!-- Simple contact form; extend with backend if needed -->
+        <input type="text" placeholder="Your Name" required>
+        <input type="email" placeholder="Your Email" required>
+        <textarea rows="5" placeholder="Message" required></textarea>
+        <button type="submit">Send</button>
+      </form>
+      <p>Email: <a href="mailto:nyansungvon@gmail.com">nyansungvon@gmail.com</a></p>
+    </div>
+  </main>
+  <script src="js/main.js"></script>
+  <script>
+    // Optional: Load any dynamic content if added to homepage table
+    document.addEventListener('DOMContentLoaded', () => {
+      // Contact-specific logic if needed
+    });
+  </script>
 </body>
 </html>

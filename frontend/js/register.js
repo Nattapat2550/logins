@@ -1,32 +1,29 @@
+// Register page: Email form + Google button
+
 document.addEventListener('DOMContentLoaded', () => {
-    const form = document.getElementById('register-form');
-    const message = document.getElementById('message');
+  const form = document.getElementById('register-form');
+  const googleBtn = document.getElementById('google-register');
 
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const email = document.getElementById('email').value;
-        try {
-            const response = await fetch(`${BACKEND_URL}/api/auth/register`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email })
-            });
-            const data = await response.json();
-            if (response.ok) {
-                message.innerHTML = '<p class="success">' + data.message + '</p>';
-                localStorage.setItem('tempEmail', email);  // For check.html
-                setTimeout(() => window.location.href = 'check.html', 1500);
-            } else {
-                message.innerHTML = '<p class="error">' + data.message + '</p>';
-            }
-        } catch (err) {
-            message.innerHTML = '<p class="error">Error: ' + err.message + '</p>';
-        }
+  if (googleBtn) {
+    googleBtn.addEventListener('click', () => {
+      window.location.href = `${API_BASE}/api/auth/google?from=register`;
     });
+  }
 
-    // Google button
-    const googleBtn = document.getElementById('google-register');
-    if (googleBtn) {
-        googleBtn.addEventListener('click', googleOAuthRedirect);
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('email').value;
+    if (!email) return alert('Email required');
+
+    try {
+      const data = await apiFetch('/api/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({ email })
+      });
+      alert('Verification code sent!');
+      window.location.href = `check.html?userId=${data.userId}`;
+    } catch (err) {
+      alert(err.message);
     }
+  });
 });

@@ -1,37 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Settings</title>
-    <link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <nav class="navbar">
-        <div class="navbar-brand">Login App</div>
-        <div class="dropdown">
-            <img id="profile-pic" class="profile-pic" src="/images/user.png" alt="Profile">
-            <div class="dropdown-content">
-                <a href="home.html">Home</a>
-                <a href="about.html">About</a>
-                <a href="contact.html">Contact</a>
-                <a href="#" onclick="logout()">Logout</a>
-            </div>
-        </div>
-    </nav>
-    <div class="container">
-        <h1>Settings</h1>
-        <form id="profile-form">
-            <input type="text" id="username" placeholder="Username" required>
-            <input type="password" id="new-password" placeholder="New Password (optional)">
-            <input type="file" id="profile-pic-upload" accept="image/*">
-            <button type="submit">Update Profile</button>
-        </form>
-        <button id="theme-toggle">Toggle Theme</button>
-        <button onclick="deleteAccount()">Delete Account</button>
-        <div id="message"></div>
+  <nav><!-- Navbar as above --></nav>
+  <main>
+    <div class="card">
+      <h1>Settings</h1>
+      <img id="profile-pic-preview" src="/images/user.png" alt="Profile" class="profile-pic">
+      <form id="settings-form">
+        <input type="text" id="username" placeholder="Username" required>
+        <button type="submit">Update Profile</button>
+      </form>
+      <button id="delete-btn" style="background:red;">Delete Account</button>
     </div>
-    <script src="js/main.js"></script>
-    <script src="js/settings.js"></script>
+  </main>
+  <script src="js/main.js"></script>
+  <script src="js/settings.js"></script>
 </body>
 </html>

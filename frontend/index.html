@@ -1,18 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login App</title>
-    <link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Landing Page</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <div class="container">
-        <h1>Welcome to the Login App</h1>
-        <p>This is a full-stack authentication system with email and Google login.</p>
-        <button onclick="window.location.href='register.html'">Register</button>
-        <button onclick="window.location.href='login.html'">Login</button>
+  <nav><!-- Navbar as above --></nav>
+  <main>
+    <div class="card">
+      <h1>Welcome to Our App</h1>
+      <div id="hero"><!-- Dynamic content from /api/homepage --></div>
+      <p>Full-stack authentication with email, Google, and secure sessions.</p>
+      <a href="register.html"><button>Sign Up</button></a>
+      <a href="login.html"><button>Login</button></a>
     </div>
-    <script src="js/main.js"></script>
+  </main>
+  <script src="js/main.js"></script>
+  <script>
+    // Load homepage content on public pages
+    fetch('/api/homepage')
+      .then(res => res.json())
+      .then(content => {
+        content.forEach(item => {
+          const el = document.getElementById(item.section);
+          if (el) el.innerHTML = item.content;
+        });
+      });
+  </script>
 </body>
 </html>

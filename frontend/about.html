@@ -1,33 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>About</title>
-    <link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <nav class="navbar">
-        <div class="navbar-brand">Login App</div>
-        <div class="dropdown">
-            <img id="profile-pic" class="profile-pic" src="/images/user.png" alt="Profile">
-            <div class="dropdown-content">
-                <a href="home.html">Home</a>
-                <a href="settings.html">Settings</a>
-                <a href="contact.html">Contact</a>
-                <a href="#" onclick="logout()">Logout</a>
-            </div>
-        </div>
-    </nav>
-    <div class="container">
-        <h1>About Us</h1>
-        <p>This is a full-stack authentication application built with Node.js, PostgreSQL, and vanilla JavaScript.</p>
+  <nav><!-- Navbar as above --></nav>
+  <main>
+    <div class="card">
+      <h1>About Us</h1>
+      <div id="about"><!-- Dynamic from /api/homepage --></div>
     </div>
-    <script src="js/main.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', async () => {
-            await loadUser ();
+  </main>
+  <script src="js/main.js"></script>
+  <script>
+    // Load content
+    fetch('/api/homepage')
+      .then(res => res.json())
+      .then(content => {
+        content.forEach(item => {
+          if (item.section === 'about') {
+            document.getElementById('about').innerHTML = item.content;
+          }
         });
-    </script>
+      });
+  </script>
 </body>
 </html>
