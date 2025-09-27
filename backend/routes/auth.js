@@ -3,13 +3,12 @@ const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
-const { ipKeyGenerator } = require('express-rate-limit'); // IPv6 fix
+const { ipKeyGenerator } = require('express-rate-limit');
 
 const userModel = require('../models/user');
 const { generateCode } = require('../utils/generateCode');
 const { sendVerification, sendReset } = require('../utils/gmail');
-const pool = require('../config/db');
-const bcrypt = require('bcrypt'); // Add if missing
+const bcrypt = require('bcrypt');
 const saltRounds = 12;
 const { requireAuth } = require('../middleware/auth');
 
@@ -22,10 +21,10 @@ passport.use(new GoogleStrategy({
   callbackURL: process.env.GOOGLE_CALLBACK_URI
 }, async (accessToken, refreshToken, profile, done) => {
   try {
-    let user = await userModel.findUserByEmail(profile.emails[0].value); // Fixed: no space
+    let user = await userModel.findUserByEmail(profile.emails[0].value);
     if (!user) {
-      const userId = await userModel.createUser (profile.emails[0].value); // Fixed: no space
-      user = await userModel.findUserById(userId); // Fixed
+      const userId = await userModel.createUser (profile.emails[0].value);
+      user = await userModel.findUserById(userId);
       await userModel.setUsername(userId, profile.displayName.replace(/\s+/g, '').substring(0, 30));
       await userModel.setProfilePicture(userId, profile.photos[0]?.value || null);
       user.is_email_verified = true;
@@ -36,16 +35,16 @@ passport.use(new GoogleStrategy({
   }
 }));
 
-passport.serializeUser ((user, done) => done(null, user.id)); // Fixed: single parens
+passport.serializeUser ((user, done) => done(null, user.id));
 passport.deserializeUser (async (id, done) => {
-  const user = await userModel.findUserById(id); // Fixed
+  const user = await userModel.findUserById(id);
   done(null, user);
 });
 
 // Initialize passport
 router.use(passport.initialize());
 
-// Rate limits (fixed for IPv6)
+// Rate limits (IPv6-safe)
 const registerLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 5,
@@ -96,9 +95,9 @@ router.post('/register', registerLimiter, async (req, res) => {
     if (!email || !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email) || email.length > 254) {
       return res.status(400).json({ success: false, error: 'INVALID_INPUT', details: 'Valid email required.' });
     }
-    const userId = await userModel.createUser (email); // Fixed
+    const userId = await userModel.createUser (email);
     const code = generateCode();
-    await userModel.createVerificationCode(userId, code); // Fixed
+    await userModel.createVerificationCode(userId, code);
     await sendVerification(email, code);
     res.status(201).json({ success: true, message: 'VERIFICATION_SENT', data: { email } });
   } catch (err) {
@@ -116,11 +115,11 @@ router.post('/verify-code', verifyLimiter, async (req, res) => {
     if (!email || !code || code.length !== 6 || !/^[0-9]{6}$/.test(code)) {
       return res.status(400).json({ success: false, error: 'INVALID_INPUT', details: 'Valid email and 6-digit code required.' });
     }
-    const user = await userModel.findUserByEmail(email); // Fixed
+    const user = await userModel.findUserByEmail(email);
     if (!user) {
       return res.status(404).json({ success: false, error: 'NOT_FOUND', details: 'User  not found.' });
     }
-    const verified = await userModel.verifyCode(user.id, code); // Fixed
+    const verified = await userModel.verifyCode(user.id, code);
     if (verified) {
       res.json({ success: true, message: 'VERIFIED', data: { email: user.email } });
     } else {
@@ -135,22 +134,22 @@ router.post('/verify-code', verifyLimiter, async (req, res) => {
 router.post('/complete-profile', async (req, res) => {
   try {
     const { email, username, password } = req.body;
-    const isGoogle = req.query.google === 'true'; // Fixed: string compare
+    const isGoogle = req.query.google === 'true';
     if (!email || !username || (!password && !isGoogle)) {
       return res.status(400).json({ success: false, error: 'INVALID_INPUT', details: 'Email, username, and password required.' });
     }
-    const user = await userModel.findUserByEmail(email); // Fixed
+    const user = await userModel.findUserByEmail(email);
     if (!user || !user.is_email_verified) {
       return res.status(400).json({ success: false, error: 'INVALID_INPUT', details: 'Email not verified.' });
     }
-    await userModel.setUsername(user.id, username); // Fixed
+    await userModel.setUsername(user.id, username);
     if (password) {
       if (password.length < 8 || !/(?=.*[a-zA-Z])(?=.*[0-9])/.test(password)) {
         return res.status(400).json({ success: false, error: 'INVALID_INPUT', details: 'Password must be 8+ chars with letter and number.' });
       }
-      await userModel.setPassword(user.id, password); // Fixed
+      await userModel.setPassword(user.id, await bcrypt.hash(password, saltRounds));
     }
-    const updatedUser  = await userModel.findUserById(user.id); // Fixed
+    const updatedUser  = await userModel.findUserById(user.id);
     setAuthCookie(res, updatedUser );
     const redirect = updatedUser .role === 'admin' ? '/admin.html' : '/home.html';
     res.json({ success: true, message: 'PROFILE_COMPLETED', data: { redirect } });
@@ -169,7 +168,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     if (!email || !password) {
       return res.status(400).json({ success: false, error: 'INVALID_INPUT', details: 'Email and password required.' });
     }
-    const user = await userModel.findUserByEmail(email); // Fixed
+    const user = await userModel.findUserByEmail(email);
     if (!user || !user.is_email_verified || !await bcrypt.compare(password, user.password_hash)) {
       return res.status(401).json({ success: false, error: 'INVALID_CREDENTIALS', details: 'Invalid email or password.' });
     }
@@ -192,7 +191,7 @@ router.get('/google/callback',
     setAuthCookie(res, req.user, remember);
     const redirect = req.user.role === 'admin' ? `${process.env.FRONTEND_URL}/admin.html` : `${process.env.FRONTEND_URL}/home.html`;
     if (!req.user.username || !req.user.password_hash) {
-      res.redirect(`${process.env.FRONTEND_URL}/form.html?email=${req.user.email}&google=true`);
+      res.redirect(`${process.env.FRONTEND_URL}/form.html?email=${encodeURIComponent(req.user.email)}&google=true`);
     } else {
       res.redirect(redirect);
     }
@@ -206,11 +205,11 @@ router.post('/forgot-password', resetLimiter, async (req, res) => {
     if (!email || !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email)) {
       return res.status(400).json({ success: false, error: 'INVALID_INPUT', details: 'Valid email required.' });
     }
-    const user = await userModel.findUserByEmail(email); // Fixed
+    const user = await userModel.findUserByEmail(email);
     if (!user) {
-      return res.json({ success: true, message: 'RESET_SENT', data: { email } }); // Security: don't reveal existence
+      return res.json({ success: true, message: 'RESET_SENT', data: { email } }); // Don't reveal user existence
     }
-    const token = await userModel.createResetToken(user.id); // Fixed
+    const token = await userModel.createResetToken(user.id);
     await sendReset(email, token);
     res.json({ success: true, message: 'RESET_SENT', data: { email } });
   } catch (err) {
@@ -225,9 +224,9 @@ router.post('/reset-password', async (req, res) => {
     if (!token || !password || password.length < 8 || !/(?=.*[a-zA-Z])(?=.*[0-9])/.test(password)) {
       return res.status(400).json({ success: false, error: 'INVALID_INPUT', details: 'Valid token and password required.' });
     }
-    const userId = await userModel.useResetToken(token); // Fixed
-    await userModel.setPassword(userId, password); // Fixed
-    const user = await userModel.findUserById(userId); // Fixed
+    const userId = await userModel.useResetToken(token);
+    await userModel.setPassword(userId, await bcrypt.hash(password, saltRounds));
+    const user = await userModel.findUserById(userId);
     setAuthCookie(res, user);
     res.json({ success: true, message: 'PASSWORD_RESET', data: { redirect: '/login.html' } });
   } catch (err) {
@@ -238,8 +237,8 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
-// POST /api/auth/logout (clear cookie)
-router.post('/logout', requireAuth, (req, res) => { // This is line ~242; now valid function
+// POST /api/auth/logout (this is ~line 242; now a valid function)
+router.post('/logout', requireAuth, (req, res) => {
   res.clearCookie('token', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
