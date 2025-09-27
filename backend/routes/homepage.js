@@ -9,7 +9,7 @@ router.get('/', async (req, res) => {
   try {
     const query = 'SELECT section, content FROM homepage_content ORDER BY id';
     const { rows } = await pool.query(query);
-    res.json(rows);
+    res.json(rows || []); // Ensure array even if empty
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });

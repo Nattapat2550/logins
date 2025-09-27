@@ -16,7 +16,6 @@ const verifyCode = async (userId, code) => {
   const { rows } = await pool.query(query, [userId, code]);
   if (rows.length === 0) return false;
 
-  // Delete used code and mark verified
   await pool.query('DELETE FROM verification_codes WHERE user_id = $1', [userId]);
   await pool.query('UPDATE users SET is_email_verified = TRUE, updated_at = NOW() WHERE id = $1', [userId]);
   return true;
@@ -55,7 +54,6 @@ const createOrLinkOauthUser  = async (email, username, provider, oauthId, pictur
     const { rows } = await pool.query(query, [email, username || email.split('@')[0], provider, oauthId, picture || '/images/user.png']);
     user = rows[0];
   } else if (!user.oauth_provider) {
-    // Link existing
     await pool.query('UPDATE users SET oauth_provider = $1, oauth_id = $2, profile_pic = $3, is_email_verified = TRUE WHERE id = $4', 
       [provider, oauthId, picture || user.profile_pic, user.id]);
   }
