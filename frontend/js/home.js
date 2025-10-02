@@ -23,46 +23,74 @@ async function init() {
 init();
 
 function buildCarousel(items) {
-  const ind = document.getElementById('carousel-indicators');
-  const inner = document.getElementById('carousel-inner');
-  ind.innerHTML = ''; inner.innerHTML='';
+  const track = document.getElementById('carousel-track');
+  const dotsBox = document.getElementById('carousel-indicators');
+  track.innerHTML = ''; dotsBox.innerHTML = '';
+  let slides = items;
 
   if (!Array.isArray(items) || items.length === 0) {
-    const li = document.createElement('li');
-    li.setAttribute('data-target','#carouselExampleIndicators');
-    li.setAttribute('data-slide-to','0');
-    li.className='active'; ind.appendChild(li);
-    const div = document.createElement('div');
-    div.className='carousel-item active';
-    div.innerHTML = `<img class="d-block w-100" src="images/user.png" alt="Slide"/>`;
-    inner.appendChild(div);
-    setCaption({ title:'No slides yet', subtitle:'', description:'' });
-    return;
+    slides = [{
+      title:'No slides yet', subtitle:'', description:'',
+      image_dataurl:'images/user.png'
+    }];
   }
 
-  items.forEach((it, idx)=>{
-    const li = document.createElement('li');
-    li.setAttribute('data-target','#carouselExampleIndicators');
-    li.setAttribute('data-slide-to', String(idx));
-    if (idx===0) li.className='active';
-    ind.appendChild(li);
-
-    const div = document.createElement('div');
-    div.className = 'carousel-item' + (idx===0 ? ' active' : '');
-    const alt = (it.title || `Slide ${idx+1}`).replace(/"/g,'&quot;');
-    div.innerHTML = `<img class="d-block w-100" src="${it.image_dataurl}" alt="${alt}">`;
-    inner.appendChild(div);
+  slides.forEach((it) => {
+    const slide = document.createElement('div');
+    slide.className = 'carousel-slide';
+    const img = document.createElement('img');
+    img.src = it.image_dataurl;
+    img.alt = it.title || 'Slide';
+    slide.appendChild(img);
+    track.appendChild(slide);
   });
 
-  setCaption(items[0] || {});
-  $('#carouselExampleIndicators').on('slide.bs.carousel', function(e){
-    const it = items[e.to];
-    setCaption(it || {});
+  slides.forEach((_, idx) => {
+    const b = document.createElement('button');
+    if (idx === 0) b.classList.add('active');
+    b.addEventListener('click', () => goTo(idx));
+    dotsBox.appendChild(b);
   });
-}
 
-function setCaption(it) {
-  document.getElementById('cc-title').textContent = it.title || '';
-  document.getElementById('cc-subtitle').textContent = it.subtitle || '';
-  document.getElementById('cc-desc').textContent = it.description || '';
+  let index = 0;
+  const prevBtn = document.getElementById('carousel-prev');
+  const nextBtn = document.getElementById('carousel-next');
+
+  function setCaption(i) {
+    const it = slides[i] || {};
+    document.getElementById('cc-title').textContent = it.title || '';
+    document.getElementById('cc-subtitle').textContent = it.subtitle || '';
+    document.getElementById('cc-desc').textContent = it.description || '';
+  }
+
+  function update() {
+    const width = document.getElementById('carousel').clientWidth;
+    track.style.transform = `translateX(${-index * width}px)`;
+    Array.from(dotsBox.children).forEach((d, i) => d.classList.toggle('active', i === index));
+    setCaption(index);
+  }
+
+  function goTo(i) {
+    index = Math.max(0, Math.min(slides.length - 1, i));
+    update();
+  }
+
+  prevBtn.addEventListener('click', () => goTo(index - 1));
+  nextBtn.addEventListener('click', () => goTo(index + 1));
+  window.addEventListener('resize', update);
+
+  // Touch swipe (พื้นฐาน)
+  let startX = 0, isDown = false;
+  track.addEventListener('pointerdown', (e) => { isDown = true; startX = e.clientX; });
+  window.addEventListener('pointerup', (e) => {
+    if (!isDown) return;
+    const dx = e.clientX - startX;
+    if (dx > 40) goTo(index - 1);
+    else if (dx < -40) goTo(index + 1);
+    isDown = false;
+  });
+
+  // init
+  setCaption(0);
+  update();
 }

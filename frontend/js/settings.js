@@ -4,7 +4,6 @@ async function loadMe() {
   try {
     const me = await api('/api/users/me');
     document.getElementById('username').value = me.username || '';
-    document.getElementById('profilePictureUrl').value = me.profile_picture_url || '';
   } catch { location.replace('index.html'); }
 }
 loadMe();
@@ -13,9 +12,8 @@ document.getElementById('settingsForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   msg.textContent='';
   const username = document.getElementById('username').value.trim();
-  const profilePictureUrl = document.getElementById('profilePictureUrl').value.trim() || null;
   try {
-    await api('/api/users/me', { method:'PUT', body:{ username, profilePictureUrl }});
+    await api('/api/users/me', { method:'PUT', body:{ username }});
     msg.textContent = 'Saved.';
   } catch (err) { msg.textContent = err.message; }
 });
@@ -32,7 +30,6 @@ document.getElementById('avatarForm').addEventListener('submit', async (e)=>{
     const j = await res.json().catch(()=>({error:'Upload failed'})); msg.textContent = j.error || 'Upload failed'; return;
   }
   const data = await res.json();
-  document.getElementById('profilePictureUrl').value = data.profile_picture_url || '';
   const avatar = document.getElementById('avatar');
   if (avatar && data.profile_picture_url) avatar.src = data.profile_picture_url;
   msg.textContent = 'Avatar uploaded.';
