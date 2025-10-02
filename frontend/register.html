@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Register</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link href="css/style.css" rel="stylesheet" />
+</head>
+<body>
+  <nav class="nav">
+    <div class="brand">MySite</div>
+    <div class="links"><a href="index.html">Home</a><button id="themeToggle">🌓</button></div>
+  </nav>
+  <main class="container">
+    <h2>Register with Email</h2>
+    <form id="registerForm">
+      <label>Email</label>
+      <input type="email" id="email" required />
+      <button class="btn" type="submit">Register</button>
+    </form>
+    <div class="divider">or</div>
+    <button class="btn outline" id="googleBtn">Sign up with Google</button>
+    <p id="msg" class="muted"></p>
+  </main>
+  <script src="js/main.js"></script>
+  <script src="js/register.js"></script>
+</body>
+</html>
