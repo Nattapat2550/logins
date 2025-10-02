@@ -27,23 +27,50 @@ async function api(path, { method='GET', body } = {}) {
 window.api = api;
 window.API_BASE_URL = API_BASE_URL;
 
-// Auth guard for private pages
+/* ==== PAGE ACCESS CONTROL ==== */
 (function guard() {
-  const publicPages = new Set(['','index.html','about.html','contact.html','register.html','login.html','check.html','form.html','reset.html']);
-  const page = location.pathname.split('/').pop();
-  if (publicPages.has(page)) return;
-  api('/api/users/me').then(me => {
-    const isAdmin = me.role === 'admin';
-    if (page === 'admin.html' && !isAdmin) location.replace('home.html');
-    if ((page === 'home.html' || page === 'settings.html') && isAdmin) location.replace('admin.html');
-    const uname = document.getElementById('uname');
-    const avatar = document.getElementById('avatar');
-    if (uname) uname.textContent = me.username || me.email;
-    if (avatar && me.profile_picture_url) avatar.src = me.profile_picture_url;
-  }).catch(() => location.replace('index.html'));
+  // หน้าที่อนุญาตเมื่อ "ยังไม่ล็อกอิน/ไม่มี token"
+  const LOGGED_OUT_ALLOWED = new Set([
+    '', 'index.html', 'about.html', 'contact.html', 'register.html', 'login.html',
+    'check.html', 'form.html', 'reset.html' // อนุญาตตามที่ขอ
+  ]);
+
+  // หน้าที่อนุญาตให้ "user"
+  const USER_ALLOWED  = new Set(['home.html', 'about.html', 'contact.html', 'settings.html']);
+
+  // หน้าที่อนุญาตให้ "admin" (เผื่อกรณีมีหน้าแอดมิน)
+  const ADMIN_ALLOWED = new Set(['admin.html', 'about.html', 'contact.html']);
+
+  // ชื่อไฟล์ของหน้าปัจจุบัน
+  const page = (location.pathname.split('/').pop() || '').toLowerCase();
+
+  // เช็คสถานะผู้ใช้จาก token (cookie)
+  api('/api/users/me')
+    .then(me => {
+      // มี token
+      const role = (me.role || 'user').toLowerCase();
+
+      // ใส่ชื่อ/รูป ถ้ามี element เหล่านี้
+      const uname = document.getElementById('uname');
+      const avatar = document.getElementById('avatar');
+      if (uname) uname.textContent = me.username || me.email;
+      if (avatar && me.profile_picture_url) avatar.src = me.profile_picture_url;
+
+      if (role === 'admin') {
+        // admin เข้าได้เฉพาะ ADMIN_ALLOWED
+        if (!ADMIN_ALLOWED.has(page)) location.replace('admin.html');
+      } else {
+        // user เข้าได้เฉพาะ USER_ALLOWED
+        if (!USER_ALLOWED.has(page)) location.replace('home.html');
+      }
+    })
+    .catch(() => {
+      // ไม่มี token => เข้าได้เฉพาะ LOGGED_OUT_ALLOWED
+      if (!LOGGED_OUT_ALLOWED.has(page)) location.replace('index.html');
+    });
 })();
 
-// Dropdown toggle by click
+/* ==== Dropdown toggle แบบคลิก ==== */
 document.addEventListener('click', (e) => {
   const menu = document.getElementById('userMenu');
   if (!menu) return;
