@@ -1,14 +1,16 @@
 const API_BASE_URL = 'https://backendlogins.onrender.com';
 
 /* ==== Theme toggle ==== */
-const themeToggle = document.getElementById('themeToggle');
-if (themeToggle) {
-  themeToggle.addEventListener('click', () => {
-    document.body.classList.toggle('dark');
-    localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
-  });
+document.addEventListener('DOMContentLoaded', () => {
+  const themeToggle = document.getElementById('themeToggle');
+  if (themeToggle) {
+    themeToggle.addEventListener('click', () => {
+      document.body.classList.toggle('dark');
+      localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
+    });
+  }
   if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark');
-}
+});
 
 /* ==== API helper ==== */
 async function api(path, { method='GET', body } = {}) {
@@ -33,7 +35,7 @@ window.API_BASE_URL = API_BASE_URL;
   // หน้าที่อนุญาตเมื่อ "ยังไม่ล็อกอิน/ไม่มี token"
   const LOGGED_OUT_ALLOWED = new Set([
     '', 'index.html', 'about.html', 'contact.html', 'register.html', 'login.html',
-    'check.html', 'form.html', 'reset.html' // เปิดให้ guest ตามที่ขอ
+    'check.html', 'form.html', 'reset.html'
   ]);
 
   // หน้าที่อนุญาตให้ "user"
@@ -67,9 +69,9 @@ window.API_BASE_URL = API_BASE_URL;
     });
 })();
 
-/* ==== Optional handlers (ไม่พบบนทุกหน้า → ต้องเช็กก่อน) ==== */
+/* ==== Optional handlers (เช็ก element ก่อนเสมอ) ==== */
 document.addEventListener('DOMContentLoaded', () => {
-  // Dropdown toggle แบบคลิก
+  // Dropdown toggle แบบคลิก (มีเฉพาะบางหน้า)
   const menu = document.getElementById('userMenu');
   if (menu) {
     document.addEventListener('click', (e) => {
@@ -83,9 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const logoutBtn = document.getElementById('logoutBtn');
   if (logoutBtn) {
     logoutBtn.addEventListener('click', async () => {
-      try {
-        await api('/api/auth/logout', { method:'POST' });
-      } catch {}
+      try { await api('/api/auth/logout', { method:'POST' }); } catch {}
       location.replace('index.html');
     });
   }
