@@ -1,109 +1,92 @@
-async function init() {
-  try {
-    const me = await api('/api/users/me');
-    document.getElementById('uname').textContent = me.username || me.email;
-    if (me.profile_picture_url) document.getElementById('avatar').src = me.profile_picture_url;
+const API_BASE_URL = 'https://backendlogins.onrender.com';
 
-    const content = await api('/api/homepage');
-    const map = Object.fromEntries(content.map(c => [c.section_name, c.content]));
-    document.getElementById('welcome_header').textContent = map.welcome_header || `Welcome, ${me.username || me.email}`;
-    document.getElementById('main_paragraph').textContent = map.main_paragraph || 'This is your dashboard.';
-
-    const items = await api('/api/carousel');
-    buildCarousel(items);
-  } catch {
-    location.replace('index.html');
-  }
-
-  document.getElementById('logoutBtn').onclick = async () => {
-    await api('/api/auth/logout', { method:'POST' });
-    location.replace('index.html');
-  };
+/* ==== Theme toggle ==== */
+const themeToggle = document.getElementById('themeToggle');
+if (themeToggle) {
+  themeToggle.addEventListener('click', () => {
+    document.body.classList.toggle('dark');
+    localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
+  });
+  if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark');
 }
-init();
 
-function buildCarousel(items) {
-  const track = document.getElementById('carousel-track');
-  const dotsBox = document.getElementById('carousel-indicators');
-  const prevBtn = document.getElementById('carousel-prev');
-  const nextBtn = document.getElementById('carousel-next');
-  track.innerHTML = ''; dotsBox.innerHTML = '';
-
-  let slides = items;
-  if (!Array.isArray(items) || items.length === 0) {
-    slides = [{ title:'No slides yet', subtitle:'', description:'', image_dataurl:'images/user.png' }];
-  }
-
-  // สร้างสไลด์
-  slides.forEach((it) => {
-    const slide = document.createElement('div');
-    slide.className = 'carousel-slide';
-    const img = document.createElement('img');
-    img.src = it.image_dataurl;
-    img.alt = it.title || 'Slide';
-    slide.appendChild(img);
-    track.appendChild(slide);
+/* ==== API helper ==== */
+async function api(path, { method='GET', body } = {}) {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method,
+    credentials: 'include',
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined
   });
-
-  // Indicators เป็นรูปย่อ (thumbnail)
-  slides.forEach((it, idx) => {
-    const btn = document.createElement('button');
-    const im = document.createElement('img');
-    im.src = it.image_dataurl; im.alt = (it.title || `Slide ${idx+1}`);
-    btn.appendChild(im);
-    if (idx === 0) btn.classList.add('active');
-    btn.addEventListener('click', () => goTo(idx));
-    dotsBox.appendChild(btn);
-  });
-
-  let index = 0;
-
-  function setCaption(i) {
-    const it = slides[i] || {};
-    document.getElementById('cc-title').textContent = it.title || '';
-    document.getElementById('cc-subtitle').textContent = it.subtitle || '';
-    document.getElementById('cc-desc').textContent = it.description || '';
+  if (!res.ok) {
+    let msg = 'Request failed';
+    try { const j = await res.json(); msg = j.error || msg; } catch {}
+    throw new Error(msg);
   }
-
-  function updateButtons() {
-    // ไม่วนลูป: ปิดปุ่มเมื่อสุดขอบ
-    prevBtn.disabled = index === 0;
-    nextBtn.disabled = index === slides.length - 1;
-  }
-
-  function update() {
-    const width = document.getElementById('carousel').clientWidth;
-    track.style.transform = `translateX(${-index * width}px)`;
-    Array.from(dotsBox.children).forEach((d, i) => d.classList.toggle('active', i === index));
-    setCaption(index);
-    updateButtons();
-  }
-
-  function goTo(i) {
-    index = Math.max(0, Math.min(slides.length - 1, i));
-    update();
-  }
-
-  prevBtn.addEventListener('click', () => {
-    if (index > 0) goTo(index - 1);
-  });
-  nextBtn.addEventListener('click', () => {
-    if (index < slides.length - 1) goTo(index + 1);
-  });
-  window.addEventListener('resize', update);
-
-  // Swipe เบื้องต้น (ไม่วน)
-  let startX = 0, isDown = false;
-  track.addEventListener('pointerdown', (e) => { isDown = true; startX = e.clientX; });
-  window.addEventListener('pointerup', (e) => {
-    if (!isDown) return;
-    const dx = e.clientX - startX;
-    if (dx > 40 && index > 0) goTo(index - 1);
-    else if (dx < -40 && index < slides.length - 1) goTo(index + 1);
-    isDown = false;
-  });
-
-  // init
-  setCaption(0);
-  update();
+  return res.status === 204 ? null : res.json();
 }
+window.api = api;
+window.API_BASE_URL = API_BASE_URL;
+
+/* ==== PAGE ACCESS CONTROL ==== */
+(function guard() {
+  // หน้าที่อนุญาตเมื่อ "ยังไม่ล็อกอิน/ไม่มี token"
+  const LOGGED_OUT_ALLOWED = new Set([
+    '', 'index.html', 'about.html', 'contact.html', 'register.html', 'login.html',
+    'check.html', 'form.html', 'reset.html' // เปิดให้ guest ตามที่ขอ
+  ]);
+
+  // หน้าที่อนุญาตให้ "user"
+  const USER_ALLOWED  = new Set(['home.html', 'about.html', 'contact.html', 'settings.html']);
+
+  // หน้าที่อนุญาตให้ "admin"
+  const ADMIN_ALLOWED = new Set(['admin.html', 'about.html', 'contact.html']);
+
+  const page = (location.pathname.split('/').pop() || '').toLowerCase();
+
+  // เช็คสถานะผู้ใช้จาก token (cookie)
+  api('/api/users/me')
+    .then(me => {
+      const role = (me.role || 'user').toLowerCase();
+
+      // ใส่ชื่อ/รูป ถ้ามี element เหล่านี้ (optional-safe)
+      const uname = document.getElementById('uname');
+      const avatar = document.getElementById('avatar');
+      if (uname) uname.textContent = me.username || me.email;
+      if (avatar && me.profile_picture_url) avatar.src = me.profile_picture_url;
+
+      if (role === 'admin') {
+        if (!ADMIN_ALLOWED.has(page)) location.replace('admin.html');
+      } else {
+        if (!USER_ALLOWED.has(page)) location.replace('home.html');
+      }
+    })
+    .catch(() => {
+      // ไม่มี token => เข้าได้เฉพาะ LOGGED_OUT_ALLOWED
+      if (!LOGGED_OUT_ALLOWED.has(page)) location.replace('index.html');
+    });
+})();
+
+/* ==== Optional handlers (ไม่พบบนทุกหน้า → ต้องเช็กก่อน) ==== */
+document.addEventListener('DOMContentLoaded', () => {
+  // Dropdown toggle แบบคลิก
+  const menu = document.getElementById('userMenu');
+  if (menu) {
+    document.addEventListener('click', (e) => {
+      const inside = menu.contains(e.target);
+      if (inside) menu.classList.toggle('open');
+      else menu.classList.remove('open');
+    });
+  }
+
+  // Logout (มีเฉพาะบางหน้า)
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', async () => {
+      try {
+        await api('/api/auth/logout', { method:'POST' });
+      } catch {}
+      location.replace('index.html');
+    });
+  }
+});
