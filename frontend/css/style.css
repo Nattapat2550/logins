@@ -1,56 +1,279 @@
-:root { --bg:#fff; --fg:#111; --muted:#666; --accent:#2962ff; --danger:#d32f2f; --card:#f6f7fb; }
-body.dark { --bg:#0f1115; --fg:#e9eef7; --muted:#a4a9b6; --accent:#7aa2ff; --danger:#ff6b6b; --card:#1a1f2c; }
+/* =========================================================
+   TECH THEME — Neon + Glass + Gradient + Smooth Motion
+   ========================================================= */
+:root{
+  /* Palette */
+  --bg-0:#080B12;         /* page background */
+  --bg-1:#0D1321;         /* cards/nav */
+  --bg-2:#0F172A;         /* deeper glass */
+  --fg-0:#E6ECF5;         /* primary text */
+  --fg-1:#A7B3C5;         /* secondary text */
+  --muted:#8B97AA;
 
-* { box-sizing: border-box; }
-body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background:var(--bg); color:var(--fg); }
-a { color: var(--accent); text-decoration: none; }
-.container { max-width: 960px; margin: 2rem auto; padding: 0 1rem; }
-.nav { display:flex; align-items:center; justify-content:space-between; background:var(--card); padding:.75rem 1rem; position:sticky; top:0; z-index:10;}
-.nav .links a, .nav .links button { margin-left:.75rem; }
-.btn { background:var(--accent); color:#fff; border:none; padding:.6rem 1rem; border-radius:.5rem; cursor:pointer; }
-.btn.outline { background:transparent; color:var(--accent); border:1px solid var(--accent); }
-.btn.danger { background:var(--danger); }
-.actions { display:flex; gap:.5rem; }
-input, textarea, select { width:100%; padding:.6rem .7rem; border:1px solid #ccc; border-radius:.5rem; background:transparent; color:inherit; }
-label { display:block; margin:.6rem 0 .2rem; }
-form { background:var(--card); padding:1rem; border-radius:.75rem; }
-.muted { color:var(--muted); }
-.divider { text-align:center; margin:1rem 0; color:var(--muted); }
-.row { display:flex; gap:1rem; align-items:center; flex-wrap:wrap; }
-table { width:100%; border-collapse: collapse; }
-th, td { padding:.5rem; border-bottom:1px solid #ddd; vertical-align:top; }
-.user-menu { display:inline-flex; align-items:center; gap:.5rem; position:relative; }
-.user-menu img { width:28px; height:28px; border-radius:50%; object-fit:cover; }
-.dropdown { display:none; position:absolute; right:0; top:120%; background:var(--card); padding:.5rem; border-radius:.5rem; flex-direction:column; gap:.25rem; box-shadow:0 6px 20px rgba(0,0,0,.15);}
-.user-menu.open .dropdown { display:flex; }
-.linklike { background:none; border:none; color:var(--accent); cursor:pointer; padding:0; text-align:left; }
+  /* Accents */
+  --acc-1:#00E6FF;        /* cyan neon */
+  --acc-2:#7C4DFF;        /* violet neon */
+  --acc-3:#00FFA3;        /* green neon */
 
-/* ---- Pure CSS Carousel ---- */
-.carousel { position:relative; width:100%; overflow:hidden; border-radius:.75rem; background:#000; }
-.carousel-track { display:flex; transition:transform .45s ease; will-change:transform; }
-.carousel-slide { min-width:100%; height:420px; display:flex; align-items:center; justify-content:center; background:#000; }
-.carousel-slide img { width:100%; height:100%; object-fit:cover; }
+  /* Effects */
+  --glass: rgba(255,255,255,.06);
+  --glass-strong: rgba(255,255,255,.12);
+  --br:16px;              /* base radius */
+  --shadow-neon: 0 0 20px rgba(0,230,255,.35), 0 0 40px rgba(124,77,255,.25);
+  --shadow-soft: 0 10px 30px rgba(0,0,0,.35);
+  --bd:1px solid rgba(255,255,255,.12);
 
-.carousel-prev, .carousel-next {
+  /* Typography */
+  --font-ui: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* =========================================================
+   Base
+   ========================================================= */
+*{ box-sizing: border-box; }
+html, body{ height:100%; }
+html{ -webkit-tap-highlight-color: transparent; }
+body{
+  margin:0; background: radial-gradient(1200px 800px at 10% -10%, rgba(0,230,255,.10), transparent 60%),
+                      radial-gradient(1200px 800px at 100% 0%, rgba(124,77,255,.10), transparent 60%),
+                      var(--bg-0);
+  color:var(--fg-0);
+  font-family: var(--font-ui);
+  letter-spacing:.2px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Utility no-wrap (ใช้เมื่ออยากบังคับไม่ตกบรรทัด) */
+.no-wrap, .nowrap{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* ลบ outline เดิม แต่ยังคงแสดง focus แบบชัดเจน */
+:focus-visible{ outline:2px dashed var(--acc-1); outline-offset:3px; border-radius:8px; }
+
+/* =========================================================
+   Container & Layout
+   ========================================================= */
+.container{
+  max-width: 1060px;
+  margin: 2.2rem auto;
+  padding: 0 1.2rem;
+}
+
+/* =========================================================
+   Top Nav — Glass + Neon Underline
+   ========================================================= */
+.nav{
+  position: sticky; top:0; z-index:10;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:.9rem 1.2rem;
+  background: linear-gradient(180deg, rgba(13,19,33,.85), rgba(13,19,33,.55));
+  backdrop-filter: blur(12px);
+  border-bottom: var(--bd);
+}
+.brand{
+  font-weight:700; font-size:1.15rem; letter-spacing:.4px;
+  background: linear-gradient(90deg, var(--acc-1), var(--acc-2));
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  text-shadow: 0 0 18px rgba(124,77,255,.25);
+  white-space:nowrap;
+}
+.nav .links{ display:flex; align-items:center; gap:.85rem; }
+.nav .links a, .nav .links button{
+  color:var(--fg-0); text-decoration:none; background:transparent; border:0; cursor:pointer;
+  padding:.48rem .75rem; border-radius:10px; white-space:nowrap;
+}
+.nav .links a:hover{ background: var(--glass); }
+#themeToggle{ font-size:1rem; }
+
+.user-menu{ display:inline-flex; align-items:center; gap:.55rem; position:relative; }
+.user-menu img{
+  width:30px; height:30px; border-radius:50%; object-fit:cover;
+  box-shadow: 0 0 0 2px rgba(255,255,255,.12);
+}
+.user-menu > span{ font-size:.95rem; color:var(--fg-1); white-space:nowrap; }
+.dropdown{
+  display:none; position:absolute; right:0; top:120%; min-width: 180px;
+  background: linear-gradient(180deg, rgba(15,23,42,.95), rgba(15,23,42,.75));
+  border: var(--bd); border-radius: 12px; padding:.4rem; backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-soft);
+}
+.user-menu.open .dropdown{ display:flex; flex-direction:column; gap:.25rem; }
+.dropdown a, .dropdown .linklike{
+  display:block; color:var(--fg-0); text-decoration:none; padding:.6rem .65rem; border-radius:10px; white-space:nowrap;
+  background: transparent; border:0; text-align:left; cursor:pointer;
+}
+.dropdown a:hover, .dropdown .linklike:hover{ background: var(--glass); }
+.linklike{ color:var(--acc-1); }
+
+/* =========================================================
+   Buttons
+   ========================================================= */
+.btn{
+  position:relative; display:inline-flex; align-items:center; justify-content:center;
+  gap:.45rem; padding:.7rem 1.1rem; border-radius:12px; border:0; cursor:pointer;
+  color:#001018; font-weight:700; letter-spacing:.3px; white-space:nowrap;
+  background: linear-gradient(90deg, var(--acc-1), var(--acc-2));
+  box-shadow: var(--shadow-neon);
+  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+}
+.btn:hover{ transform: translateY(-1px) scale(1.01); filter: brightness(1.05); }
+.btn:active{ transform: translateY(0) scale(.99); filter: brightness(.98); }
+.btn.outline{
+  background: transparent; color: var(--fg-0); border:1px solid rgba(124,77,255,.6);
+  box-shadow:none;
+}
+.btn.outline:hover{ background: rgba(124,77,255,.15); }
+.btn.danger{
+  background: linear-gradient(90deg, #FF5277, #FF784D);
+  color:#1b0008; box-shadow: 0 0 20px rgba(255,82,119,.3);
+}
+
+/* =========================================================
+   Forms / Cards
+   ========================================================= */
+form, .card{
+  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+  border: var(--bd);
+  border-radius: var(--br);
+  padding:1.1rem;
+  box-shadow: var(--shadow-soft);
+}
+label{ display:block; margin:.65rem 0 .35rem; color:var(--fg-1); }
+input, textarea, select{
+  width:100%; padding:.75rem .85rem; border-radius:12px; border:1px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.06); color:var(--fg-0);
+  outline:none; transition: border-color .18s ease, background .18s ease;
+}
+input:focus, textarea:focus, select:focus{
+  border-color: var(--acc-1); background: rgba(255,255,255,.09);
+}
+input::placeholder, textarea::placeholder{ color: rgba(230,236,245,.5); }
+.muted{ color:var(--fg-1); }
+.divider{ text-align:center; color:var(--muted); margin:1rem 0; }
+
+/* =========================================================
+   Tables (Admin)
+   ========================================================= */
+table{ width:100%; border-collapse: collapse; }
+th, td{
+  padding:.65rem .55rem; border-bottom:1px dashed rgba(255,255,255,.12);
+  vertical-align:top; color:var(--fg-0);
+}
+th{ color:var(--muted); font-weight:600; white-space:nowrap; }
+
+/* =========================================================
+   Carousel — Pure CSS/JS + Tech FX
+   (รองรับรูป "ยืดเต็ม" ตามที่ต้องการ: object-fit: fill)
+   ========================================================= */
+.carousel{
+  position:relative; width:100%; overflow:hidden; border-radius: calc(var(--br) + 4px);
+  background: linear-gradient(120deg, rgba(0,230,255,.18), rgba(124,77,255,.18));
+  border: 1px solid rgba(255,255,255,.18);
+  box-shadow: 0 15px 45px rgba(0,0,0,.38), inset 0 0 30px rgba(124,77,255,.15);
+}
+.carousel-track{
+  display:flex; transition:transform .45s cubic-bezier(.22,.61,.36,1); will-change:transform;
+}
+.carousel-slide{
+  min-width:100%; height:460px; display:flex; align-items:center; justify-content:center;
+  background: radial-gradient(600px 300px at 50% 10%, rgba(0,230,255,.15), transparent 60%), #000;
+}
+.carousel-slide img{ width:100%; height:100%; object-fit: fill; } /* ยืดรูป ไม่ครอป */
+
+.carousel-prev,.carousel-next{
   position:absolute; top:50%; transform:translateY(-50%);
-  width:44px; height:44px; border:none; border-radius:50%;
-  background:rgba(0,0,0,.45); color:#fff; font-size:20px; line-height:44px; text-align:center; cursor:pointer;
+  width:46px; height:46px; border:none; border-radius:50%;
+  background: linear-gradient(180deg, rgba(0,0,0,.55), rgba(0,0,0,.35));
+  color:#fff; font-size:22px; line-height:46px; text-align:center; cursor:pointer;
+  box-shadow: 0 6px 18px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.15);
+  transition: transform .15s ease, background .15s ease, opacity .15s ease;
 }
-.carousel-prev { left:10px; }
-.carousel-next { right:10px; }
-.carousel-prev:focus, .carousel-next:focus { outline:2px solid var(--accent); outline-offset:2px; }
+.carousel-prev{ left:14px; }
+.carousel-next{ right:14px; }
+.carousel-prev:hover,.carousel-next:hover{ transform: translateY(-50%) scale(1.04); }
+.carousel-prev[disabled],.carousel-next[disabled]{ opacity:.4; cursor:not-allowed; }
 
-.carousel-indicators { position:absolute; left:0; right:0; bottom:10px; display:flex; justify-content:center; gap:8px; }
-.carousel-indicators button {
-  width:10px; height:10px; border-radius:50%; border:none; background:rgba(255,255,255,.5); cursor:pointer;
+/* Thumbnails indicators */
+.carousel-indicators{
+  position:absolute; left:0; right:0; bottom:12px;
+  display:flex; justify-content:center; gap:10px; padding:0 .6rem;
 }
-.carousel-indicators button.active { background:#fff; }
+.carousel-indicators button{
+  width:74px; height:44px; padding:0; border:0; cursor:pointer; overflow:hidden;
+  border-radius:10px; background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
+  box-shadow: 0 6px 18px rgba(0,0,0,.35);
+  position:relative;
+}
+.carousel-indicators button::after{
+  content:""; position:absolute; inset:0; border-radius:10px;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.14);
+  pointer-events:none;
+}
+.carousel-indicators button img{ width:100%; height:100%; object-fit:cover; display:block; filter: saturate(.95) contrast(1.05); }
+.carousel-indicators button.active{
+  box-shadow: 0 0 0 2px rgba(0,230,255,.9), 0 0 24px rgba(124,77,255,.45);
+}
 
-#carousel-caption-box { background:var(--card); padding:1rem; border-radius:.5rem; margin-top:.75rem; }
-#carousel-caption-box h3 { margin:.2rem 0; }
-#carousel-caption-box h5 { margin:.2rem 0; color:var(--muted); }
+/* Caption under carousel */
+#carousel-caption-box{
+  margin-top: .9rem;
+  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+  border: var(--bd);
+  border-radius: var(--br);
+  padding: 1rem 1.1rem;
+}
+#carousel-caption-box h3{
+  margin:.2rem 0; font-weight:800; letter-spacing:.3px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  background: linear-gradient(90deg, var(--acc-1), var(--acc-2));
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+#carousel-caption-box h5{
+  margin:.25rem 0; color:var(--fg-1); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+#carousel-caption-box p{
+  margin-top:.4rem; color:var(--fg-0);
+}
 
-/* Responsive */
-@media (max-width: 640px) {
-  .carousel-slide { height:300px; }
+/* =========================================================
+   Links — animated underline
+   ========================================================= */
+a{
+  position:relative; transition: color .15s ease;
+}
+a::after{
+  content:""; position:absolute; left:0; right:100%; bottom:-2px; height:2px;
+  background: linear-gradient(90deg, var(--acc-1), var(--acc-2));
+  transition: right .25s ease;
+}
+a:hover{ color:#fff; }
+a:hover::after{ right:0; }
+
+/* =========================================================
+   Helpers
+   ========================================================= */
+.actions{ display:flex; gap:.7rem; flex-wrap:wrap; }
+hr{ border:0; height:1px; background: linear-gradient(90deg, rgba(255,255,255,.1), rgba(255,255,255,.02)); margin:1.2rem 0; }
+
+/* ป้องกันตกบรรทัด: รายการสำคัญ (ลิงก์/ปุ่ม/หัวข้อ/breadcrumb/brand) */
+button, .btn, .nav .links a, .brand, h1, h2, h3, h4, h5, th{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* =========================================================
+   Responsive
+   ========================================================= */
+@media (max-width: 860px){
+  .container{ margin:1.6rem auto; }
+}
+@media (max-width: 640px){
+  .nav{ padding:.8rem 1rem; }
+  .carousel-slide{ height: 340px; }
+  .carousel-indicators button{ width:58px; height:36px; }
+}
+
+/* =========================================================
+   Reduced Motion
+   ========================================================= */
+@media (prefers-reduced-motion: reduce){
+  *{ animation:none !important; transition:none !important; }
 }
