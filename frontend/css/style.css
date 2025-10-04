@@ -109,6 +109,7 @@ body{
   width:30px; height:30px; border-radius:50%; object-fit:cover;
   box-shadow: 0 0 0 2px color-mix(in oklab, var(--fg-1) 18%, transparent);
 }
+.user-menu:hover{ cursor:pointer; }
 .user-menu > span{ font-size:.95rem; color:var(--fg-1); white-space:nowrap; }
 .dropdown{
   display:none; position:absolute; right:0; top:120%; min-width: 180px;
