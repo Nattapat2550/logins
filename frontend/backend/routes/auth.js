@@ -180,30 +180,4 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
-router.post('/google-mobile', async (req, res) => {
-  try {
-    const { idToken } = req.body || {};
-    if (!idToken) return res.status(400).json({ error: 'Missing idToken' });
-
-    const ticket = await oauth2Client.verifyIdToken({
-      idToken,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    });
-
-    const payload = ticket.getPayload();
-    const email = payload.email;
-    const sub = payload.sub;
-    const name = payload.name;
-
-    if (!email) return res.status(400).json({ error: 'No email from Google' });
-
-    const user = await setOAuthUser('google', sub, email, name);
-    const token = signToken(user);
-    setAuthCookie(res, token, true); // remember=true
-    res.json({ role: user.role });
-  } catch (e) {
-    console.error('google-mobile error', e);
-    res.status(500).json({ error: 'Internal error' });
-  }
-});
 module.exports = router;
