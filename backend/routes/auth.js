@@ -281,41 +281,57 @@ router.post('/reset-password', async (req, res) => {
 
 router.post('/google-mobile', async (req, res) => {
   try {
-    const { idToken } = req.body || {};
-    if (!idToken) {
-      return res.status(400).json({ error: 'Missing idToken' });
+    const { authCode } = req.body || {};
+    if (!authCode) {
+      return res.status(400).json({ error: 'Missing authCode' });
     }
 
-    if (!GOOGLE_ANDROID_CLIENT_ID) {
-      console.error('GOOGLE_CLIENT_ID_ANDROID is not set');
+    const webClientId =
+      process.env.GOOGLE_CLIENT_ID_WEB || process.env.GOOGLE_CLIENT_ID;
+    if (!webClientId || !process.env.GOOGLE_CLIENT_SECRET) {
+      console.error('Google web client or secret is not configured');
       return res
         .status(500)
-        .json({ error: 'Google auth is not configured for Android' });
+        .json({ error: 'Google auth is not configured on server' });
     }
 
-    // ใช้ client เฉพาะสำหรับ Android
-    const androidClient = new google.auth.OAuth2(GOOGLE_ANDROID_CLIENT_ID);
+    // ใช้ Web client ID + secret ในการแลก authCode เป็น token
+    const oauth2ClientMobile = new google.auth.OAuth2(
+      webClientId,
+      process.env.GOOGLE_CLIENT_SECRET,
+      // ไม่ต้องใช้ callback URI แบบเว็บ
+    );
 
-    const ticket = await androidClient.verifyIdToken({
-      idToken,
-      audience: GOOGLE_ANDROID_CLIENT_ID,
+    // สำหรับ authCode ที่มาจาก mobile ใช้ redirect_uri = 'postmessage'
+    const { tokens } = await oauth2ClientMobile.getToken({
+      code: authCode,
+      redirect_uri: 'postmessage',
     });
 
-    const payload = ticket.getPayload();
-    const email = payload.email;
-    const sub = payload.sub;
-    const name = payload.name;
-    const picture = payload.picture;
+    oauth2ClientMobile.setCredentials(tokens);
+
+    // ดึงข้อมูล profile ผู้ใช้จาก Google
+    const oauth2 = google.oauth2({
+      version: 'v2',
+      auth: oauth2ClientMobile,
+    });
+
+    const { data: info } = await oauth2.userinfo.get();
+
+    const email = info.email;
+    const oauthId = info.id;
+    const picture = info.picture;
+    const name = info.name;
 
     if (!email) {
       return res.status(400).json({ error: 'No email from Google' });
     }
 
-    // ใช้รูปแบบเดียวกับฝั่งเว็บ
+    // ใช้รูปแบบเดียวกับเว็บ
     const user = await setOAuthUser({
       email,
       provider: 'google',
-      oauthId: sub,
+      oauthId,
       pictureUrl: picture,
       name,
     });
@@ -323,12 +339,11 @@ router.post('/google-mobile', async (req, res) => {
     const token = signToken(user);
     setAuthCookie(res, token, true); // remember=true
 
-    // mobile จะใช้ role เพื่อตัดสินว่าจะไปหน้า home / admin
+    // mobile จะใช้ role ในการตัดสินจะไปหน้า admin หรือ home
     res.json({ role: user.role });
   } catch (e) {
     console.error('google-mobile error', e?.response?.data || e?.message || e);
-    // ใช้ 401 ให้ชัดว่า token ไม่ผ่าน
-    res.status(401).json({ error: 'Invalid Google token' });
+    res.status(401).json({ error: 'Invalid Google auth' });
   }
 });
 
