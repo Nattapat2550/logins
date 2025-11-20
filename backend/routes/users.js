@@ -1,35 +1,38 @@
 const express = require('express');
-const { authenticateJWT } = require('../middleware/auth');
+const { authenticateJWT, clearAuthCookie } = require('../middleware/auth');
 const { updateProfile, deleteUser, findUserById } = require('../models/user');
 const multer = require('multer');
 
-// จำกัดไฟล์ upload ไม่เกิน 2MB
-const upload = multer({ limits: { fileSize: 2 * 1024 * 1024 } });
+const upload = multer({ limits: { fileSize: 2 * 1024 * 1024 } }); // 2MB
 
 const router = express.Router();
 
-// GET /api/users/me — เอาข้อมูล user ปัจจุบัน
+// GET /api/users/me - current user profile
 router.get('/me', authenticateJWT, async (req, res) => {
   try {
     const u = await findUserById(req.user.id);
-    if (!u) return res.status(404).json({ error: 'Not found' });
-
+    if (!u) {
+      // token ใช้ได้ แต่ user หาย → เคลียร์ cookie และให้ login ใหม่
+      clearAuthCookie(res);
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
     const { id, username, email, role, profile_picture_url } = u;
     return res.json({ id, username, email, role, profile_picture_url });
   } catch (e) {
-    console.error('get me error', e);
+    console.error('get /api/users/me error', e);
     return res.status(500).json({ error: 'Internal error' });
   }
 });
 
-// PUT /api/users/me — แก้ username หรือ profilePictureUrl (ส่งเป็น JSON)
+// PUT /api/users/me - update username หรือ profilePictureUrl (JSON)
 router.put('/me', authenticateJWT, async (req, res) => {
   try {
     const { username, profilePictureUrl } = req.body || {};
     const updated = await updateProfile(req.user.id, { username, profilePictureUrl });
-
-    if (!updated) return res.status(404).json({ error: 'Not found' });
-
+    if (!updated) {
+      clearAuthCookie(res);
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
     const { id, email, role, profile_picture_url } = updated;
     return res.json({
       id,
@@ -39,23 +42,24 @@ router.put('/me', authenticateJWT, async (req, res) => {
       profile_picture_url,
     });
   } catch (e) {
-    console.error('update me error', e);
+    console.error('put /api/users/me error', e);
     return res.status(500).json({ error: 'Internal error' });
   }
 });
 
-// DELETE /api/users/me — ลบ account ตัวเอง
+// DELETE /api/users/me - ลบ account ตัวเอง
 router.delete('/me', authenticateJWT, async (req, res) => {
   try {
     await deleteUser(req.user.id);
+    clearAuthCookie(res);
     return res.status(204).end();
   } catch (e) {
-    console.error('delete me error', e);
+    console.error('delete /api/users/me error', e);
     return res.status(500).json({ error: 'Internal error' });
   }
 });
 
-// POST /api/users/me/avatar — อัปโหลด avatar (multipart/form-data, field name = avatar)
+// POST /api/users/me/avatar - upload avatar (field: avatar)
 router.post(
   '/me/avatar',
   authenticateJWT,
@@ -77,6 +81,11 @@ router.post(
       const updated = await updateProfile(req.user.id, {
         profilePictureUrl: dataUrl,
       });
+
+      if (!updated) {
+        clearAuthCookie(res);
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
 
       return res.json({
         ok: true,

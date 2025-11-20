@@ -4,7 +4,8 @@ const isProd = process.env.NODE_ENV === 'production';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  // Use SSL only in production (e.g. Render Postgres). For local dev without SSL, this avoids errors.
+  // ใช้ SSL แค่ตอน production (เช่นบน Render)
+  // ถ้ารัน local ที่ไม่มี SSL จะได้ไม่ error
   ssl: isProd ? { rejectUnauthorized: false } : false,
 });
 

@@ -1,14 +1,12 @@
 const { google } = require('googleapis');
 const MailComposer = require('nodemailer/lib/mail-composer');
 
-// Allow disabling real email sending, e.g. on development or when Gmail is not configured
 const emailDisabled = String(process.env.EMAIL_DISABLE || '')
   .trim()
   .toLowerCase() === 'true';
 
-// Support both GOOGLE_CLIENT_ID and GOOGLE_CLIENT_ID_WEB (as in your .env)
+// รองรับทั้ง GOOGLE_CLIENT_ID และ GOOGLE_CLIENT_ID_WEB
 const CLIENT_ID =
-  process.env.GOOGLE_CLIENT_ID ||
   process.env.GOOGLE_CLIENT_ID_WEB ||
   '';
 
@@ -19,7 +17,6 @@ const SENDER_EMAIL = process.env.SENDER_EMAIL || '';
 
 let gmail = null;
 
-// Create Gmail client only when we have full config and emails are not disabled
 if (!emailDisabled && CLIENT_ID && CLIENT_SECRET && REDIRECT_URI && REFRESH_TOKEN) {
   const oauth2Client = new google.auth.OAuth2(
     CLIENT_ID,
@@ -54,7 +51,7 @@ async function sendEmail({ to, subject, text, html }) {
     .replace(/\//g, '_')
     .replace(/=+$/g, '');
 
-  // If Gmail client is not ready, just log and return (do not break register/reset flows)
+  // ถ้า gmail client ยังไม่พร้อม → log แทน ไม่โยน error
   if (!gmail) {
     console.log('[GMAIL] Simulated email (not actually sent):', {
       to,
@@ -69,7 +66,6 @@ async function sendEmail({ to, subject, text, html }) {
       requestBody: { raw: encoded },
     });
   } catch (err) {
-    // Log error but don't throw so that auth routes still work
     console.error('[GMAIL] Error sending email', err);
   }
 }

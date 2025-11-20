@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken');
 
 const isProd = process.env.NODE_ENV === 'production';
-// In production we want cross-site cookies (frontend <-> backend over HTTPS)
 const sameSite = isProd ? 'None' : 'Lax';
 
 function setAuthCookie(res, token, remember) {
@@ -10,8 +9,8 @@ function setAuthCookie(res, token, remember) {
     secure: isProd,
     sameSite,
     maxAge: remember
-      ? 1000 * 60 * 60 * 24 * 30 // 30 days
-      : 1000 * 60 * 60 * 24,     // 1 day
+      ? 1000 * 60 * 60 * 24 * 30 // 30 วัน
+      : 1000 * 60 * 60 * 24,     // 1 วัน
     path: '/',
   });
 }
@@ -28,7 +27,9 @@ function clearAuthCookie(res) {
 
 function authenticateJWT(req, res, next) {
   const token = req.cookies?.token;
-  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+  if (!token) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
 
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
