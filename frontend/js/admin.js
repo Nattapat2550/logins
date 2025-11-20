@@ -28,34 +28,50 @@ async function load() {
       tbody.appendChild(tr);
     });
 
+    // ⚠ แก้ตรงนี้ – เอา { once: true } ออก
     tbody.addEventListener('click', async (e) => {
       const id = e.target.getAttribute('data-save');
       if (!id) return;
       const row = e.target.closest('tr');
       const inputs = row.querySelectorAll('[data-id]');
       const payload = {};
-      inputs.forEach(inp => payload[inp.getAttribute('data-field')] = inp.value);
-      try { await api(`/api/admin/users/${id}`, { method:'PUT', body: payload }); msg.textContent = 'Saved'; }
-      catch (err) { msg.textContent = err.message; }
-    }, { once: true });
+      inputs.forEach(inp => {
+        payload[inp.getAttribute('data-field')] = inp.value;
+      });
+      try {
+        await api(`/api/admin/users/${id}`, { method:'PUT', body: payload });
+        msg.textContent = 'Saved';
+      } catch (err) {
+        msg.textContent = err.message;
+      }
+    });
 
     // Homepage content form
     document.getElementById('homeForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const section = document.getElementById('section').value.trim();
       const content = document.getElementById('content').value;
-      try { await api('/api/homepage', { method:'PUT', body:{ section_name: section, content }}); msg.textContent = `Section "${section}" saved.`; }
-      catch (err) { msg.textContent = err.message; }
+      try {
+        await api('/api/homepage', {
+          method: 'PUT',
+          body: { section_name: section, content },
+        });
+        msg.textContent = `Section "${section}" saved.`;
+      } catch (err) {
+        msg.textContent = err.message;
+      }
     });
 
     // Carousel
     await loadCarousel();
 
     document.getElementById('logoutBtn').onclick = async () => {
-      await api('/api/auth/logout', { method:'POST' });
+      await api('/api/auth/logout', { method: 'POST' });
       location.replace('index.html');
     };
-  } catch { location.replace('index.html'); }
+  } catch {
+    location.replace('index.html');
+  }
 }
 load();
 
@@ -82,11 +98,13 @@ async function loadCarousel() {
     tbody.appendChild(tr);
   });
 
+  // ตรง Carousel ยังใช้ once: true ตามโครงสร้างเดิม
   tbody.addEventListener('click', async (e) => {
     const saveId = e.target.getAttribute('data-save');
     const delId = e.target.getAttribute('data-del');
-    if (saveId) await saveCarouselRow(saveId, e.target.closest('tr'));
-    else if (delId) {
+    if (saveId) {
+      await saveCarouselRow(saveId, e.target.closest('tr'));
+    } else if (delId) {
       if (!confirm('Delete this slide?')) return;
       await api(`/api/admin/carousel/${delId}`, { method: 'DELETE' });
       document.getElementById('msg').textContent = 'Deleted.';
@@ -96,15 +114,20 @@ async function loadCarousel() {
 }
 
 async function saveCarouselRow(id, tr) {
-  const fields = tr.querySelectorAll('[data-id="'+id+'"]');
+  const fields = tr.querySelectorAll('[data-id="' + id + '"]');
   const fd = new FormData();
-  fields.forEach(el => {
+  fields.forEach((el) => {
     const field = el.getAttribute('data-field');
-    if (field === 'image' && el.files && el.files[0]) fd.append('image', el.files[0]);
-    else fd.append(field, el.value);
+    if (field === 'image' && el.files && el.files[0]) {
+      fd.append('image', el.files[0]);
+    } else {
+      fd.append(field, el.value);
+    }
   });
   const res = await fetch(`${API_BASE_URL}/api/admin/carousel/${id}`, {
-    method: 'PUT', credentials: 'include', body: fd
+    method: 'PUT',
+    credentials: 'include',
+    body: fd,
   });
   if (!res.ok) {
     const j = await res.json().catch(()=>({error:'Update failed'}));
@@ -117,7 +140,10 @@ async function saveCarouselRow(id, tr) {
 document.getElementById('carouselForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const file = document.getElementById('cImage').files[0];
-  if (!file) { msg.textContent = 'Please choose an image.'; return; }
+  if (!file) {
+    msg.textContent = 'Please choose an image.';
+    return;
+  }
   const fd = new FormData();
   fd.append('image', file);
   fd.append('itemIndex', document.getElementById('cIndex').value);
@@ -125,11 +151,14 @@ document.getElementById('carouselForm').addEventListener('submit', async (e) => 
   fd.append('subtitle', document.getElementById('cSubtitle').value);
   fd.append('description', document.getElementById('cDesc').value);
   const res = await fetch(`${API_BASE_URL}/api/admin/carousel`, {
-    method:'POST', credentials:'include', body: fd
+    method:'POST',
+    credentials:'include',
+    body: fd,
   });
   if (!res.ok) {
     const j = await res.json().catch(()=>({error:'Create failed'}));
-    msg.textContent = j.error || 'Create failed'; return;
+    msg.textContent = j.error || 'Create failed';
+    return;
   }
   msg.textContent = 'Slide added.';
   e.target.reset();

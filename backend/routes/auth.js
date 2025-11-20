@@ -303,10 +303,8 @@ router.post('/google-mobile', async (req, res) => {
     );
 
     // สำหรับ authCode ที่มาจาก mobile ใช้ redirect_uri = 'postmessage'
-    const { tokens } = await oauth2ClientMobile.getToken({
-      code: authCode,
-      redirect_uri: 'postmessage',
-    });
+    const { tokens } = await oauth2ClientMobile.getToken(authCode);
+
 
     oauth2ClientMobile.setCredentials(tokens);
 
