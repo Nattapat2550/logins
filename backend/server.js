@@ -10,6 +10,7 @@ const userRoutes = require('./routes/users');
 const adminRoutes = require('./routes/admin');
 const homepageRoutes = require('./routes/homepage');
 const carouselRoutes = require('./routes/carousel');
+const downloadRoutes = require('./routes/download');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -40,6 +41,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/homepage', homepageRoutes);
 app.use('/api/carousel', carouselRoutes);
+app.use('/api/download', downloadRoutes);
 
 // 404
 app.use((req, res) => res.status(404).json({ error: 'Not found' }));

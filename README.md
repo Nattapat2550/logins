@@ -1,112 +1,135 @@
+````markdown
+# Full-Stack Auth + CMS Starter
 
-## 0) TL;DR (Quick Start)
+Simple full-stack project with email/Google login, JWT (HttpOnly cookies), role-based access (user/admin), homepage CMS, and image carousel — ready to deploy on Render with PostgreSQL.
+
+---
+
+## 0) Quick Start
 
 ```bash
 # 1) Clone
 git clone <your-repo-url>
 cd project
 
-# 2) Create .env in backend/ (copy from .env.example and fill values)
+# 2) Create .env in backend/ (from example)
 cp backend/.env.example backend/.env
+# then fill in values (PORT, DATABASE_URL, FRONTEND_URL, Google keys, etc.)
 
-# 3) Install deps
-cd backend && npm install
+# 3) Install backend deps
+cd backend
+npm install
 
-# 4) Init DB
-# Create a PostgreSQL database and run the SQL:
+# 4) Init PostgreSQL DB
+# Make sure DATABASE_URL in .env points to your database first.
 psql "$DATABASE_URL" -f ../database.sql
 
-# 5) Run backend locally
-node server.js   # expects PORT, DATABASE_URL, etc. in .env
+# 5) Run backend
+node server.js   # or nodemon server.js if you use nodemon
 
-# 6) Serve frontend locally (simple)
-# e.g. with any static server from frontend/:
-npx http-server ../frontend -p 8080
-```
+# 6) Serve frontend (any static server)
+cd ../frontend
+npx http-server . -p 8080
+# then open http://localhost:8080
+````
 
-* Default **JWT cookie** name: `token` (HttpOnly).
-* **CORS**: frontend origin must be in `FRONTEND_URL`.
-* **Allowed pages** (no token): index, about, contact, register, login, check, form, reset.
-* **User-only pages**: home, about, contact, settings.
-* **Admin-only pages**: admin, about, contact.
+Defaults / conventions:
+
+* **JWT cookie name**: `token` (HttpOnly)
+* **CORS**: backend only accepts requests from `FRONTEND_URL`
+* **Public pages (no login)**: `index, about, contact, register, login, check, form, reset`
+* **User-only pages**: `home, about, contact, settings`
+* **Admin-only pages**: `admin, about, contact`
 
 ---
 
 ## 1) Tech Stack
 
-* **Frontend**: Static HTML + CSS (light/dark theme, “tech” style) + Vanilla JS (fetch with `credentials: 'include'`)
-* **Backend**: Node.js (Express) + `pg` for PostgreSQL
-* **Auth**: JWT (HttpOnly cookie), bcrypt, Google OAuth 2.0, email verification & reset via Gmail API
-* **DB**: PostgreSQL (tables: `users`, `verification_codes`, `password_reset_tokens`, `homepage_content`, `carousel_items`)
-* **Deployment**: Render (Backend Web Service + Frontend Static Site + Managed Postgres)
+**Frontend**
+
+* Static HTML, CSS (light/dark “tech” theme)
+* Vanilla JS with `fetch(..., { credentials: 'include' })`
+* Simple image carousel and admin CMS UI
+
+**Backend**
+
+* Node.js + Express
+* PostgreSQL via `pg`
+* JWT Auth (HttpOnly cookie)
+* bcrypt password hashing
+* Google OAuth 2.0 (login)
+* Gmail API for verification / reset emails
+
+**Database**
+
+* PostgreSQL (tables: `users`, `verification_codes`, `password_reset_tokens`, `homepage_content`, `carousel_items`)
+
+**Deploy target**
+
+* Render:
+
+  * Backend Web Service
+  * Frontend Static Site
+  * Managed Postgres
 
 ---
 
 ## 2) Project Structure
 
-```
+```text
 project/
 ├── backend/
+│   ├── server.js           # Express app entrypoint
+│   ├── .env.example
 │   ├── package.json
-│   ├── server.js                 # Express app entrypoint
-│   ├── .env.example              # Template env vars
 │   ├── config/
-│   │   └── db.js                 # PostgreSQL pool/connection
+│   │   └── db.js           # PostgreSQL pool
 │   ├── middleware/
-│   │   └── auth.js               # authenticateJWT, isAdmin
+│   │   └── auth.js         # authenticateJWT, isAdmin
 │   ├── models/
-│   │   ├── user.js               # User & token queries
-│   │   └── carousel.js           # Carousel CRUD queries
+│   │   ├── user.js         # user & token queries
+│   │   └── carousel.js     # carousel queries
 │   ├── routes/
-│   │   ├── auth.js               # register/login/oauth/verify/reset/logout
-│   │   ├── users.js              # /me profile & avatar upload, delete
-│   │   ├── admin.js              # Admin: users list/update
-│   │   ├── homepage.js           # Homepage content get/update
-│   │   └── carousel.js           # Carousel get/create/update/delete
+│   │   ├── auth.js         # register/login/oauth/verify/reset/logout
+│   │   ├── users.js        # profile, avatar, delete
+│   │   ├── admin.js        # user admin
+│   │   ├── homepage.js     # homepage content CMS
+│   │   └── carousel.js     # carousel CRUD
 │   └── utils/
-│       ├── gmail.js              # Gmail API sender
-│       └── generateCode.js       # 6-digit code generator
+│       ├── gmail.js        # Gmail API sender
+│       └── generateCode.js # 6-digit codes
 ├── frontend/
-│   ├── index.html
-│   ├── register.html
-│   ├── check.html
-│   ├── form.html
-│   ├── login.html
-│   ├── reset.html
-│   ├── home.html
-│   ├── settings.html
-│   ├── admin.html
-│   ├── about.html
-│   ├── contact.html
+│   ├── *.html              # pages (index, login, home, admin, ...)
 │   ├── css/
-│   │   └── style.css             # Light/Dark tech theme + Carousel styles
+│   │   └── style.css
 │   ├── js/
-│   │   ├── main.js               # API helper, theme, page guard, dropdown
+│   │   ├── main.js         # API helper, theme, route guard
 │   │   ├── register.js
 │   │   ├── check.js
 │   │   ├── form.js
 │   │   ├── login.js
 │   │   ├── reset.js
-│   │   ├── home.js               # buildCarousel(), homepage content
-│   │   └── admin.js              # CMS for homepage + carousel, user table
+│   │   ├── home.js         # carousel + homepage content
+│   │   └── admin.js        # admin CMS
 │   └── images/
-│       ├── user.png              # Default avatar
+│       ├── user.png
 │       └── favicon.ico
-└── database.sql                  # Schema (tables, constraints, indexes)
+└── database.sql            # schema + indexes
 ```
 
 ---
 
-## 3) Environment Variables (backend/.env)
+## 3) Backend Environment Variables (`backend/.env`)
 
 ```env
 # Runtime
 PORT=5000
 NODE_ENV=production
-JWT_SECRET=your_jwt_secret
+JWT_SECRET=your_jwt_secret_here
 
 # CORS / Frontend
-FRONTEND_URL=https://<your-frontend-onrender>.onrender.com
+FRONTEND_URL=http://localhost:8080
+# e.g. https://your-frontend.onrender.com in production
 
 # Database
 DATABASE_URL=postgresql://<user>:<pass>@<host>/<db>
@@ -116,396 +139,309 @@ GOOGLE_CLIENT_ID=<...>.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=<...>
 GOOGLE_CALLBACK_URI=https://<your-backend>.onrender.com/api/auth/google/callback
 
-# Gmail API (send emails)
+# Gmail API (Send Emails)
 GOOGLE_REDIRECT_URI=https://<your-backend>.onrender.com/oauth2callback
-REFRESH_TOKEN=<long-lived-refresh-token>
-SENDER_EMAIL=<your-gmail-address>
+REFRESH_TOKEN=<gmail-api-refresh-token>
+SENDER_EMAIL=<your@gmail.com>
 ```
 
-> Use OAuth client type **Web application** and set **Authorized redirect URI** exactly to `/api/auth/google/callback` on your backend domain.
+Notes:
+
+* Use **OAuth client type: Web application** for Google OAuth.
+* `GOOGLE_CALLBACK_URI` must exactly match one of the **Authorized redirect URIs** in Google Cloud console.
 
 ---
 
-## 4) Database Schema
+## 4) Database Schema (Overview)
 
-Run `database.sql` to create tables:
+Run:
 
-* **users**
-  `id SERIAL PK`, `username UNIQUE`, `email UNIQUE NOT NULL`,
-  `password_hash NULLABLE`, `role DEFAULT 'user'`,
-  `profile_picture_url TEXT DEFAULT 'images/user.png'`,
-  `is_email_verified BOOLEAN DEFAULT false`,
-  `oauth_provider VARCHAR(20)`, `oauth_id VARCHAR(255)`, timestamps.
+```bash
+psql "$DATABASE_URL" -f database.sql
+```
 
-* **verification_codes**
-  `(id, user_id FK, code VARCHAR(6), expires_at TIMESTAMPTZ)`
+Main tables:
 
-* **password_reset_tokens**
-  `(id, user_id FK, token UNIQUE, expires_at, is_used BOOLEAN DEFAULT false)`
+* **`users`**
 
-* **homepage_content**
-  `(id, section_name UNIQUE, content TEXT)`
+  * `id SERIAL PK`
+  * `email UNIQUE NOT NULL`
+  * `username`
+  * `password_hash` (nullable for pure OAuth users)
+  * `role` (`'user'`/`'admin'`, default `'user'`)
+  * `profile_picture_url` (default `images/user.png`)
+  * `is_email_verified` (boolean)
+  * `oauth_provider`, `oauth_id` for Google login
+  * timestamps
 
-* **carousel_items**
-  `(id SERIAL PK, idx INT, title TEXT, subtitle TEXT, description TEXT, image_dataurl TEXT, created_at TIMESTAMPTZ DEFAULT now())`
+* **`verification_codes`**
 
-> `image_dataurl` stores base64 data URL for simplicity (no S3 required).
+  * 6-digit email verification codes with expiry
 
-### Seed an admin (optional)
+* **`password_reset_tokens`**
+
+  * Single-use reset tokens with expiry
+
+* **`homepage_content`**
+
+  * Key–value sections like `welcome_header`, `main_paragraph`
+
+* **`carousel_items`**
+
+  * Slides: `idx`, `title`, `subtitle`, `description`, `image_dataurl`, `created_at`
+
+### Optional: seed an admin user
 
 ```sql
--- Create verified user with role admin, set password separately (via /complete-profile or manual hash).
 INSERT INTO users(email, is_email_verified, role, username)
 VALUES ('admin@example.com', true, 'admin', 'admin')
 ON CONFLICT DO NOTHING;
 ```
 
+(Then set password via `/complete-profile` flow or manually hash.)
+
 ---
 
-## 5) Backend — Files & Responsibilities
+## 5) Backend Responsibilities
 
 ### `server.js`
 
-* Loads `.env`, sets up **CORS** (`origin: FRONTEND_URL`, `credentials: true`), `cookie-parser`, `json`, `/favicon.ico` returns `204`.
+* Loads `.env`
+
+* Configures:
+
+  * CORS with `origin: FRONTEND_URL` and `credentials: true`
+  * `cookie-parser`
+  * JSON body parsing
+  * `/favicon.ico` → `204` response
+
 * Registers routes:
 
-  * `/api/auth/*` (register, verify, login, google, logout, forgot/reset)
-  * `/api/users/*` (profile fetch/update, avatar upload, delete)
-  * `/api/admin/*` (user management)
-  * `/api/homepage` (get public, admin update)
-  * `/api/carousel` (get public, admin CRUD)
-* Error handler (JSON).
+  * `/api/auth/*`
+  * `/api/users/*`
+  * `/api/admin/*`
+  * `/api/homepage`
+  * `/api/carousel`
 
-### `config/db.js`
-
-* Exports a `Pool` (`pg`) using `DATABASE_URL`.
-* Ensures `ssl` on production (Render) if needed.
+* Central error handler returning JSON.
 
 ### `middleware/auth.js`
 
-* `authenticateJWT`: reads `token` cookie, verifies JWT, sets `req.user = { id, role }`. 401 on failure.
-* `isAdmin`: requires `authenticateJWT` first; checks `req.user.role === 'admin'`; 403 otherwise.
+* `authenticateJWT`
 
-### `models/user.js`
+  * Reads `token` cookie
+  * Verifies JWT with `JWT_SECRET`
+  * Attaches `req.user = { id, role }`
+* `isAdmin`
 
-* Functions:
+  * Requires `authenticateJWT`
+  * Enforces `req.user.role === 'admin'`
 
-  * `createUnverifiedUser(email)`, `findByEmail(email)`, `findById(id)`
-  * `findByOAuthId(provider, oauthId)`
-  * `verifyEmail(userId)`, `setUsernameAndPassword(userId, username, passwordHash)`
-  * `updateProfile(userId, { username, profile_picture_url })`
-  * `storeVerificationCode(userId, code, expiresAt)`, `consumeVerificationCode(email, code)`
-  * `createResetToken(userId, token, expiresAt)`, `useResetToken(token)`
-  * `deleteUser(userId)`, `getAllUsers()`
-  * `setOAuthUser({ email, oauth_provider, oauth_id, profile_picture_url, is_email_verified })`
+### `routes/auth.js` (summary)
 
-> **Note on 42P08 type mismatch**: ensure parameters use consistent types; prefer explicit casts for text/varchar if mixing. Queries are written with placeholders and compatible column types to avoid coercion errors.
-
-### `models/carousel.js`
-
-* CRUD for `carousel_items`:
-
-  * `listSlides()` ordered by `idx ASC, id ASC`
-  * `createSlide({ idx, title, subtitle, description, image_dataurl })`
-  * `updateSlide(id, patch)`
-  * `deleteSlide(id)`
-
-### `routes/auth.js`
-
-* **Email registration**:
-  `POST /api/auth/register { email }` → create/ensure unverified user, generate 6-digit code, save, email via Gmail API → redirect user to `check.html`.
-* **Verify code**:
-  `POST /api/auth/verify-code { email, code }` → mark verified; delete code.
-* **Complete profile (set username+password)**:
-  `POST /api/auth/complete-profile { email, username, password }` → bcrypt hash → issue JWT cookie → success.
-* **Email/password login**:
-  `POST /api/auth/login { email, password }` → set cookie; redirect role→page.
-* **Google OAuth**:
-
-  * `GET /api/auth/google` → redirect to Google consent
-  * `GET /api/auth/google/callback` → exchange code → upsert OAuth user → set cookie → redirect to `/admin.html` or `/home.html`
-* **Logout**: `POST /api/auth/logout`
-* **Forgot / Reset**:
-
-  * `POST /api/auth/forgot-password { email }` → create token+expiry → send link `${FRONTEND_URL}/reset.html?token=...`
-  * `POST /api/auth/reset-password { token, newPassword }` → verify token → update password hash → mark used
+* `POST /api/auth/register` — start email registration (send 6-digit code)
+* `POST /api/auth/verify-code` — verify code & mark email verified
+* `POST /api/auth/complete-profile` — set username & password (after verify or first-time Google)
+* `POST /api/auth/login` — email/password login, sets JWT cookie
+* `POST /api/auth/logout` — clears cookie
+* `POST /api/auth/forgot-password` — send reset link
+* `POST /api/auth/reset-password` — reset password using token
+* `GET /api/auth/google` — redirect to Google
+* `GET /api/auth/google/callback` — handle OAuth callback, upsert user, set cookie
 
 ### `routes/users.js`
 
-* `GET /api/users/me` (auth) → returns `{id, email, username, role, profile_picture_url}`
-* `PUT /api/users/me { username }` (auth) → update username
-* `POST /api/users/me/avatar` (multipart) (auth) → accept image < 2MB → store as dataURL → update `profile_picture_url`
-* `DELETE /api/users/me` (auth) → delete account
+* `GET /api/users/me` — get current user (id, email, username, role, avatar URL)
+* `PUT /api/users/me` — update username
+* `POST /api/users/me/avatar` — upload avatar (multipart, stored as data URL)
+* `DELETE /api/users/me` — delete own account
 
-### `routes/admin.js` (auth + isAdmin)
+### `routes/admin.js` (admin only)
 
-* `GET /api/admin/users` → list all users
-* `PUT /api/admin/users/:id` → update user info (role, username, mark verify, etc.)
+* `GET /api/admin/users` — list all users
+* `PUT /api/admin/users/:id` — update user (role, verification, etc.)
 
 ### `routes/homepage.js`
 
-* `GET /api/homepage` (public) → returns array of `{ section_name, content }`
-* `PUT /api/homepage` (admin) → upsert section content (e.g., `welcome_header`, `main_paragraph`)
+* `GET /api/homepage` — public homepage sections
+* `PUT /api/homepage` — admin updates/creates sections
 
 ### `routes/carousel.js`
 
-* `GET /api/carousel` (public) → ordered slides
-* `POST /api/carousel` (admin) → create slide (`idx`, `title`, `subtitle`, `description`, `image_dataurl`)
-* `PUT /api/carousel/:id` (admin) → patch any fields
-* `DELETE /api/carousel/:id` (admin)
-
-### `utils/gmail.js`
-
-* One function `sendEmail({ to, subject, text/html })` using `googleapis` OAuth2 with a stored **refresh token** (scope `gmail.send`).
-
-### `utils/generateCode.js`
-
-* `generateCode()` → 6-digit numeric string.
+* `GET /api/carousel` — public list of slides
+* `POST /api/carousel` — admin create slide
+* `PUT /api/carousel/:id` — admin update slide
+* `DELETE /api/carousel/:id` — admin delete slide
 
 ---
 
-## 6) Frontend — Files & Responsibilities
+## 6) Frontend Behavior
 
-* **Global guard & helpers**
+### Global (in `js/main.js`)
 
-  * `js/main.js`
+* `API_BASE_URL` — points to backend (e.g. `http://localhost:5000`)
 
-    * `api(path, { method, body })` wrapper (includes `credentials:'include'`)
-    * Theme toggle (persist in `localStorage`)
-    * **Page Access Control**:
+* `api(path, options)` helper:
 
-      * **Guest allowed**: `index, about, contact, register, login, check, form, reset`
-      * **User allowed**: `home, about, contact, settings`
-      * **Admin allowed**: `admin, about, contact`
-      * Redirects depending on `GET /api/users/me` success + role
-    * Dropdown menu (click to toggle)
+  * Prefixes `API_BASE_URL`
+  * Sends JSON
+  * Uses `credentials: 'include'` for cookies
 
-* **Auth screens**
+* **Theme toggle** (light/dark), stored in `localStorage`
 
-  * `register.js` → submit `{ email }` to `/api/auth/register`, save `sessionStorage.pendingEmail`, go `check.html`
-  * `check.js` → reads `pendingEmail`, submit `{ email, code }` `/api/auth/verify-code`
-  * `form.js` → set `{ username, password }` `/api/auth/complete-profile`
-  * `login.js` → submit `{ email, password }` `/api/auth/login`
-  * `reset.js` → without `token`: request link; with `token`: set new password
+* **Page access control**:
 
-* **App screens**
+  * On every page load, calls `/api/users/me`
+  * If no token or invalid → only public pages allowed
+  * If user → can access user pages
+  * If admin → can access admin pages
+  * Redirects automatically when visiting a page you have no access to
 
-  * `home.js`
+### Auth Flow
 
-    * fetch `/api/users/me`, set navbar info
-    * fetch `/api/homepage` → fill `welcome_header`, `main_paragraph`
-    * fetch `/api/carousel` → **buildCarousel(items)**
+* `register.html` / `register.js`
 
-      * **Pure CSS/JS** slider
-      * `object-fit: fill` (ไม่ครอป), click prev/next **looping** (ไปแรก/ท้าย)
-      * `.carousel-indicators` = **circular thumbnails** (click to jump)
-      * caption box below
-  * `settings.js`
+  * Send email to `/api/auth/register`
+  * Stores `pendingEmail` in `sessionStorage`
+  * Redirects to `check.html`
 
-    * `PUT /api/users/me` to update username
-    * `POST /api/users/me/avatar` (multipart) to upload avatar
-    * `DELETE /api/users/me` to remove account
-  * `admin.js`
+* `check.html` / `check.js`
 
-    * CMS: get/update homepage sections
-    * CRUD carousel (upload image → to dataURL on client, send to backend)
-    * Users table with `GET /api/admin/users` + `PUT /api/admin/users/:id`
+  * Reads `pendingEmail`
+  * Submits code → `/api/auth/verify-code`
+  * On success, go to `form.html`
 
-* **Styling**
+* `form.html` / `form.js`
 
-  * `css/style.css`
+  * Submits `username` + `password` → `/api/auth/complete-profile`
+  * On success, sets cookie and redirects (`home` or `admin` by role)
 
-    * **Dual Theme**: bright **Light** (default) + **Dark tech** (toggle with 🌓)
-    * Tech effects: gradient, glass, neon glow, shadows
-    * Carousel styling (buttons, circular thumbnail indicators)
-    * Typography nowrap/ellipsis for important elements
+* `login.html` / `login.js`
 
----
+  * Email/password login → `/api/auth/login`
+  * Also provides “Sign in with Google”
 
-## 7) API Endpoints (Summary)
+* `reset.html` / `reset.js`
 
-**Auth**
+  * Without `token` query → request reset link
+  * With `token` query → set new password
 
-* `POST /api/auth/register` → `{ email }`
-* `POST /api/auth/verify-code` → `{ email, code }`
-* `POST /api/auth/complete-profile` → `{ email, username, password }`
-* `POST /api/auth/login` → `{ email, password }`
-* `POST /api/auth/logout`
-* `POST /api/auth/forgot-password` → `{ email }`
-* `POST /api/auth/reset-password` → `{ token, newPassword }`
-* `GET /api/auth/google` (redirect)
-* `GET /api/auth/google/callback` (OAuth callback)
+### App Pages
 
-**Users**
+* `home.html` / `home.js`
 
-* `GET /api/users/me` (auth)
-* `PUT /api/users/me` → `{ username }` (auth)
-* `POST /api/users/me/avatar` (multipart, auth)
-* `DELETE /api/users/me` (auth)
+  * Displays logged-in user data from `/api/users/me`
+  * Loads homepage sections via `/api/homepage`
+  * Loads carousel via `/api/carousel` and builds slider
 
-**Admin**
+* `settings.html`
 
-* `GET /api/admin/users` (admin)
-* `PUT /api/admin/users/:id` (admin)
+  * Change username
+  * Upload avatar (`/api/users/me/avatar`)
+  * Delete account (`DELETE /api/users/me`)
 
-**Homepage**
+* `admin.html` / `admin.js`
 
-* `GET /api/homepage` (public)
-* `PUT /api/homepage` → `{ section_name, content }` (admin)
+  * Homepage CMS:
 
-**Carousel**
+    * Edit `homepage_content` sections
+  * Carousel CMS:
 
-* `GET /api/carousel` (public)
-* `POST /api/carousel` → `{ idx, title, subtitle, description, image_dataurl }` (admin)
-* `PUT /api/carousel/:id` (admin)
-* `DELETE /api/carousel/:id` (admin)
+    * Create, edit, delete slides
+    * Client converts uploaded image to data URL → sends to backend
+  * User management:
+
+    * Table of users from `/api/admin/users`
+    * Update roles / flags via `PUT /api/admin/users/:id`
 
 ---
 
-## 8) Security & Sessions
+## 7) Security & Sessions
 
-* **JWT** signed with `JWT_SECRET`, stored in HttpOnly cookie (`token`)
+* **JWT**:
 
-  * `httpOnly: true`
-  * `secure: true` in production
-  * `sameSite: 'None'` recommended when frontend/backend are on different domains
-* **RBAC**
+  * Signed with `JWT_SECRET`
+  * Stored as HttpOnly cookie `token`
+  * Use `secure: true` and `sameSite: 'None'` in production (cross-domain)
 
-  * `isAdmin` middleware protects `/api/admin/*`
-* **Password hashing**: bcrypt
-* **Email verification**: 6-digit code with expiry
-* **Reset password**: single-use token with expiry
-* **CORS**: `origin: FRONTEND_URL`, `credentials: true`
+* **Passwords**: hashed with bcrypt
+
+* **Email verification**: 6-digit numeric code with expiry
+
+* **Password reset**: one-time tokens with expiry
+
+* **CORS**:
+
+  * `origin` = `FRONTEND_URL`
+  * `credentials: true`
 
 ---
 
-## 9) Render Deployment
+## 8) Deploying on Render (Summary)
 
-### Backend (Web Service)
+**Backend Web Service**
 
 * Root: `backend/`
-* **package.json**: ensure engines avoid Node 24 issues. Example:
+* Build command: `npm install`
+* Start command: `node server.js`
+* Add env vars (copy from `.env`)
+* Use Render’s Postgres URL as `DATABASE_URL`
+* Recommended in `package.json`:
 
   ```json
   "engines": { "node": ">=18 <25" }
   ```
-* Build command: `npm install`
-* Start command: `node server.js`
-* Add environment variables from `.env`
-* Ensure *Managed Postgres* `DATABASE_URL` configured
 
-### Frontend (Static Site)
+**Frontend Static Site**
 
 * Root: `frontend/`
-* No build command
-* Set `FRONTEND_URL` in backend to this site URL
+* No build command needed
+* In backend `.env`, set:
 
-### Database
+  ```env
+  FRONTEND_URL=https://<your-frontend>.onrender.com
+  ```
 
-* Use Render’s internal connection string as `DATABASE_URL`
-* Run `database.sql` once to init schema
+**Database**
 
-### Google OAuth
+* Create Render Managed PostgreSQL
+* Set `DATABASE_URL` in backend service
+* Run `database.sql` once (from local machine or Render shell)
+
+**Google OAuth**
 
 * Authorized redirect URI:
-  `https://<your-backend>.onrender.com/api/auth/google/callback`
-  Must match `GOOGLE_CALLBACK_URI` exactly.
+
+  ```text
+  https://<your-backend>.onrender.com/api/auth/google/callback
+  ```
+
+  (Must match `GOOGLE_CALLBACK_URI`)
 
 ---
 
-## 10) Troubleshooting & Common Errors
+## 9) Local Development Tips
 
-* **`Cannot find module 'compression'`**
-  If you added `require('compression')`, ensure it is in `package.json` or remove it. This project doesn’t require it by default.
-* **`42P08 text versus character varying`**
-  Parameter type mismatch in Postgres. Use consistent types in queries (we use placeholders and matching column types in models).
-* **`/favicon.ico 404`**
-  This backend returns `204` at `/favicon.ico`. Frontend also contains `images/favicon.ico`. Add `<link rel="icon" href="/favicon.ico">` in HTML.
-* **Google OAuth `oauth_failed`**
-  Check `GOOGLE_CALLBACK_URI` EXACT match, client ID/secret, consent screen status, and domain allowed.
-* **Cookies not set**
-  Ensure `sameSite:'None'`, `secure:true` (HTTPS), browser not blocking third-party cookies, and frontend `fetch(..., { credentials:'include' })`.
+```bash
+# backend
+cd backend
+node server.js          # uses backend/.env
 
----
+# frontend
+cd ../frontend
+npx http-server . -p 8080
 
-## 11) Local Development
+# set FRONTEND_URL=http://localhost:8080 in backend/.env
+```
 
-* Backend: `node server.js` (uses `.env`)
-* Frontend: any static server (Live Server, http-server, nginx, etc.)
-* Set `FRONTEND_URL=http://localhost:8080` when testing locally, and make sure your local server runs at that URL.
-
-**Sample cURL (login)**
+Example login request:
 
 ```bash
 curl -i -X POST http://localhost:5000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com","password":"pass"}'
-# Set-Cookie: token=...; HttpOnly; Secure; SameSite=None
+  -d '{"email":"user@example.com","password":"password"}'
+# response will set HttpOnly "token" cookie
 ```
 
 ---
 
-## 12) Admin CMS — Carousel & Homepage
-
-* **Homepage**
-
-  * Edit `welcome_header` and `main_paragraph` via `admin.html`
-* **Carousel**
-
-  * Add slide: upload image (converted to dataURL), set `idx`, `title`, `subtitle`, `description`
-  * Reorder by `idx`
-  * Indicators show circular thumbnails; prev/next wraps around (loop)
-  * Image fill mode: `object-fit: fill` (no crop)
-
----
-
-## 13) Page Access Control (Frontend)
-
-* **Guest (no token)**: `index.html`, `about.html`, `contact.html`, `register.html`, `login.html`, `check.html`, `form.html`, `reset.html`
-* **User**: `home.html`, `about.html`, `contact.html`, `settings.html`
-* **Admin**: `admin.html`, `about.html`, `contact.html`
-
-Implemented in `frontend/js/main.js`:
-
-* On load, it calls `/api/users/me`:
-
-  * if success → redirects to allowed set by role if page not permitted
-  * if fail → only guest-allowed pages are accessible, otherwise redirect `index.html`
-
----
-
-## 14) Extensibility & Future Work
-
-* Switch avatar/carousel storage to S3 or Cloud Storage
-* Add rate limiting, helmet, CSRF protections (if forms migrated to non-AJAX)
-* Add audit logs for admin actions
-* i18n for UI and transactional emails
-* Replace Gmail API with transactional email service (SendGrid/Mailgun)
-
----
-
-## 15) File-by-File (Frontend)
-
-* **`index.html`**: Public landing; “Login” & “Register”
-* **`register.html`**: Email registration form (+ “Sign up with Google”)
-* **`check.html`**: Enter verification code (email auto-filled from `sessionStorage.pendingEmail`)
-* **`form.html`**: Set username & password (after verification or Google first-time)
-* **`login.html`**: Email/password login + remember me + forgot password + Google login
-* **`reset.html`**: Request reset link or submit new password with `token`
-* **`home.html`**: User dashboard; navbar (profile dropdown by click), **carousel**, content loaded from `/api/homepage`
-* **`settings.html`**: Update username & upload avatar (file only; no URL field)
-* **`admin.html`**: Admin dashboard: homepage editor, carousel CRUD, users table
-* **`about.html`, `contact.html`**: Static
-* **`css/style.css`**: Light/Dark themes & components styling, carousel, tables, forms
-* **`js/main.js`**: API helper, theme toggler, page guard, dropdown
-* **`js/<page>.js`**: Per-page logic as described above
-* **`images/user.png`**, **`favicon.ico`**
-
----
-
-## 16) License & Credits
-
-* You may customize and distribute within your project/company needs.
-* OAuth and Gmail API usage requires compliance with Google policies.
-
----
