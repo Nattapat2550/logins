@@ -35,14 +35,14 @@ window.API_BASE_URL = API_BASE_URL;
   // หน้าที่อนุญาตเมื่อ "ยังไม่ล็อกอิน/ไม่มี token"
   const LOGGED_OUT_ALLOWED = new Set([
     '', 'index.html', 'about.html', 'contact.html', 'register.html', 'login.html',
-    'check.html', 'form.html', 'reset.html'
+    'check.html', 'form.html', 'reset.html', 'download.html'
   ]);
 
   // หน้าที่อนุญาตให้ "user"
-  const USER_ALLOWED  = new Set(['home.html', 'about.html', 'contact.html', 'settings.html']);
+  const USER_ALLOWED  = new Set(['home.html', 'about.html', 'contact.html', 'settings.html', 'download.html']);
 
   // หน้าที่อนุญาตให้ "admin"
-  const ADMIN_ALLOWED = new Set(['admin.html', 'about.html', 'contact.html']);
+  const ADMIN_ALLOWED = new Set(['admin.html', 'about.html', 'contact.html', 'download.html']);
 
   const page = (location.pathname.split('/').pop() || '').toLowerCase();
 
