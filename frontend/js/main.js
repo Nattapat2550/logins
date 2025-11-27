@@ -31,6 +31,7 @@ window.api = api;
 window.API_BASE_URL = API_BASE_URL;
 
 /* ==== PAGE ACCESS CONTROL ==== */
+/* ==== PAGE ACCESS CONTROL ==== */
 (function guard() {
   // หน้าที่อนุญาตเมื่อ "ยังไม่ล็อกอิน/ไม่มี token"
   const LOGGED_OUT_ALLOWED = new Set([
@@ -39,19 +40,43 @@ window.API_BASE_URL = API_BASE_URL;
   ]);
 
   // หน้าที่อนุญาตให้ "user"
-  const USER_ALLOWED  = new Set(['home.html', 'about.html', 'contact.html', 'settings.html', 'download.html']);
+  const USER_ALLOWED  = new Set([
+    'home.html', 'about.html', 'contact.html', 'settings.html', 'download.html'
+  ]);
 
   // หน้าที่อนุญาตให้ "admin"
-  const ADMIN_ALLOWED = new Set(['admin.html', 'about.html', 'contact.html', 'download.html']);
+  const ADMIN_ALLOWED = new Set([
+    'admin.html', 'about.html', 'contact.html', 'download.html'
+  ]);
 
   const page = (location.pathname.split('/').pop() || '').toLowerCase();
 
-  // เช็คสถานะผู้ใช้จาก token (cookie)
+  // ✅ หน้า landing (public) — อย่าให้ /users/me อยู่ใน critical path
+  if (page === '' || page === 'index.html') {
+    // ทำเป็น background check หลังหน้าโหลดเสร็จ
+    window.addEventListener('load', () => {
+      api('/api/users/me')
+        .then(me => {
+          const role = (me.role || 'user').toLowerCase();
+          if (role === 'admin') {
+            location.replace('admin.html');
+          } else {
+            location.replace('home.html');
+          }
+        })
+        .catch(() => {
+          // ถ้าไม่มี token ก็อยู่หน้า landing ต่อไปเฉย ๆ
+        });
+    });
+    return;
+  }
+
+  // ✅ หน้าอื่น ๆ: ใช้ logic เดิม (ต้องเช็ค role)
   api('/api/users/me')
     .then(me => {
       const role = (me.role || 'user').toLowerCase();
 
-      // ใส่ชื่อ/รูป ถ้ามี element เหล่านี้ (optional-safe)
+      // ใส่ชื่อ/รูป ถ้ามี element เหล่านี้
       const uname = document.getElementById('uname');
       const avatar = document.getElementById('avatar');
       if (uname) uname.textContent = me.username || me.email;
