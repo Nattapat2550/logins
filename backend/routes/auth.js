@@ -345,4 +345,24 @@ router.post('/google-mobile', async (req, res) => {
   }
 });
 
+router.get('/status', (req, res) => {
+  const token = req.cookies?.token;
+  if (!token) {
+    // ยังไม่ล็อกอิน
+    return res.json({ authenticated: false });
+  }
+
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    return res.json({
+      authenticated: true,
+      id: payload.id,
+      role: payload.role || 'user'
+    });
+  } catch (e) {
+    // token เสีย / หมดอายุ ให้ถือว่าไม่ล็อกอิน แต่ไม่ต้อง 401
+    return res.json({ authenticated: false });
+  }
+});
+
 module.exports = router;

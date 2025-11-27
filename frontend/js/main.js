@@ -30,8 +30,7 @@ async function api(path, { method='GET', body } = {}) {
 window.api = api;
 window.API_BASE_URL = API_BASE_URL;
 
-/* ==== PAGE ACCESS CONTROL ==== */
-/* ==== PAGE ACCESS CONTROL ==== */
+
 (function guard() {
   // หน้าที่อนุญาตเมื่อ "ยังไม่ล็อกอิน/ไม่มี token"
   const LOGGED_OUT_ALLOWED = new Set([
@@ -51,21 +50,25 @@ window.API_BASE_URL = API_BASE_URL;
 
   const page = (location.pathname.split('/').pop() || '').toLowerCase();
 
-  // ✅ หน้า landing (public) — อย่าให้ /users/me อยู่ใน critical path
+  // ✅ หน้า landing (public) — เช็กสถานะแบบไม่ยิง 401
   if (page === '' || page === 'index.html') {
     // ทำเป็น background check หลังหน้าโหลดเสร็จ
     window.addEventListener('load', () => {
-      api('/api/users/me')
-        .then(me => {
-          const role = (me.role || 'user').toLowerCase();
-          if (role === 'admin') {
-            location.replace('admin.html');
-          } else {
-            location.replace('home.html');
-          }
+      fetch(`${API_BASE_URL}/api/auth/status`, {
+        method: 'GET',
+        credentials: 'include'
+      })
+        .then(res => (res.ok ? res.json() : null))
+        .then(status => {
+          // ถ้ายังไม่ล็อกอิน ก็อยู่หน้า landing ต่อไปเฉย ๆ
+          if (!status || !status.authenticated) return;
+
+          const role = (status.role || 'user').toLowerCase();
+          if (role === 'admin') location.replace('admin.html');
+          else location.replace('home.html');
         })
         .catch(() => {
-          // ถ้าไม่มี token ก็อยู่หน้า landing ต่อไปเฉย ๆ
+          // ถ้าตรวจสถานะไม่ได้ ก็อยู่หน้า landing ต่อไปเฉย ๆ
         });
     });
     return;
