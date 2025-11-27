@@ -15,7 +15,32 @@ const downloadRoutes = require('./routes/download');
 const app = express();
 app.set('trust proxy', 1);
 
+// Basic security headers via helmet
 app.use(helmet());
+
+// Extra security headers for scanners (CSP, frame, referrer, permissions)
+app.use((req, res, next) => {
+  // Backend นี้เสิร์ฟแค่ JSON / redirect เลยใช้ CSP แบบเข้ม ๆ ได้
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'none'; frame-ancestors 'none'; base-uri 'none';"
+  );
+
+  // กัน clickjacking
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+
+  // จำกัด referrer ที่ส่งออกไปโดเมนอื่น
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+  // ปิดฟีเจอร์ browser ที่เราไม่ได้ใช้
+  res.setHeader(
+    'Permissions-Policy',
+    'geolocation=(), camera=(), microphone=()'
+  );
+
+  next();
+});
+
 app.use(compression());
 app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
