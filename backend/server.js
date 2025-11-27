@@ -15,27 +15,29 @@ const downloadRoutes = require('./routes/download');
 const app = express();
 app.set('trust proxy', 1);
 
-// Basic security headers via helmet
+// ใช้ helmet ใส่ security headers พื้นฐานให้ก่อน
 app.use(helmet());
 
-// Extra security headers for scanners (CSP, frame, referrer, permissions)
+// ใส่ security headers เพิ่มเองตามที่ SecurityHeaders / Pingdom แนะนำ
 app.use((req, res, next) => {
-  // Backend นี้เสิร์ฟแค่ JSON / redirect เลยใช้ CSP แบบเข้ม ๆ ได้
+  // CSP สำหรับ backend (ส่วนใหญ่ตอบเป็น JSON/redirect)
+  // ถ้าในอนาคต backend มีหน้า HTML เองแล้วต้องโหลด resource อื่น ๆ
+  // ค่อยมาแก้ policy ตรงนี้เพิ่มได้
   res.setHeader(
     'Content-Security-Policy',
-    "default-src 'none'; frame-ancestors 'none'; base-uri 'none';"
+    "default-src 'self'; frame-ancestors 'self'; base-uri 'self';"
   );
 
-  // กัน clickjacking
+  // กันไม่ให้โดเมนอื่น iframe backend ของเรา → ป้องกัน clickjacking
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
 
-  // จำกัด referrer ที่ส่งออกไปโดเมนอื่น
+  // จำกัด referrer ที่ส่งออกไปเว็บอื่น ๆ
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
 
-  // ปิดฟีเจอร์ browser ที่เราไม่ได้ใช้
+  // ปิด feature ที่เราไม่ได้ใช้ใน backend นี้
   res.setHeader(
     'Permissions-Policy',
-    'geolocation=(), camera=(), microphone=()'
+    'geolocation=(), camera=(), microphone=(), payment=()'
   );
 
   next();
