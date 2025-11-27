@@ -14,18 +14,16 @@
   /* Accents */
   --acc-1:#2B6FFF;    /* bright blue */
   --acc-2:#7C4DFF;    /* violet */
-  --acc-3:#00B8A9;    /* teal */
+  --acc-3:#00C48C;    /* teal/green */
 
-  /* Effects (light) */
-  --glass: rgba(0,0,0,.03);
-  --glass-strong: rgba(0,0,0,.06);
-  --br:16px;
-  --shadow-neon: 0 8px 24px rgba(43,111,255,.20), 0 10px 30px rgba(124,77,255,.12);
-  --shadow-soft: 0 12px 30px rgba(13,27,42,.08);
-  --bd:1px solid rgba(8,16,28,.08);
+  /* Border / radius */
+  --bd:1px solid rgba(15,23,42,0.06);
+  --br:14px;
 
-  --font-ui: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --shadow-soft:0 18px 45px rgba(15,23,42,.10);
+  --shadow-subtle:0 8px 20px rgba(15,23,42,.08);
+
+  --font-ui:-apple-system, BlinkMacSystemFont, "SF Pro Text","Segoe UI", system-ui, sans-serif;
 }
 
 /* ---------- DARK (Tech) ---------- */
@@ -41,21 +39,27 @@ body.dark{
   --acc-2:#7C4DFF;
   --acc-3:#00FFA3;
 
-  --glass: rgba(255,255,255,.06);
-  --glass-strong: rgba(255,255,255,.12);
-  --shadow-neon: 0 0 20px rgba(0,230,255,.35), 0 0 40px rgba(124,77,255,.25);
-  --shadow-soft: 0 10px 30px rgba(0,0,0,.35);
-  --bd:1px solid rgba(255,255,255,.12);
+  --bd:1px solid rgba(148,163,184,0.20);
+  --shadow-soft:0 20px 50px rgba(15,23,42,.45);
+  --shadow-subtle:0 12px 30px rgba(15,23,42,.55);
 }
 
 /* =========================================================
-   Base
+   Global
    ========================================================= */
-*{ box-sizing: border-box; }
-html, body{ height:100%; }
-html{ -webkit-tap-highlight-color: transparent; }
-body{
+*,
+*::before,
+*::after{
+  box-sizing:border-box;
+}
+
+html,body{
   margin:0;
+  padding:0;
+}
+
+body{
+  min-height:100vh;
   background:
     radial-gradient(900px 500px at 0% -10%, rgba(43,111,255,.08), transparent 60%),
     radial-gradient(900px 500px at 100% 0%, rgba(124,77,255,.06), transparent 60%),
@@ -69,6 +73,28 @@ body{
 
 /* Utility: no-wrap */
 .no-wrap, .nowrap{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* Skip link for keyboard users */
+.skip-link{
+  position:absolute;
+  left:0.75rem;
+  top:-40px;
+  padding:0.5rem 0.9rem;
+  background:var(--acc-1);
+  color:#fff;
+  border-radius:999px;
+  text-decoration:none;
+  font-size:.9rem;
+  box-shadow:var(--shadow-soft);
+  opacity:0;
+  transition:top .2s ease, opacity .2s ease;
+  z-index:9999;
+}
+.skip-link:focus,
+.skip-link:focus-visible{
+  top:0.75rem;
+  opacity:1;
+}
 
 /* Focus ring */
 :focus-visible{ outline:2px dashed var(--acc-1); outline-offset:3px; border-radius:8px; }
@@ -85,64 +111,114 @@ body{
   position: sticky; top:0; z-index:10;
   display:flex; align-items:center; justify-content:space-between;
   padding:.9rem 1.2rem;
-  background: linear-gradient(180deg, color-mix(in oklab, var(--bg-1) 92%, transparent), color-mix(in oklab, var(--bg-1) 70%, transparent));
+  background: linear-gradient(180deg, color-mix(in oklab, var(--bg-0) 90%, transparent), color-mix(in oklab, var(--bg-1) 70%, transparent));
   backdrop-filter: blur(10px);
   border-bottom: var(--bd);
 }
-.brand{
-  font-weight:800; font-size:1.15rem; letter-spacing:.4px;
-  background: linear-gradient(90deg, var(--acc-1), var(--acc-2));
-  -webkit-background-clip:text; background-clip:text; color:transparent;
-  text-shadow: 0 0 18px color-mix(in oklab, var(--acc-2) 30%, transparent);
-  white-space:nowrap;
+.nav .brand{
+  font-weight:700;
+  font-size:1.1rem;
+  letter-spacing:.04em;
 }
-.nav .links{ display:flex; align-items:center; gap:.85rem; }
-.nav .links a, .nav .links button{
-  color:var(--fg-0); text-decoration:none; background:transparent; border:0; cursor:pointer;
-  padding:.48rem .75rem; border-radius:10px; white-space:nowrap;
+.nav .links{
+  display:flex; gap:.75rem; align-items:center;
 }
-.nav .links a:hover{ background: var(--glass); }
-#themeToggle{ font-size:1rem; }
+.nav a{
+  color:var(--fg-1);
+  text-decoration:none;
+  font-size:.95rem;
+  padding:.35rem .6rem;
+  border-radius:99px;
+  transition:background .18s ease, color .18s ease, transform .12s ease;
+}
+.nav a:hover{
+  background: color-mix(in oklab, var(--acc-1) 10%, transparent);
+  color:var(--fg-0);
+  transform:translateY(-1px);
+}
 
-.user-menu{ display:inline-flex; align-items:center; gap:.55rem; position:relative; }
-.user-menu img{
-  width:30px; height:30px; border-radius:50%; object-fit:cover;
-  box-shadow: 0 0 0 2px color-mix(in oklab, var(--fg-1) 18%, transparent);
+/* Theme toggle button */
+#themeToggle{
+  border:none;
+  padding:.35rem .55rem;
+  border-radius:999px;
+  background: color-mix(in oklab, var(--bg-2) 65%, transparent);
+  box-shadow: 0 0 0 1px rgba(148,163,184,0.35);
+  cursor:pointer;
+  font-size:1.05rem;
+  line-height:1;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  transition: background .18s ease, transform .12s ease, box-shadow .18s ease;
 }
-.user-menu:hover{ cursor:pointer; }
-.user-menu > span{ font-size:.95rem; color:var(--fg-1); white-space:nowrap; }
-.dropdown{
-  display:none; position:absolute; right:0; top:120%; min-width: 180px;
-  background: linear-gradient(180deg, color-mix(in oklab, var(--bg-2) 96%, transparent), color-mix(in oklab, var(--bg-2) 86%, transparent));
-  border: var(--bd); border-radius: 12px; padding:.4rem; backdrop-filter: blur(10px);
-  box-shadow: var(--shadow-soft);
+#themeToggle:hover{
+  background: color-mix(in oklab, var(--acc-2) 24%, transparent);
+  transform: translateY(-1px);
+  box-shadow:0 10px 25px rgba(15,23,42,.35);
 }
-.user-menu.open .dropdown{ display:flex; flex-direction:column; gap:.25rem; }
-.dropdown a, .dropdown .linklike{
-  display:block; color:var(--fg-0); text-decoration:none; padding:.6rem .65rem; border-radius:10px; white-space:nowrap;
-  background: transparent; border:0; text-align:left; cursor:pointer;
-}
-.dropdown a:hover, .dropdown .linklike:hover{ background: var(--glass); }
-.linklike{ color:var(--acc-1); }
 
 /* =========================================================
-   Buttons
+   Hero / Landing
    ========================================================= */
+main.container{
+  display:flex;
+  flex-direction:column;
+  gap:1.2rem;
+  padding-top:2.5rem;
+}
+main h1{
+  font-size: clamp(2.1rem, 3.2vw + 1.4rem, 2.8rem);
+  margin:0;
+}
+main p{
+  margin:0;
+  max-width: 540px;
+  color:var(--fg-1);
+  line-height:1.6;
+}
+.actions{
+  margin-top:1.3rem;
+  display:flex;
+  gap:.75rem;
+  flex-wrap:wrap;
+}
+
+/* Buttons */
 .btn{
-  position:relative; display:inline-flex; align-items:center; justify-content:center;
-  gap:.45rem; padding:.7rem 1.1rem; border-radius:12px; border:0; cursor:pointer;
-  color:#fff; font-weight:800; letter-spacing:.3px; white-space:nowrap;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:.6rem 1.3rem;
+  border-radius:999px;
+  border:none;
+  cursor:pointer;
+  font-size:.95rem;
+  font-weight:600;
+  letter-spacing:.02em;
+  text-decoration:none;
+  transition:transform .12s ease, box-shadow .15s ease, background .15s ease, color .15s ease;
+}
+.btn.primary{
   background: linear-gradient(90deg, var(--acc-1), var(--acc-2));
-  box-shadow: var(--shadow-neon);
-  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+  color:#fff;
+  box-shadow: 0 15px 35px rgba(43,111,255,.35);
 }
-.btn:hover{ transform: translateY(-1px) scale(1.01); filter: brightness(1.05); }
-.btn:active{ transform: translateY(0) scale(.99); filter: brightness(.98); }
-.btn.outline{
-  background: #fff; color: var(--acc-1); border:1px solid color-mix(in oklab, var(--acc-1) 50%, #fff);
-  box-shadow:none;
+.btn.primary:hover{
+  transform:translateY(-1px);
+  box-shadow: 0 22px 45px rgba(43,111,255,.45);
 }
-.btn.outline:hover{ background: color-mix(in oklab, var(--acc-1) 8%, #fff); }
+.btn.secondary{
+  background: transparent;
+  color:var(--fg-0);
+  border:1px solid rgba(148,163,184,0.65);
+  backdrop-filter: blur(10px);
+}
+.btn.secondary:hover{
+  background: color-mix(in oklab, var(--bg-2) 85%, transparent);
+}
+
+/* Danger/alert-style button (ถ้ามีใช้) */
 .btn.danger{
   background: linear-gradient(90deg, #FF5277, #FF784D);
   color:#fff; box-shadow: 0 0 20px rgba(255,82,119,.25);
@@ -152,143 +228,131 @@ body{
    Forms / Cards
    ========================================================= */
 form, .card{
-  background: linear-gradient(180deg, color-mix(in oklab, #fff 85%, transparent), color-mix(in oklab, #fff 75%, transparent));
+  background: linear-gradient(180deg, color-mix(in oklab, #ffffff 85%, transparent), color-mix(in oklab, #ffffff 75%, transparent));
   border: var(--bd);
   border-radius: var(--br);
   padding:1.1rem;
   box-shadow: var(--shadow-soft);
 }
-body.dark form, body.dark .card{
-  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+body.dark form,
+body.dark .card{
+  background: linear-gradient(180deg, color-mix(in oklab, #0f172a 92%, transparent), color-mix(in oklab, #020617 85%, transparent));
 }
-label{ display:block; margin:.65rem 0 .35rem; color:var(--fg-1); }
-input, textarea, select{
-  width:100%; padding:.75rem .85rem; border-radius:12px; border:1px solid color-mix(in oklab, var(--fg-1) 18%, transparent);
-  background: color-mix(in oklab, #fff 90%, transparent); color:var(--fg-0);
-  outline:none; transition: border-color .18s ease, background .18s ease;
+
+form h2, .card h2{
+  margin-top:0;
+  font-size:1.4rem;
 }
-body.dark input, body.dark textarea, body.dark select{
-  background: rgba(255,255,255,.06);
+
+.field{
+  display:flex;
+  flex-direction:column;
+  gap:.2rem;
+  margin-bottom:.9rem;
 }
-input:focus, textarea:focus, select:focus{ border-color: var(--acc-1); }
-input::placeholder, textarea::placeholder{ color: color-mix(in oklab, var(--fg-1) 55%, transparent); }
-.muted{ color:var(--fg-1); }
-.divider{ text-align:center; color:var(--muted); margin:1rem 0; }
+.field label{
+  font-size:.86rem;
+  color:var(--muted);
+}
+.field input,
+.field select,
+.field textarea{
+  padding:.5rem .65rem;
+  border-radius:10px;
+  border:1px solid rgba(148,163,184,0.7);
+  font: inherit;
+  background: color-mix(in oklab, var(--bg-1) 90%, transparent);
+  color:var(--fg-0);
+}
+.field input:focus,
+.field select:focus,
+.field textarea:focus{
+  border-color:var(--acc-1);
+  outline:none;
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--acc-1) 60%, transparent);
+}
+
+/* Help / error text */
+.help{
+  font-size:.8rem;
+  color:var(--muted);
+}
+.error{
+  font-size:.8rem;
+  color:#f97373;
+}
 
 /* =========================================================
-   Tables (Admin)
+   Layout – Auth pages
    ========================================================= */
-table{ width:100%; border-collapse: collapse; }
-th, td{
-  padding:.65rem .55rem; border-bottom:1px dashed color-mix(in oklab, var(--fg-1) 18%, transparent);
-  vertical-align:top; color:var(--fg-0);
+.auth-layout{
+  max-width: 960px;
+  margin:2.5rem auto;
+  padding:0 1.2rem;
+  display:grid;
+  gap:1.6rem;
+  grid-template-columns: minmax(0,1.05fr) minmax(0,0.95fr);
+  align-items:center;
 }
-th{ color:var(--muted); font-weight:700; white-space:nowrap; }
+.auth-hero{
+  padding:1.2rem 1.4rem;
+}
+.auth-hero h1{
+  margin-top:0;
+  font-size: clamp(1.9rem, 2.5vw + 1.2rem, 2.4rem);
+}
+.auth-hero p{
+  color:var(--fg-1);
+  line-height:1.6;
+}
+
+/* Avatar / user summary (เช่นหน้า settings) */
+.user-summary{
+  display:flex;
+  align-items:center;
+  gap:.75rem;
+}
+.user-summary img{
+  width:48px; height:48px;
+  border-radius:999px;
+  object-fit:cover;
+  border:2px solid rgba(148,163,184,0.6);
+}
 
 /* =========================================================
-   Carousel — Pure CSS/JS (object-fit: fill + circular indicators)
+   Misc
    ========================================================= */
-.carousel{
-  position:relative; width:100%; overflow:hidden; border-radius: calc(var(--br) + 4px);
-  background: linear-gradient(120deg, color-mix(in oklab, var(--acc-1) 14%, transparent), color-mix(in oklab, var(--acc-2) 10%, transparent));
-  border: 1px solid color-mix(in oklab, var(--fg-1) 14%, transparent);
-  box-shadow: var(--shadow-soft);
-}
-.carousel-track{
-  display:flex; transition:transform .45s cubic-bezier(.22,.61,.36,1); will-change:transform;
-}
-.carousel-slide{
-  min-width:100%; height:460px; display:flex; align-items:center; justify-content:center;
-  background: #000; /* ทำให้ภาพดูเด่นในทั้งสองธีม */
-}
-.carousel-slide img{ width:100%; height:100%; object-fit: fill; } /* ยืดรูป ไม่ครอป */
-
-.carousel-prev,.carousel-next{
-  position:absolute; top:50%; transform:translateY(-50%);
-  width:46px; height:46px; border:none; border-radius:50%;
-  background: color-mix(in oklab, #000 55%, transparent);
-  color:#fff; font-size:22px; line-height:46px; text-align:center; cursor:pointer;
-  box-shadow: 0 6px 18px rgba(0,0,0,.25), inset 0 0 0 1px color-mix(in oklab, #fff 20%, transparent);
-  transition: transform .15s ease, background .15s ease, opacity .15s ease;
-}
-.carousel-prev{ left:14px; }
-.carousel-next{ right:14px; }
-.carousel-prev:hover,.carousel-next:hover{ transform: translateY(-50%) scale(1.04); }
-.carousel-prev[disabled],.carousel-next[disabled]{ opacity:.4; cursor:not-allowed; }
-
-/* Indicators — circular thumbnails */
-.carousel-indicators{
-  position:absolute; left:0; right:0; bottom:14px; z-index:2;
-  display:flex; justify-content:center; gap:10px; padding:0 .6rem; pointer-events:auto;
-}
-.carousel-indicators button{
-  width:52px; height:52px; padding:0; border:2px solid color-mix(in oklab, #fff 65%, var(--fg-1));
-  border-radius:50%; background:#fff; cursor:pointer; overflow:hidden;
-  box-shadow: 0 8px 18px rgba(0,0,0,.15);
-}
-body.dark .carousel-indicators button{ background:transparent; }
-.carousel-indicators button img{
-  width:100%; height:100%; object-fit:cover; display:block; border-radius:50%;
-}
-.carousel-indicators button.active{
-  border-color: var(--acc-1);
-  box-shadow: 0 0 0 2px color-mix(in oklab, var(--acc-1) 80%, #fff), 0 0 24px color-mix(in oklab, var(--acc-2) 45%, transparent);
+.badge{
+  display:inline-flex;
+  align-items:center;
+  gap:.25rem;
+  padding:.1rem .45rem;
+  border-radius:999px;
+  font-size:.75rem;
+  background: color-mix(in oklab, var(--acc-3) 12%, transparent);
+  color:var(--fg-0);
 }
 
-/* Caption under carousel */
-#carousel-caption-box{
-  margin-top: .9rem;
-  background: linear-gradient(180deg, color-mix(in oklab, #fff 90%, transparent), color-mix(in oklab, #fff 80%, transparent));
-  border: var(--bd);
-  border-radius: var(--br);
-  padding: 1rem 1.1rem;
-  box-shadow: var(--shadow-soft);
+/* Footer (ถ้าใช้ในบางหน้า) */
+.footer{
+  margin-top:3rem;
+  padding:1.6rem 1.2rem 2rem;
+  font-size:.85rem;
+  color:var(--muted);
+  text-align:center;
 }
-body.dark #carousel-caption-box{
-  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
-}
-#carousel-caption-box h3{
-  margin:.2rem 0; font-weight:900; letter-spacing:.3px;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-  background: linear-gradient(90deg, var(--acc-1), var(--acc-2));
-  -webkit-background-clip:text; background-clip:text; color:transparent;
-}
-#carousel-caption-box h5{
-  margin:.25rem 0; color:var(--fg-1); font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-}
-#carousel-caption-box p{ margin-top:.4rem; color:var(--fg-0); }
-
-/* =========================================================
-   Links — animated underline
-   ========================================================= */
-a{ position:relative; transition: color .15s ease; }
-a::after{
-  content:""; position:absolute; left:0; right:100%; bottom:-2px; height:2px;
-  background: linear-gradient(90deg, var(--acc-1), var(--acc-2)); transition: right .25s ease;
-}
-a:hover{ color: color-mix(in oklab, var(--acc-1) 60%, var(--fg-0)); }
-a:hover::after{ right:0; }
-
-/* =========================================================
-   Helpers
-   ========================================================= */
-.actions{ display:flex; gap:.7rem; flex-wrap:wrap; }
-hr{ border:0; height:1px; background: color-mix(in oklab, #000 6%, transparent); margin:1.2rem 0; }
-button, .btn, .nav .links a, .brand, h1, h2, h3, h4, h5, th{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
 /* =========================================================
    Responsive
    ========================================================= */
-@media (max-width: 860px){
-  .container{ margin:1.6rem auto; }
-}
-@media (max-width: 640px){
-  .nav{ padding:.8rem 1rem; }
-  .carousel-slide{ height: 340px; }
-  .carousel-indicators button{ width:46px; height:46px; }
-}
-
-/* Reduced motion */
-@media (prefers-reduced-motion: reduce){
-  *{ animation:none !important; transition:none !important; }
+@media (max-width: 768px){
+  .auth-layout{
+    grid-template-columns: minmax(0,1fr);
+  }
+  .nav{
+    padding:.75rem 1rem;
+  }
+  main.container{
+    padding-top:1.8rem;
+  }
 }
