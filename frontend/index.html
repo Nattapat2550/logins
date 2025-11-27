@@ -2,52 +2,32 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>MySite – Login or Register</title>
-
-  <!-- ช่วย SEO + ให้ crawler เข้าใจเนื้อหา -->
+  <title>Welcome</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description"
-        content="Public landing page for MySite. Please register or log in to continue." />
-  <meta name="robots" content="index,follow" />
-
-  <!-- TODO: เปลี่ยนเป็นโดเมนจริงของคุณตอนขึ้น production -->
-  <link rel="canonical" href="https://your-domain.com/">
-
   <link rel="icon" href="/favicon.ico" sizes="any">
-
-  <!-- ช่วย LCP: เตรียม backend origin + preload CSS -->
   <link rel="preconnect" href="https://backendlogins.onrender.com" crossorigin>
   <link rel="dns-prefetch" href="https://backendlogins.onrender.com">
   <link rel="preload" href="css/style.css" as="style">
-  <link rel="stylesheet" href="css/style.css" />
+  <link href="css/style.css" rel="stylesheet" />
 </head>
 <body>
-  <!-- Skip link: ให้คนใช้คีย์บอร์ดกด Tab ข้าม nav ได้ -->
-  <a href="#main" class="skip-link">Skip to main content</a>
-
-  <nav class="nav" aria-label="Main navigation">
+  <nav class="nav">
     <div class="brand">MySite</div>
     <div class="links">
       <a href="about.html">About</a>
       <a href="contact.html">Contact</a>
       <a href="download.html">Download</a>
-      <button id="themeToggle"
-              type="button"
-              aria-label="Toggle dark mode">
-        🌓
-      </button>
+      <button id="themeToggle">🌓</button>
     </div>
   </nav>
-
-  <main id="main" class="container">
+  <main class="container">
     <h1>Welcome</h1>
     <p>This is a public landing page. Please register or login to continue.</p>
-    <div class="actions" aria-label="Authentication actions">
+    <div class="actions">
       <a class="btn" href="register.html">Register</a>
       <a class="btn" href="login.html">Login</a>
     </div>
   </main>
-
   <script src="js/main.js" defer></script>
 </body>
 </html>
