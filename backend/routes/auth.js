@@ -159,13 +159,36 @@ const oauth2ClientWeb = new google.auth.OAuth2(
 
 // เริ่ม OAuth บนเว็บ
 router.get('/google', (req, res) => {
-  const url = oauth2ClientWeb.generateAuthUrl({
-    redirect_uri: process.env.GOOGLE_CALLBACK_URI,
-    access_type: 'offline',
-    prompt: 'consent',
-    scope: ['openid', 'email', 'profile'],
-  });
-  res.redirect(url);
+  try {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const redirectUri = process.env.GOOGLE_CALLBACK_URI;
+
+    if (!clientId || !redirectUri) {
+      console.error(
+        'Google OAuth not configured. Missing GOOGLE_CLIENT_ID or GOOGLE_CALLBACK_URI'
+      );
+      return res.status(500).send('Google OAuth is not configured');
+    }
+
+    const params = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      response_type: 'code',
+      scope: 'openid email profile',
+      access_type: 'offline',
+      prompt: 'consent',
+    });
+
+    // ใช้ endpoint มาตรฐานของ Google OAuth 2
+    const url =
+      'https://accounts.google.com/o/oauth2/v2/auth?' +
+      params.toString();
+
+    return res.redirect(url);
+  } catch (err) {
+    console.error('GET /api/auth/google error:', err);
+    return res.status(500).send('Unable to start Google login');
+  }
 });
 
 // callback จาก Google (เว็บ)
