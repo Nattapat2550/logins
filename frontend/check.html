@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Verify Email</title>
+  <meta name="description" content="Token check page in MySite that displays information about the current user session.">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="preconnect" href="https://backendlogins.onrender.com" crossorigin>
+  <link rel="dns-prefetch" href="https://backendlogins.onrender.com">
+  <link rel="preload" href="css/style.css" as="style">
+  <link href="css/style.css" rel="stylesheet" />
+</head>
+<body>
+  <nav class="nav">
+    <div class="brand">MySite</div>
+    <div class="links"><a href="index.html">Home</a><button id="themeToggle">🌓</button></div>
+  </nav>
+  <main class="container">
+    <h2>Enter 6-digit code</h2>
+    <form id="codeForm">
+      <label>Code</label>
+      <input type="text" id="code" maxlength="6" required />
+      <button class="btn" type="submit">Verify</button>
+    </form>
+    <p id="msg" class="muted"></p>
+  </main>
+  <script src="js/main.js" defer></script>
+  <script src="js/check.js" defer></script>
+</body>
+</html>

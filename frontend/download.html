@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Download</title>
+  <meta name="description" content="Download page for MySite with links to project files and Docker setup.">
+  <meta name="robots" content="index, follow">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="preconnect" href="https://backendlogins.onrender.com" crossorigin>
+  <link rel="dns-prefetch" href="https://backendlogins.onrender.com">
+  <link rel="preload" href="css/style.css" as="style">
+  <link href="css/style.css" rel="stylesheet" />
+</head>
+<body>
+  <nav class="nav">
+    <div class="brand">MySite</div>
+    <div class="links">
+      <a href="index.html">Home</a>
+      <a href="about.html">About</a>
+      <a href="contact.html">Contact</a>
+      <button id="themeToggle">🌓</button>
+    </div>
+  </nav>
+
+  <main class="container">
+    <h1>Download MyApp</h1>
+    <p class="muted">เลือกแพลตฟอร์มที่ต้องการติดตั้งแอป</p>
+
+    <div class="card-grid">
+      <section class="card">
+        <h2>Windows</h2>
+        <p>ไฟล์ติดตั้งเดสก์ท็อป <code>MyAppSetup.exe</code></p>
+        <button id="downloadWindows" class="btn primary">
+          Download for Windows
+        </button>
+      </section>
+
+      <section class="card">
+        <h2>Android</h2>
+        <p>ไฟล์ติดตั้งแอปมือถือ <code>app-release.apk</code></p>
+        <button id="downloadAndroid" class="btn">
+          Download for Android
+        </button>
+      </section>
+    </div>
+  </main>
+
+  <script src="js/main.js" defer></script>
+  <script src="js/download.js" defer></script>
+</body>
+</html>

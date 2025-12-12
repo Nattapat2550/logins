@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Admin</title>
+  <meta name="description" content="Admin dashboard in MySite for managing users and settings.">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="preconnect" href="https://backendlogins.onrender.com" crossorigin>
+  <link rel="dns-prefetch" href="https://backendlogins.onrender.com">
+  <link rel="preload" href="css/style.css" as="style">
+  <link href="css/style.css" rel="stylesheet" />
+</head>
+<body>
+  <nav class="nav">
+    <div class="brand">MySite</div>
+    <div class="links">
+      <a href="home.html">Home</a>
+      <button id="themeToggle">🌓</button>
+      <div id="userMenu" class="user-menu">
+        <img id="avatar" src="images/user.png" alt="avatar" />
+        <span id="uname">admin</span>
+        <div class="dropdown">
+          <a href="settings.html">Settings</a>
+          <button id="logoutBtn" class="linklike">Logout</button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container">
+    <h2>Admin Dashboard</h2>
+
+    <section>
+      <h3>Homepage Content</h3>
+      <form id="homeForm">
+        <label>Section name</label>
+        <input type="text" id="section" placeholder="welcome_header" required />
+        <label>Content</label>
+        <textarea id="content" rows="3"></textarea>
+        <button class="btn" type="submit">Save section</button>
+      </form>
+    </section>
+
+    <section>
+      <h3>Users</h3>
+      <table id="usersTable">
+        <thead><tr><th>ID</th><th>Username</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h3>Carousel Manager</h3>
+      <form id="carouselForm" enctype="multipart/form-data">
+        <div class="row">
+          <div style="flex:1;">
+            <label>Image (png/jpg/gif/webp)</label>
+            <input type="file" id="cImage" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp" required />
+          </div>
+          <div style="width:160px;">
+            <label>Index</label>
+            <input type="number" id="cIndex" value="0" />
+          </div>
+        </div>
+        <label>Title</label>
+        <input type="text" id="cTitle" />
+        <label>Subtitle</label>
+        <input type="text" id="cSubtitle" />
+        <label>Description</label>
+        <textarea id="cDesc" rows="2"></textarea>
+        <button class="btn" type="submit">Add slide</button>
+      </form>
+
+      <div style="height:1rem"></div>
+
+      <table id="carouselTable">
+        <thead>
+          <tr>
+            <th>ID</th><th>Index</th><th>Preview</th>
+            <th>Title</th><th>Subtitle</th><th>Description</th>
+            <th>New Image</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <p id="msg" class="muted"></p>
+  </main>
+
+  <script src="js/main.js" defer></script>
+  <script src="js/admin.js" defer></script>
+</body>
+</html>

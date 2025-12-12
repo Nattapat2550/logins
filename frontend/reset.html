@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Password Reset</title>
+  <meta name="description" content="Password reset page for MySite to request and set a new password.">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="preconnect" href="https://backendlogins.onrender.com" crossorigin>
+  <link rel="dns-prefetch" href="https://backendlogins.onrender.com">
+  <link rel="preload" href="css/style.css" as="style">
+  <link href="css/style.css" rel="stylesheet" />
+</head>
+<body>
+  <nav class="nav">
+    <div class="brand">MySite</div>
+    <div class="links"><a href="index.html">Home</a><button id="themeToggle">🌓</button></div>
+  </nav>
+  <main class="container">
+    <h2>Password Reset</h2>
+    <section id="requestBox">
+      <p>Enter your email to receive a reset link.</p>
+      <form id="requestForm">
+        <label>Email</label>
+        <input type="email" id="email" required />
+        <button class="btn" type="submit">Send Link</button>
+      </form>
+    </section>
+    <section id="resetBox" style="display:none;">
+      <p>Enter your new password.</p>
+      <form id="resetForm">
+        <label>New Password</label>
+        <input type="password" id="newPassword" minlength="8" required />
+        <button class="btn" type="submit">Set Password</button>
+      </form>
+    </section>
+    <p id="msg" class="muted"></p>
+  </main>
+  <script src="js/main.js" defer></script>
+  <script src="js/reset.js" defer></script>
+</body>
+</html>
