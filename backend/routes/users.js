@@ -1,93 +1,64 @@
-const express = require("express");
-const pure = require("../utils/pureApiClient");
-const { authenticateJWT } = require("../middleware/auth");
+// backend/routes/users.js
+const express = require('express');
+const { authenticateJWT, clearAuthCookie } = require('../middleware/auth');
+const { updateProfile, deleteUser, findUserById } = require('../models/user');
+const multer = require('multer');
+const upload = multer({ limits: { fileSize: 2 * 1024 * 1024 } }); // 2MB
 
 const router = express.Router();
 
-/**
- * ดึง JWT token จาก cookie หรือ Authorization header
- */
-function extractToken(req) {
-  const cookieToken = req.cookies?.token;
-  const authHeader = req.headers.authorization;
+router.get('/me', authenticateJWT, async (req, res) => {
+  const u = await findUserById(req.user.id);
+  if (!u) return res.status(404).json({ error: 'Not found' });
+  const { id, username, email, role, profile_picture_url } = u;
+  res.json({ id, username, email, role, profile_picture_url });
+});
 
-  if (cookieToken) return cookieToken;
-  if (authHeader && authHeader.startsWith("Bearer ")) return authHeader.slice(7);
-  return null;
-}
-
-/**
- * GET /api/users/me
- * - frontend -> backend
- * - backend -> pure-api: GET /api/auth/me
- */
-router.get("/me", async (req, res) => {
+router.put('/me', authenticateJWT, async (req, res) => {
   try {
-    const token = extractToken(req);
-    if (!token) {
-      return res.status(401).json({ error: "Unauthorized (missing token)" });
-    }
-
-    const r = await pure.get("/api/auth/me", { token }); // { ok:true, data:{...} }
-    return res.json(r.data);
+    const { username, profilePictureUrl, profile_picture_url } = req.body || {};
+    const finalProfilePictureUrl = profilePictureUrl || profile_picture_url;
+    const updated = await updateProfile(req.user.id, { username, profilePictureUrl: finalProfilePictureUrl });
+    if (!updated) return res.status(404).json({ error: 'Not found' });
+    const { id, email, role, profile_picture_url } = updated;
+    res.json({ id, username: updated.username, email, role, profile_picture_url });
   } catch (e) {
-    const status = e.status || 500;
-
-    // ถ้า token หมดอายุ/ผิด ให้ตอบ 401 ชัด ๆ
-    if (status === 401) {
-      return res.status(401).json({ error: "Unauthorized", detail: e.payload || e.message });
+    if (e.code === '23505') {
+      return res.status(409).json({ error: 'Username already taken' });
     }
-
-    return res.status(status).json({
-      error: "Failed to fetch user",
-      detail: e.payload || e.message
-    });
+    console.error('update profile error', e);
+    res.status(500).json({ error: 'Internal error' });
   }
 });
 
-/**
- * PATCH /api/users/me
- * - update profile: username / profile_picture_url
- * - backend -> pure-api: PATCH /api/users/me
- */
-router.patch("/me", async (req, res) => {
+router.delete('/me', authenticateJWT, async (req, res) => {
   try {
-    const token = extractToken(req);
-    if (!token) {
-      return res.status(401).json({ error: "Unauthorized (missing token)" });
-    }
-
-    const { username, profile_picture_url } = req.body || {};
-
-    const r = await pure.patch("/api/users/me", {
-      token,
-      body: { username, profile_picture_url }
-    });
-
-    return res.json(r.data);
+    await deleteUser(req.user.id);
+    // ลบบัญชีเสร็จแล้ว ให้ลบ cookie token ทิ้งด้วย เพื่อกัน loop index/home
+    clearAuthCookie(res);
+    res.status(204).end();
   } catch (e) {
-    const status = e.status || 500;
-    return res.status(status).json({
-      error: "Failed to update profile",
-      detail: e.payload || e.message
-    });
+    console.error('delete me error', e);
+    res.status(500).json({ error: 'Internal error' });
   }
 });
 
-/**
- * (optional) GET /api/users/me (แบบบังคับ auth ด้วย middleware)
- * ถ้าคุณอยากใช้ authenticateJWT ของ backend เอง
- * หมายเหตุ: backend verify token ด้วย JWT_SECRET (ต้องตรงกับ pure-api)
- */
-// router.get("/me-secure", authenticateJWT, async (req, res) => {
-//   try {
-//     const token = extractToken(req);
-//     const r = await pure.get("/api/auth/me", { token });
-//     return res.json(r.data);
-//   } catch (e) {
-//     const status = e.status || 500;
-//     return res.status(status).json({ error: "Failed", detail: e.payload || e.message });
-//   }
-// });
+// Avatar upload
+router.post('/me/avatar', authenticateJWT, upload.single('avatar'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file' });
+    const mime = req.file.mimetype;
+    if (!/^image\/(png|jpe?g|gif|webp)$/.test(mime)) {
+      return res.status(400).json({ error: 'Unsupported file type' });
+    }
+    const b64 = req.file.buffer.toString('base64');
+    const dataUrl = `data:${mime};base64,${b64}`;
+    const updated = await updateProfile(req.user.id, { profilePictureUrl: dataUrl });
+    return res.json({ ok: true, profile_picture_url: updated.profile_picture_url });
+  } catch (e) {
+    console.error('upload avatar error', e);
+    return res.status(500).json({ error: 'Upload failed' });
+  }
+});
 
 module.exports = router;

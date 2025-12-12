@@ -56,14 +56,11 @@ function authenticateJWT(req, res, next) {
 
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    // รองรับได้ทั้งรูปแบบเดิม (id) และรูปแบบที่บาง service ใช้ (sub)
+    // ควรมีอย่างน้อย id + role ตาม signToken ใน routes/auth.js
     req.user = {
-      id: payload.id ?? payload.sub,
+      id: payload.id,
       role: payload.role || 'user',
     };
-    if (!req.user.id) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
     next();
   } catch (e) {
     return res.status(401).json({ error: 'Unauthorized' });

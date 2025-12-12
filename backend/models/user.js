@@ -1,6 +1,5 @@
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-
 const pure = require('../utils/pureApiClient');
 
 /**
@@ -8,7 +7,22 @@ const pure = require('../utils/pureApiClient');
  * โมดูลนี้ถูกเปลี่ยนให้ "ไม่แตะ DB ตรง" แล้ว
  * ทุกอย่างเรียกผ่าน pure-api (server-to-server) เท่านั้น
  *
- * NOTE: ต้องมี endpoint ฝั่ง pure-api ตามที่เรียกในไฟล์นี้
+ * pure-api ที่ต้องมี (api-key protected):
+ * - POST  /api/internal/users/create-by-email
+ * - GET   /api/internal/users/by-email?email=...
+ * - GET   /api/internal/users/by-id/:id
+ * - GET   /api/internal/users/by-oauth?provider=...&oauthId=...
+ * - POST  /api/internal/users/mark-email-verified
+ * - POST  /api/internal/users/set-username-password
+ * - PATCH /api/internal/users/update-profile
+ * - DELETE /api/internal/users/:id
+ * - GET   /api/internal/users
+ * - POST  /api/internal/verification/store-code
+ * - POST  /api/internal/verification/validate-consume
+ * - POST  /api/internal/oauth/set-oauth-user
+ * - POST  /api/internal/password-reset/create
+ * - POST  /api/internal/password-reset/consume
+ * - POST  /api/internal/users/set-password
  */
 
 function unwrap(resp) {
@@ -16,9 +30,7 @@ function unwrap(resp) {
 }
 
 async function createUserByEmail(email) {
-  const resp = await pure.post('/api/internal/users/create-by-email', {
-    body: { email },
-  });
+  const resp = await pure.post('/api/internal/users/create-by-email', { body: { email } });
   return unwrap(resp);
 }
 
@@ -39,13 +51,12 @@ async function findUserByOAuth(provider, oauthId) {
 }
 
 async function markEmailVerified(userId) {
-  const resp = await pure.post('/api/internal/users/mark-email-verified', {
-    body: { userId },
-  });
+  const resp = await pure.post('/api/internal/users/mark-email-verified', { body: { userId } });
   return unwrap(resp);
 }
 
 async function setUsernameAndPassword(email, username, password) {
+  // backend ยังคง hash password ก่อนส่งไป pure-api (ปลอดภัย + ไม่เปลี่ยน flow เดิม)
   const salt = await bcrypt.genSalt(10);
   const hash = await bcrypt.hash(password, salt);
 
@@ -126,6 +137,7 @@ async function consumePasswordResetToken(rawToken) {
 async function setPassword(userId, newPassword) {
   const salt = await bcrypt.genSalt(10);
   const hash = await bcrypt.hash(newPassword, salt);
+
   const resp = await pure.post('/api/internal/users/set-password', {
     body: { userId, passwordHash: hash },
   });

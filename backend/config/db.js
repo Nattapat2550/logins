@@ -1,19 +1,20 @@
 /**
- * IMPORTANT:
- * โปรเจคนี้ "ห้าม" ต่อ PostgreSQL ตรงอีกแล้ว
- * ทุกอย่างต้องวิ่งผ่าน pure-api เท่านั้น
+ * IMPORTANT (architecture change)
+ * ------------------------------------------------------------
+ * โปรเจค backend ตัวนี้ "ห้าม" ต่อ PostgreSQL ตรง ๆ แล้ว
+ * ทุกการอ่าน/เขียน DB ต้องวิ่งผ่านบริการ pure-api เท่านั้น
  *
- * ถ้าเจอ import db แล้วเรียก db.query(...) ให้ไปแก้ service นั้น
- * ให้เรียก pureApiClient แทน
+ * ถ้าไฟล์ไหนยัง require('../config/db') แล้วเรียก pool.query(...)
+ * ให้แก้ไปเรียก backend/utils/pureApiClient.js แทน
  */
 
 function notAllowed() {
   throw new Error(
-    "[projectdocker] Direct DB access is disabled. Use pure-api instead."
+    "[backend] Direct DB access is disabled. Use pure-api (PURE_API_BASE_URL) instead."
   );
 }
 
 module.exports = {
   query: notAllowed,
-  connect: notAllowed
+  connect: notAllowed,
 };
