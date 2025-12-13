@@ -1,16 +1,16 @@
+// backend/middleware/auth.js
 const jwt = require('jsonwebtoken');
 
-/**
- * สร้าง / เขียน cookie สำหรับ JWT
- * @param {import('express').Response} res
- * @param {string} token
- * @param {boolean} remember - ถ้า true อายุ cookie 30 วัน ไม่งั้น 1 วัน
- */
+// ตรวจสอบว่าเป็น Production หรือไม่ (หรือถ้าอยู่บน Render ก็ถือว่าเป็น Production/Secure ได้เลย)
+const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER_EXTERNAL_URL;
+
 function setAuthCookie(res, token, remember) {
   res.cookie('token', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'None', // เพราะ front / back คนละโดเมน
+    // สำคัญ: ถ้า SameSite=None ต้อง Secure=true เสมอ (Browser บังคับ)
+    // ถ้าอยู่ Localhost (http) ให้ใช้ SameSite=Lax แทน
+    secure: isProduction ? true : false,
+    sameSite: isProduction ? 'None' : 'Lax', 
     maxAge: remember
       ? 1000 * 60 * 60 * 24 * 30 // 30 วัน
       : 1000 * 60 * 60 * 24,     // 1 วัน
@@ -18,22 +18,16 @@ function setAuthCookie(res, token, remember) {
   });
 }
 
-/**
- * ลบ cookie token
- */
 function clearAuthCookie(res) {
   res.cookie('token', '', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'None',
+    secure: isProduction ? true : false,
+    sameSite: isProduction ? 'None' : 'Lax',
     expires: new Date(0),
     path: '/',
   });
 }
 
-/**
- * ดึง token จาก cookie หรือ Authorization header (Bearer)
- */
 function extractToken(req) {
   const cookieToken = req.cookies?.token;
   const authHeader = req.headers.authorization;
@@ -45,18 +39,15 @@ function extractToken(req) {
   return cookieToken || headerToken;
 }
 
-/**
- * Middleware ตรวจ JWT
- */
 function authenticateJWT(req, res, next) {
   const token = extractToken(req);
+  // ถ้าไม่มี token ให้ส่ง 401 (ปกติสำหรับ user ที่ยังไม่ login)
   if (!token) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    // ควรมีอย่างน้อย id + role ตาม signToken ใน routes/auth.js
     req.user = {
       id: payload.id,
       role: payload.role || 'user',
@@ -67,9 +58,6 @@ function authenticateJWT(req, res, next) {
   }
 }
 
-/**
- * Middleware เช็ก role = admin
- */
 function isAdmin(req, res, next) {
   if (req.user && req.user.role === 'admin') {
     return next();

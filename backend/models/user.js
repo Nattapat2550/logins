@@ -1,112 +1,128 @@
 // backend/models/user.js
-// ไม่ต้อง require('pg') หรือ pool แล้ว
-// ไม่ต้อง require('bcryptjs') หรือ 'crypto' แล้ว (เพราะ Pure-API จัดการให้)
-// แต่ต้องใช้ fetch (Node.js 18+ มีมาให้แล้ว หรือใช้ axios ก็ได้)
+const { callPureApi } = require('../utils/pureApi');
 
-const PURE_API_URL = process.env.PURE_API_BASE_URL; // เช่น https://pure-api-pry6.onrender.com
-const API_KEY = process.env.PURE_API_KEY;
-
-// Helper function ในการยิง API
-async function callPureApi(endpoint, body) {
-  try {
-    const res = await fetch(`${PURE_API_URL}/api/internal${endpoint}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': API_KEY
-      },
-      body: JSON.stringify(body)
-    });
-    
-    if (!res.ok) {
-      const txt = await res.text();
-      console.error(`Pure API Error [${endpoint}]:`, res.status, txt);
-      return null;
-    }
-    
-    const json = await res.json();
-    return json;
-  } catch (err) {
-    console.error(`Call Pure API Failed [${endpoint}]:`, err);
-    return null;
-  }
-}
-
+/**
+ * สร้าง User ใหม่ด้วย Email (ยังไม่ Verify)
+ */
 async function createUserByEmail(email) {
-  const json = await callPureApi('/create-user-email', { email });
-  return json?.data || null;
+  return await callPureApi('/create-user-email', { email });
 }
 
+/**
+ * ค้นหา User ด้วย Email
+ */
 async function findUserByEmail(email) {
-  const json = await callPureApi('/find-user', { email });
-  return json?.data || null;
+  // return object user ที่มี password_hash (ถ้ามี)
+  return await callPureApi('/find-user', { email });
 }
 
+/**
+ * ค้นหา User ด้วย ID
+ */
 async function findUserById(id) {
-  const json = await callPureApi('/find-user', { id });
-  return json?.data || null;
+  return await callPureApi('/find-user', { id });
 }
 
+/**
+ * ค้นหา User ด้วย OAuth Provider
+ */
 async function findUserByOAuth(provider, oauthId) {
-  const json = await callPureApi('/find-user', { provider, oauthId });
-  return json?.data || null;
+  return await callPureApi('/find-user', { provider, oauthId });
 }
 
-// Function นี้อาจจะไม่ได้ใช้บ่อยใน auth flow เดิม แต่ใส่ไว้เผื่อ
+/**
+ * เปลี่ยนสถานะ Email Verified (ปกติ Pure-API ทำให้แล้วตอน Verify Code)
+ */
 async function markEmailVerified(userId) {
-  // Pure API จะ verify ให้ใน validateAndConsumeCode แล้ว
-  return null; 
-}
-
-async function setUsernameAndPassword(email, username, password) {
-  const json = await callPureApi('/set-username-password', { email, username, password });
-  return json?.data || null;
-}
-
-async function updateProfile(userId, { username, profilePictureUrl }) {
-  // อันนี้ต้องเพิ่ม endpoint ใน pure-api ถ้าจำเป็น แต่ใน auth flow ปกติอาจไม่ได้ใช้
-  // สมมติว่ายังไม่ implement หรือใช้ setOAuthUser แทน
+  // Pure-API จัดการให้แล้วใน validateAndConsumeCode หรือ setOAuthUser
+  // จึงไม่ต้องทำอะไรเพิ่มในฝั่งนี้
   return null;
 }
 
+/**
+ * ตั้ง Username และ Password (สำหรับการ Register แบบ Email)
+ */
+async function setUsernameAndPassword(email, username, password) {
+  // Pure-API จะทำการ Hash Password ให้เอง
+  return await callPureApi('/set-username-password', { email, username, password });
+}
+
+/**
+ * อัปเดตข้อมูล Profile (Username, Avatar)
+ */
+async function updateProfile(userId, { username, profilePictureUrl }) {
+  // ใช้ Endpoint Admin Update (หรือสร้าง Endpoint User Update แยกใน Pure-API ก็ได้)
+  return await callPureApi('/admin/users/update', { 
+    id: userId, 
+    username, 
+    profile_picture_url: profilePictureUrl 
+  });
+}
+
+/**
+ * ลบ User
+ */
 async function deleteUser(userId) {
-  // Implement delete if needed
+  // สมมติว่ามี Endpoint delete ใน Pure-API (ถ้ายังไม่มีอาจต้องเพิ่ม)
+  // แต่เบื้องต้น return null ไปก่อนเพื่อไม่ให้ error
+  console.warn('deleteUser not fully implemented via Pure-API yet');
+  return null;
 }
 
+/**
+ * ดึง User ทั้งหมด (สำหรับ Admin)
+ */
 async function getAllUsers() {
-  // Implement get all if needed
-  return [];
+  return await callPureApi('/admin/users') || [];
 }
 
+/**
+ * บันทึก Verification Code
+ */
 async function storeVerificationCode(userId, code, expiresAt) {
-  const json = await callPureApi('/store-verification-code', { userId, code, expiresAt });
-  return json?.ok;
+  return await callPureApi('/store-verification-code', { userId, code, expiresAt });
 }
 
+/**
+ * ตรวจสอบและใช้ Verification Code
+ */
 async function validateAndConsumeCode(email, code) {
-  const json = await callPureApi('/verify-code', { email, code });
-  if (!json) return { ok: false, reason: 'error' };
-  return json; // { ok: true, userId: ... } or { ok: false, reason: ... }
+  const result = await callPureApi('/verify-code', { email, code });
+  // Pure-API ควรส่งกลับมาในรูปแบบ { ok: true, userId: ... } หรือ { ok: false, reason: ... }
+  // ถ้า callPureApi คืนค่ามาแต่ data อาจต้องปรับ endpoint ให้ส่ง data wrapper
+  // แต่โค้ดนี้เผื่อไว้ว่า return json raw กลับมา
+  if (!result || (result.ok === false)) {
+    return { ok: false, reason: result?.reason || 'error' };
+  }
+  return { ok: true, userId: result.userId || result.data?.userId };
 }
 
-async function setOAuthUser({ email, provider, oauthId, pictureUrl, name }) {
-  const json = await callPureApi('/set-oauth-user', { email, provider, oauthId, pictureUrl, name });
-  return json?.data || null;
+/**
+ * สร้างหรืออัปเดต User จาก OAuth (Google)
+ */
+async function setOAuthUser(data) {
+  return await callPureApi('/set-oauth-user', data);
 }
 
+/**
+ * สร้าง Token สำหรับ Reset Password
+ */
 async function createPasswordResetToken(email, token, expiresAt) {
-  const json = await callPureApi('/create-reset-token', { email, token, expiresAt });
-  return json?.data || null;
+  return await callPureApi('/create-reset-token', { email, token, expiresAt });
 }
 
+/**
+ * ตรวจสอบและใช้ Token Reset Password
+ */
 async function consumePasswordResetToken(rawToken) {
-  const json = await callPureApi('/consume-reset-token', { token: rawToken });
-  return json?.data || null;
+  return await callPureApi('/consume-reset-token', { token: rawToken });
 }
 
+/**
+ * เปลี่ยนรหัสผ่านใหม่ (Reset Password)
+ */
 async function setPassword(userId, newPassword) {
-  const json = await callPureApi('/set-password', { userId, newPassword });
-  return json?.data || null;
+  return await callPureApi('/set-password', { userId, newPassword });
 }
 
 module.exports = {

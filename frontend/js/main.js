@@ -1,3 +1,5 @@
+// frontend/js/main.js
+
 // กำหนด API_BASE_URL ให้รองรับทั้ง dev (localhost) และ production (Render)
 let API_BASE_URL = 'https://backendlogins.onrender.com';
 if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
@@ -29,6 +31,11 @@ async function api(path, { method = 'GET', body } = {}) {
     headers: body ? { 'Content-Type': 'application/json' } : undefined,
     body: body ? JSON.stringify(body) : undefined,
   });
+
+  // ถ้า status 401 ให้ throw error ออกไป เพื่อให้ catch ข้างล่างจัดการ
+  if (res.status === 401) {
+    throw new Error('Unauthorized');
+  }
 
   if (!res.ok) {
     let msg = 'Request failed';
@@ -84,31 +91,25 @@ window.API_BASE_URL = API_BASE_URL;
 
   const page = (location.pathname.split('/').pop() || '').toLowerCase();
 
-  // ✅ หน้า landing (public) — เช็กสถานะแบบไม่ยิง 401
-  if (page === '' || page === 'index.html') {
-    // ทำเป็น background check หลังหน้าโหลดเสร็จ
-    window.addEventListener('load', () => {
-      fetch(`${API_BASE_URL}/api/auth/status`, {
-        method: 'GET',
-        credentials: 'include',
-      })
-        .then((res) => (res.ok ? res.json() : null))
-        .then((status) => {
-          // ถ้ายังไม่ล็อกอิน ก็อยู่หน้า landing ต่อไปเฉย ๆ
-          if (!status || !status.authenticated) return;
-
+  // 1. ถ้าเป็นหน้า Public (เช่น หน้าแรก, login) ให้เช็คสถานะแบบเงียบๆ
+  if (LOGGED_OUT_ALLOWED.has(page)) {
+    // ใช้ /status แทน /me เพื่อไม่ให้เกิด 401 error ใน console ถ้ายังไม่ login
+    fetch(`${API_BASE_URL}/api/auth/status`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(status => {
+        if (status.authenticated) {
+          // ถ้า Login แล้ว แต่ดันมาหน้า index/login -> ให้เด้งไปหน้า home/admin
           const role = (status.role || 'user').toLowerCase();
           if (role === 'admin') location.replace('admin.html');
           else location.replace('home.html');
-        })
-        .catch(() => {
-          // ถ้าตรวจสถานะไม่ได้ ก็อยู่หน้า landing ต่อไปเฉย ๆ
-        });
-    });
+        }
+        // ถ้า authenticated = false ก็ปล่อยให้อยู่หน้านี้ต่อ (ไม่ทำอะไร)
+      })
+      .catch(() => { /* ignore network error */ });
     return;
   }
 
-  // ✅ หน้าอื่น ๆ: ใช้ logic เดิม (ต้องเช็ค role)
+  // 2. ถ้าเป็นหน้า Protected (home, admin, settings) -> บังคับ Login
   api('/api/users/me')
     .then((me) => {
       const role = (me.role || 'user').toLowerCase();
@@ -121,15 +122,18 @@ window.API_BASE_URL = API_BASE_URL;
         avatar.src = me.profile_picture_url;
       }
 
+      // เช็คสิทธิ์ตาม Role
       if (role === 'admin') {
         if (!ADMIN_ALLOWED.has(page)) location.replace('admin.html');
       } else {
         if (!USER_ALLOWED.has(page)) location.replace('home.html');
       }
     })
-    .catch(() => {
-      // ไม่มี token => เข้าได้เฉพาะ LOGGED_OUT_ALLOWED
-      if (!LOGGED_OUT_ALLOWED.has(page)) location.replace('index.html');
+    .catch((err) => {
+      // กรณี 401 Unauthorized หรือ Error อื่นๆ -> ดีดกลับไปหน้าแรก
+      if (err.message === 'Unauthorized' || !LOGGED_OUT_ALLOWED.has(page)) {
+        location.replace('index.html');
+      }
     });
 })();
 
