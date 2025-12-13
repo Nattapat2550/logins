@@ -1,45 +1,41 @@
-const pure = require('../utils/pureApiClient');
-
-function unwrap(resp) {
-  return resp && typeof resp === 'object' && 'data' in resp ? resp.data : resp;
-}
+const pool = require('../config/db');
 
 async function listCarouselItems() {
-  const resp = await pure.get('/api/carousel');
-  return unwrap(resp) || [];
+  const { rows } = await pool.query(
+    `SELECT id, item_index, title, subtitle, description, image_dataurl
+       FROM carousel_items
+      ORDER BY item_index ASC, id ASC`
+  );
+  return rows;
 }
 
-// Admin: ต้องส่ง token เพื่อให้ pure-api ตรวจสิทธิ์ admin (ถ้าฝั่ง pure-api เปิด jwtAuth)
-async function createCarouselItem({ itemIndex, title, subtitle, description, imageDataUrl }, token) {
-  const resp = await pure.post('/api/admin/carousel', {
-    token,
-    body: {
-      item_index: itemIndex !== undefined ? Number(itemIndex) : 0,
-      title: title || null,
-      subtitle: subtitle || null,
-      description: description || null,
-      image_dataurl: imageDataUrl,
-    },
-  });
-  return unwrap(resp);
+async function createCarouselItem({ itemIndex, title, subtitle, description, imageDataUrl }) {
+  const { rows } = await pool.query(
+    `INSERT INTO carousel_items (item_index, title, subtitle, description, image_dataurl)
+     VALUES ($1,$2,$3,$4,$5)
+     RETURNING id, item_index, title, subtitle, description, image_dataurl`,
+    [itemIndex ?? 0, title || null, subtitle || null, description || null, imageDataUrl]
+  );
+  return rows[0];
 }
 
-async function updateCarouselItem(id, { itemIndex, title, subtitle, description, imageDataUrl }, token) {
-  const resp = await pure.put(`/api/admin/carousel/${encodeURIComponent(id)}`, {
-    token,
-    body: {
-      item_index: itemIndex !== undefined && itemIndex !== '' ? Number(itemIndex) : undefined,
-      title: title !== undefined ? title : undefined,
-      subtitle: subtitle !== undefined ? subtitle : undefined,
-      description: description !== undefined ? description : undefined,
-      image_dataurl: imageDataUrl !== undefined ? imageDataUrl : undefined,
-    },
-  });
-  return unwrap(resp) || null;
+async function updateCarouselItem(id, { itemIndex, title, subtitle, description, imageDataUrl }) {
+  const { rows } = await pool.query(
+    `UPDATE carousel_items
+        SET item_index = COALESCE($2, item_index),
+            title = COALESCE($3, title),
+            subtitle = COALESCE($4, subtitle),
+            description = COALESCE($5, description),
+            image_dataurl = COALESCE($6, image_dataurl)
+      WHERE id=$1
+      RETURNING id, item_index, title, subtitle, description, image_dataurl`,
+    [id, itemIndex, title || null, subtitle || null, description || null, imageDataUrl || null]
+  );
+  return rows[0] || null;
 }
 
-async function deleteCarouselItem(id, token) {
-  await pure.del(`/api/admin/carousel/${encodeURIComponent(id)}`, { token });
+async function deleteCarouselItem(id) {
+  await pool.query('DELETE FROM carousel_items WHERE id=$1', [id]);
 }
 
 module.exports = { listCarouselItems, createCarouselItem, updateCarouselItem, deleteCarouselItem };

@@ -23,9 +23,8 @@ const { setAuthCookie, clearAuthCookie } = require('../middleware/auth');
 const router = express.Router();
 
 function signToken(user) {
-  // ✅ ทำให้รองรับทั้งระบบเดิม (id) และแบบมาตรฐาน (sub) + ส่ง email เผื่อ pure-api ใช้
   return jwt.sign(
-    { id: user.id, sub: user.id, role: user.role, email: user.email },
+    { id: user.id, role: user.role },
     process.env.JWT_SECRET,
     { expiresIn: '30d' },
   );
@@ -108,9 +107,7 @@ router.post('/complete-profile', async (req, res) => {
 
     const token = signToken(updated);
     setAuthCookie(res, token, true);
-
-    // ✅ สำคัญ: ส่ง token กลับ (กัน cookie ข้ามโดเมนไม่มา)
-    res.json({ ok: true, role: updated.role, token });
+    res.json({ ok: true });
   } catch (e) {
     if (e.code === '23505') {
       return res.status(409).json({ error: 'Username already taken' });
@@ -136,9 +133,7 @@ router.post('/login', async (req, res) => {
 
     const token = signToken(user);
     setAuthCookie(res, token, !!remember);
-
-    // ✅ สำคัญ: ส่ง token กลับ
-    res.json({ role: user.role, token });
+    res.json({ role: user.role });
   } catch (e) {
     console.error('login error', e);
     res.status(500).json({ error: 'Internal error' });
@@ -154,6 +149,7 @@ router.post('/logout', async (_req, res) => {
 
 const GOOGLE_WEB_CLIENT_ID =
   process.env.GOOGLE_CLIENT_ID_WEB || process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_ANDROID_CLIENT_ID = process.env.GOOGLE_CLIENT_ID_ANDROID;
 
 const oauth2ClientWeb = new google.auth.OAuth2(
   GOOGLE_WEB_CLIENT_ID,
@@ -183,7 +179,11 @@ router.get('/google', (req, res) => {
       prompt: 'consent',
     });
 
-    const url = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
+    // ใช้ endpoint มาตรฐานของ Google OAuth 2
+    const url =
+      'https://accounts.google.com/o/oauth2/v2/auth?' +
+      params.toString();
+
     return res.redirect(url);
   } catch (err) {
     console.error('GET /api/auth/google error:', err);
@@ -221,11 +221,11 @@ router.get('/google/callback', async (req, res) => {
     const token = signToken(user);
     setAuthCookie(res, token, true);
 
-    // ✅ เผื่อ frontend จะอ่าน token ผ่าน query ก็ได้ (optional)
-    // แต่ของเดิมคุณใช้ redirect ไปหน้าอื่นอยู่แล้ว เลยไม่ฝืนโครง
     if (!user.username) {
       return res.redirect(
-        `${process.env.FRONTEND_URL}/form.html?email=${encodeURIComponent(email)}`
+        `${process.env.FRONTEND_URL}/form.html?email=${encodeURIComponent(
+          email,
+        )}`,
       );
     }
 
@@ -234,8 +234,13 @@ router.get('/google/callback', async (req, res) => {
     }
     return res.redirect(`${process.env.FRONTEND_URL}/home.html`);
   } catch (e) {
-    console.error('google callback error', e?.response?.data || e?.message || e);
-    return res.redirect(`${process.env.FRONTEND_URL}/login.html?error=oauth_failed`);
+    console.error(
+      'google callback error',
+      e?.response?.data || e?.message || e,
+    );
+    return res.redirect(
+      `${process.env.FRONTEND_URL}/login.html?error=oauth_failed`,
+    );
   }
 });
 
@@ -248,7 +253,8 @@ router.post('/forgot-password', async (req, res) => {
       return res.status(400).json({ error: 'Missing email' });
     }
 
-    const rawToken = uuidv4().replace(/-/g, '') + uuidv4().replace(/-/g, '');
+    const rawToken =
+      uuidv4().replace(/-/g, '') + uuidv4().replace(/-/g, '');
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
 
     const user = await createPasswordResetToken(email, rawToken, expiresAt);
@@ -263,6 +269,7 @@ router.post('/forgot-password', async (req, res) => {
       });
     }
 
+    // ไม่บอกว่า email นี้มี user หรือไม่ (ป้องกัน enumeration)
     res.json({ ok: true });
   } catch (e) {
     console.error('forgot-password error', e);
@@ -311,14 +318,20 @@ router.post('/google-mobile', async (req, res) => {
         .json({ error: 'Google auth is not configured on server' });
     }
 
+    // ใช้ Web client ID + secret ในการแลก authCode เป็น token
     const oauth2ClientMobile = new google.auth.OAuth2(
       webClientId,
-      process.env.GOOGLE_CLIENT_SECRET
+      process.env.GOOGLE_CLIENT_SECRET,
+      // ไม่ต้องใช้ callback URI แบบเว็บ
     );
 
+    // สำหรับ authCode ที่มาจาก mobile ใช้ redirect_uri = 'postmessage'
     const { tokens } = await oauth2ClientMobile.getToken(authCode);
+
+
     oauth2ClientMobile.setCredentials(tokens);
 
+    // ดึงข้อมูล profile ผู้ใช้จาก Google
     const oauth2 = google.oauth2({
       version: 'v2',
       auth: oauth2ClientMobile,
@@ -335,6 +348,7 @@ router.post('/google-mobile', async (req, res) => {
       return res.status(400).json({ error: 'No email from Google' });
     }
 
+    // ใช้รูปแบบเดียวกับเว็บ
     const user = await setOAuthUser({
       email,
       provider: 'google',
@@ -344,10 +358,10 @@ router.post('/google-mobile', async (req, res) => {
     });
 
     const token = signToken(user);
-    setAuthCookie(res, token, true);
+    setAuthCookie(res, token, true); // remember=true
 
-    // ✅ ส่ง token กลับด้วย
-    res.json({ role: user.role, token });
+    // mobile จะใช้ role ในการตัดสินจะไปหน้า admin หรือ home
+    res.json({ role: user.role });
   } catch (e) {
     console.error('google-mobile error', e?.response?.data || e?.message || e);
     res.status(401).json({ error: 'Invalid Google auth' });
@@ -357,6 +371,7 @@ router.post('/google-mobile', async (req, res) => {
 router.get('/status', (req, res) => {
   const token = req.cookies?.token;
   if (!token) {
+    // ยังไม่ล็อกอิน
     return res.json({ authenticated: false });
   }
 
@@ -364,10 +379,11 @@ router.get('/status', (req, res) => {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     return res.json({
       authenticated: true,
-      id: payload.id ?? payload.sub,
-      role: payload.role || 'user',
+      id: payload.id,
+      role: payload.role || 'user'
     });
   } catch (e) {
+    // token เสีย / หมดอายุ ให้ถือว่าไม่ล็อกอิน แต่ไม่ต้อง 401
     return res.json({ authenticated: false });
   }
 });

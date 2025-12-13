@@ -1,79 +1,62 @@
-const express = require("express");
-const pure = require("../utils/pureApiClient");
+// backend/routes/users.js
+const express = require('express');
+const { authenticateJWT, clearAuthCookie } = require('../middleware/auth');
+const { updateProfile, deleteUser, findUserById } = require('../models/user');
+const multer = require('multer');
+const upload = multer({ limits: { fileSize: 2 * 1024 * 1024 } }); // 2MB
 
 const router = express.Router();
 
-/**
- * ดึง JWT token จาก cookie หรือ Authorization header
- */
-function extractToken(req) {
-  const cookieToken = req.cookies?.token;
-  const authHeader = req.headers.authorization;
+router.get('/me', authenticateJWT, async (req, res) => {
+  const u = await findUserById(req.user.id);
+  if (!u) return res.status(404).json({ error: 'Not found' });
+  const { id, username, email, role, profile_picture_url } = u;
+  res.json({ id, username, email, role, profile_picture_url });
+});
 
-  if (cookieToken) return cookieToken;
-  if (authHeader && authHeader.startsWith("Bearer ")) return authHeader.slice(7);
-  return null;
-}
-
-/**
- * GET /api/users/me
- * backend -> pure-api: GET /api/auth/me
- */
-router.get("/me", async (req, res) => {
+router.put('/me', authenticateJWT, async (req, res) => {
   try {
-    const token = extractToken(req);
-    if (!token) return res.status(401).json({ error: "Unauthorized (missing token)" });
-
-    const r = await pure.get("/api/auth/me", { token }); // expected { ok:true, data:{...} }
-    return res.json(r?.data ?? r);
+    const { username, profilePictureUrl } = req.body || {};
+    const updated = await updateProfile(req.user.id, { username, profilePictureUrl });
+    if (!updated) return res.status(404).json({ error: 'Not found' });
+    const { id, email, role, profile_picture_url } = updated;
+    res.json({ id, username: updated.username, email, role, profile_picture_url });
   } catch (e) {
-    const status = e.status || 500;
-    return res.status(status).json({
-      error: "Failed to fetch user",
-      detail: e.payload || e.message
-    });
+    if (e.code === '23505') {
+      return res.status(409).json({ error: 'Username already taken' });
+    }
+    console.error('update profile error', e);
+    res.status(500).json({ error: 'Internal error' });
   }
 });
 
-/**
- * PATCH /api/users/me
- * backend -> pure-api: PATCH /api/users/me
- *
- * รองรับ body ได้ทั้ง:
- *  - { username, profile_picture_url }
- *  - { username, profilePictureUrl }
- */
-router.patch("/me", async (req, res) => {
+router.delete('/me', authenticateJWT, async (req, res) => {
   try {
-    const token = extractToken(req);
-    if (!token) return res.status(401).json({ error: "Unauthorized (missing token)" });
-
-    const { username } = req.body || {};
-
-    // รับได้ทั้ง snake_case และ camelCase
-    const incomingProfileUrl =
-      (req.body && req.body.profile_picture_url) ||
-      (req.body && req.body.profilePictureUrl) ||
-      null;
-
-    const r = await pure.patch("/api/users/me", {
-      token,
-      body: {
-        username: typeof username === "string" ? username : undefined,
-        profile_picture_url: incomingProfileUrl !== null ? incomingProfileUrl : undefined
-      }
-    });
-
-    // ❗ ห้าม destructure ซ้ำชื่อเดิมแบบชนกัน
-    const updatedUser = r?.data ?? r;
-
-    return res.json(updatedUser);
+    await deleteUser(req.user.id);
+    // ลบบัญชีเสร็จแล้ว ให้ลบ cookie token ทิ้งด้วย เพื่อกัน loop index/home
+    clearAuthCookie(res);
+    res.status(204).end();
   } catch (e) {
-    const status = e.status || 500;
-    return res.status(status).json({
-      error: "Failed to update profile",
-      detail: e.payload || e.message
-    });
+    console.error('delete me error', e);
+    res.status(500).json({ error: 'Internal error' });
+  }
+});
+
+// Avatar upload
+router.post('/me/avatar', authenticateJWT, upload.single('avatar'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file' });
+    const mime = req.file.mimetype;
+    if (!/^image\/(png|jpe?g|gif|webp)$/.test(mime)) {
+      return res.status(400).json({ error: 'Unsupported file type' });
+    }
+    const b64 = req.file.buffer.toString('base64');
+    const dataUrl = `data:${mime};base64,${b64}`;
+    const updated = await updateProfile(req.user.id, { profilePictureUrl: dataUrl });
+    return res.json({ ok: true, profile_picture_url: updated.profile_picture_url });
+  } catch (e) {
+    console.error('upload avatar error', e);
+    return res.status(500).json({ error: 'Upload failed' });
   }
 });
 

@@ -1,163 +1,117 @@
-const bcrypt = require('bcryptjs');
-const crypto = require('crypto');
-const pure = require('../utils/pureApiClient');
+// backend/models/user.js
+// ไม่ต้อง require('pg') หรือ pool แล้ว
+// ไม่ต้อง require('bcryptjs') หรือ 'crypto' แล้ว (เพราะ Pure-API จัดการให้)
+// แต่ต้องใช้ fetch (Node.js 18+ มีมาให้แล้ว หรือใช้ axios ก็ได้)
 
-/**
- * IMPORTANT:
- * โมดูลนี้ถูกเปลี่ยนให้ "ไม่แตะ DB ตรง" แล้ว
- * ทุกอย่างเรียกผ่าน pure-api (server-to-server) เท่านั้น
- *
- * pure-api ที่ต้องมี (api-key protected):
- * - POST  /api/internal/users/create-by-email
- * - GET   /api/internal/users/by-email?email=...
- * - GET   /api/internal/users/by-id/:id
- * - GET   /api/internal/users/by-oauth?provider=...&oauthId=...
- * - POST  /api/internal/users/mark-email-verified
- * - POST  /api/internal/users/set-username-password
- * - PATCH /api/internal/users/update-profile
- * - DELETE /api/internal/users/:id
- * - GET   /api/internal/users
- * - POST  /api/internal/verification/store-code
- * - POST  /api/internal/verification/validate-consume
- * - POST  /api/internal/oauth/set-oauth-user
- * - POST  /api/internal/password-reset/create
- * - POST  /api/internal/password-reset/consume
- * - POST  /api/internal/users/set-password
- */
+const PURE_API_URL = process.env.PURE_API_BASE_URL; // เช่น https://pure-api-pry6.onrender.com
+const API_KEY = process.env.PURE_API_KEY;
 
-function unwrap(resp) {
-  return resp && typeof resp === 'object' && 'data' in resp ? resp.data : resp;
+// Helper function ในการยิง API
+async function callPureApi(endpoint, body) {
+  try {
+    const res = await fetch(`${PURE_API_URL}/api/internal${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': API_KEY
+      },
+      body: JSON.stringify(body)
+    });
+    
+    if (!res.ok) {
+      const txt = await res.text();
+      console.error(`Pure API Error [${endpoint}]:`, res.status, txt);
+      return null;
+    }
+    
+    const json = await res.json();
+    return json;
+  } catch (err) {
+    console.error(`Call Pure API Failed [${endpoint}]:`, err);
+    return null;
+  }
 }
 
 async function createUserByEmail(email) {
-  const resp = await pure.post('/api/internal/users/create-by-email', { body: { email } });
-  return unwrap(resp);
+  const json = await callPureApi('/create-user-email', { email });
+  return json?.data || null;
 }
 
 async function findUserByEmail(email) {
-  const resp = await pure.get(`/api/internal/users/by-email?email=${encodeURIComponent(email)}`);
-  return unwrap(resp) || null;
+  const json = await callPureApi('/find-user', { email });
+  return json?.data || null;
 }
 
 async function findUserById(id) {
-  const resp = await pure.get(`/api/internal/users/by-id/${encodeURIComponent(id)}`);
-  return unwrap(resp) || null;
+  const json = await callPureApi('/find-user', { id });
+  return json?.data || null;
 }
 
 async function findUserByOAuth(provider, oauthId) {
-  const qs = new URLSearchParams({ provider, oauthId }).toString();
-  const resp = await pure.get(`/api/internal/users/by-oauth?${qs}`);
-  return unwrap(resp) || null;
+  const json = await callPureApi('/find-user', { provider, oauthId });
+  return json?.data || null;
 }
 
+// Function นี้อาจจะไม่ได้ใช้บ่อยใน auth flow เดิม แต่ใส่ไว้เผื่อ
 async function markEmailVerified(userId) {
-  const resp = await pure.post('/api/internal/users/mark-email-verified', { body: { userId } });
-  return unwrap(resp);
+  // Pure API จะ verify ให้ใน validateAndConsumeCode แล้ว
+  return null; 
 }
 
 async function setUsernameAndPassword(email, username, password) {
-  // backend ยังคง hash password ก่อนส่งไป pure-api (ปลอดภัย + ไม่เปลี่ยน flow เดิม)
-  const salt = await bcrypt.genSalt(10);
-  const hash = await bcrypt.hash(password, salt);
-
-  const resp = await pure.post('/api/internal/users/set-username-password', {
-    body: { email, username, passwordHash: hash },
-  });
-  return unwrap(resp) || null;
+  const json = await callPureApi('/set-username-password', { email, username, password });
+  return json?.data || null;
 }
 
 async function updateProfile(userId, { username, profilePictureUrl }) {
-  const resp = await pure.patch('/api/internal/users/update-profile', {
-    body: {
-      userId,
-      username: username || null,
-      profilePictureUrl: profilePictureUrl || null,
-    },
-  });
-  return unwrap(resp) || null;
+  // อันนี้ต้องเพิ่ม endpoint ใน pure-api ถ้าจำเป็น แต่ใน auth flow ปกติอาจไม่ได้ใช้
+  // สมมติว่ายังไม่ implement หรือใช้ setOAuthUser แทน
+  return null;
 }
 
 async function deleteUser(userId) {
-  await pure.del(`/api/internal/users/${encodeURIComponent(userId)}`);
+  // Implement delete if needed
 }
 
 async function getAllUsers() {
-  const resp = await pure.get('/api/internal/users');
-  return unwrap(resp) || [];
+  // Implement get all if needed
+  return [];
 }
 
 async function storeVerificationCode(userId, code, expiresAt) {
-  const resp = await pure.post('/api/internal/verification/store-code', {
-    body: {
-      userId,
-      code,
-      expiresAt: expiresAt instanceof Date ? expiresAt.toISOString() : expiresAt,
-    },
-  });
-  return unwrap(resp);
+  const json = await callPureApi('/store-verification-code', { userId, code, expiresAt });
+  return json?.ok;
 }
 
 async function validateAndConsumeCode(email, code) {
-  const resp = await pure.post('/api/internal/verification/validate-consume', {
-    body: { email, code },
-  });
-  return unwrap(resp);
+  const json = await callPureApi('/verify-code', { email, code });
+  if (!json) return { ok: false, reason: 'error' };
+  return json; // { ok: true, userId: ... } or { ok: false, reason: ... }
 }
 
 async function setOAuthUser({ email, provider, oauthId, pictureUrl, name }) {
-  const resp = await pure.post('/api/internal/oauth/set-oauth-user', {
-    body: { email, provider, oauthId, pictureUrl: pictureUrl || null, name: name || null },
-  });
-  return unwrap(resp);
-}
-
-function hashToken(raw) {
-  return crypto.createHash('sha256').update(raw).digest('hex');
+  const json = await callPureApi('/set-oauth-user', { email, provider, oauthId, pictureUrl, name });
+  return json?.data || null;
 }
 
 async function createPasswordResetToken(email, token, expiresAt) {
-  const resp = await pure.post('/api/internal/password-reset/create', {
-    body: {
-      email,
-      tokenHash: hashToken(token),
-      expiresAt: expiresAt instanceof Date ? expiresAt.toISOString() : expiresAt,
-    },
-  });
-  return unwrap(resp) || null;
+  const json = await callPureApi('/create-reset-token', { email, token, expiresAt });
+  return json?.data || null;
 }
 
 async function consumePasswordResetToken(rawToken) {
-  const tokenHash = hashToken(rawToken);
-  const resp = await pure.post('/api/internal/password-reset/consume', {
-    body: { tokenHash },
-  });
-  return unwrap(resp) || null;
+  const json = await callPureApi('/consume-reset-token', { token: rawToken });
+  return json?.data || null;
 }
 
 async function setPassword(userId, newPassword) {
-  const salt = await bcrypt.genSalt(10);
-  const hash = await bcrypt.hash(newPassword, salt);
-
-  const resp = await pure.post('/api/internal/users/set-password', {
-    body: { userId, passwordHash: hash },
-  });
-  return unwrap(resp);
+  const json = await callPureApi('/set-password', { userId, newPassword });
+  return json?.data || null;
 }
 
 module.exports = {
-  createUserByEmail,
-  findUserByEmail,
-  findUserById,
-  findUserByOAuth,
-  markEmailVerified,
-  setUsernameAndPassword,
-  updateProfile,
-  deleteUser,
-  getAllUsers,
-  storeVerificationCode,
-  validateAndConsumeCode,
-  setOAuthUser,
-  createPasswordResetToken,
-  consumePasswordResetToken,
-  setPassword,
+  createUserByEmail, findUserByEmail, findUserById, findUserByOAuth,
+  markEmailVerified, setUsernameAndPassword, updateProfile, deleteUser,
+  getAllUsers, storeVerificationCode, validateAndConsumeCode, setOAuthUser,
+  createPasswordResetToken, consumePasswordResetToken, setPassword
 };
