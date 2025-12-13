@@ -1,13 +1,8 @@
-const { Pool } = require('pg');
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
-});
-
-pool.on('error', (err) => {
-  console.error('Unexpected PG error', err);
-  process.exit(-1);
-});
-
-module.exports = pool;
+// backend/config/db.js
+// ไม่ต้องใช้ pg แล้ว เพราะย้ายไป Pure-API หมดแล้ว
+module.exports = {
+  query: () => {
+    console.error("LEGACY DB CALL: This should not happen. Please check pureApi migration.");
+    throw new Error("Legacy DB connection removed. Use pureApi instead.");
+  }
+};
