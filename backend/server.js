@@ -51,23 +51,38 @@ app.use(express.urlencoded({ extended: false, limit: '2mb' }));
 app.use(cookieParser());
 
 // 4) CORS – อนุญาตเฉพาะ origin ที่กำหนดใน FRONTEND_URL (คั่นด้วย , ได้หลายตัว)
+const normalizeUrl = (url) => (url ? url.replace(/\/+$/, '') : '');
+
 const allowedOrigins = (process.env.FRONTEND_URL || '')
   .split(',')
-  .map(o => o.trim())
+  .map(o => normalizeUrl(o.trim())) // ลบ slash ออกกันพลาด
   .filter(Boolean);
+
+console.log('CORS Allowed Origins:', allowedOrigins); // Log ดูว่า Backend อนุญาตใครบ้าง
 
 app.use(cors({
   origin(origin, cb) {
-    // ถ้ายังไม่ได้ตั้ง FRONTEND_URL เลย ให้ allow ทุก origin (เฉพาะ env dev)
-    if (allowedOrigins.length === 0) return cb(null, true);
-    // สำหรับ curl / same-origin (เช่น health check) ที่ไม่มี Origin header
+    // กรณี server-to-server หรือ local tool (ไม่มี origin)
     if (!origin) return cb(null, true);
-    if (allowedOrigins.includes(origin)) return cb(null, true);
+    
+    // จัดการ origin ที่เข้ามาให้ไม่มี slash ท้าย
+    const incomingOrigin = normalizeUrl(origin);
+
+    // ถ้ายังไม่ได้ตั้ง FRONTEND_URL หรือลิสต์ว่าง ให้ allow (เฉพาะ dev mode) 
+    // หรือถ้า production ควรจะ strict แต่โค้ดเดิมคุณ allow ถ้า length 0
+    if (allowedOrigins.length === 0) return cb(null, true);
+
+    if (allowedOrigins.includes(incomingOrigin)) {
+      return cb(null, true);
+    }
+
+    // เพิ่ม Log ตรงนี้เพื่อดูว่า Origin ไหนที่โดนบล็อก
+    console.error(`[CORS Blocked] Origin: ${origin} (Normalized: ${incomingOrigin}) is not in allowed list.`);
     return cb(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET','POST','PUT','DELETE','OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-requested-with'],
 }));
 
 // 5) Health check
