@@ -1,6 +1,6 @@
 // frontend/js/main.js
 
-// กำหนด API_BASE_URL ให้รองรับทั้ง dev (localhost) และ production (Render)
+// กำหนด API_BASE_URL
 let API_BASE_URL = 'https://backendlogins.onrender.com';
 if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
   API_BASE_URL = 'http://localhost:5000';
@@ -32,7 +32,6 @@ async function api(path, { method = 'GET', body } = {}) {
     body: body ? JSON.stringify(body) : undefined,
   });
 
-  // ถ้า status 401 ให้ throw error ออกไป เพื่อให้ catch ข้างล่างจัดการ
   if (res.status === 401) {
     throw new Error('Unauthorized');
   }
@@ -42,9 +41,7 @@ async function api(path, { method = 'GET', body } = {}) {
     try {
       const j = await res.json();
       msg = j.error || msg;
-    } catch {
-      // ignore
-    }
+    } catch { /* ignore */ }
     throw new Error(msg);
   }
 
@@ -55,109 +52,97 @@ window.api = api;
 window.API_BASE_URL = API_BASE_URL;
 
 /**
- * Global guard สำหรับควบคุมว่าใครเข้าแต่ละหน้าได้บ้าง
+ * Global guard: ควบคุมการเข้าถึงหน้าเว็บ
  */
 (function guard() {
-  // หน้าที่อนุญาตเมื่อ "ยังไม่ล็อกอิน/ไม่มี token"
-  const LOGGED_OUT_ALLOWED = new Set([
-    '',
-    'index.html',
-    'about.html',
-    'contact.html',
-    'register.html',
-    'login.html',
-    'check.html',
-    'form.html',
-    'reset.html',
-    'download.html',
-  ]);
-
-  // หน้าที่อนุญาตให้ "user"
-  const USER_ALLOWED = new Set([
-    'home.html',
-    'about.html',
-    'contact.html',
-    'settings.html',
-    'download.html',
-  ]);
-
-  // หน้าที่อนุญาตให้ "admin"
-  const ADMIN_ALLOWED = new Set([
-    'admin.html',
-    'about.html',
-    'contact.html',
-    'download.html',
-  ]);
-
   const page = (location.pathname.split('/').pop() || '').toLowerCase();
 
-  // 1. ถ้าเป็นหน้า Public (เช่น หน้าแรก, login) ให้เช็คสถานะแบบเงียบๆ
-  if (LOGGED_OUT_ALLOWED.has(page)) {
-    // ใช้ /status แทน /me เพื่อไม่ให้เกิด 401 error ใน console ถ้ายังไม่ login
+  // 1. หน้าที่ "ห้ามเข้า" ถ้าล็อกอินแล้ว (Guest Only)
+  const GUEST_ONLY = new Set([
+    '', 'index.html', 
+    'login.html', 'register.html', 'reset.html', 
+    'check.html', 'form.html'
+  ]);
+
+  // 2. หน้าที่ "เข้าได้ทุกคน" (Public/Shared)
+  const SHARED_PAGES = new Set([
+    'about.html', 'contact.html', 'download.html'
+  ]);
+
+  // 3. หน้าที่ "ต้องล็อกอิน" (Protected)
+  // แบ่งตาม Role
+  const USER_PAGES = new Set(['home.html', 'settings.html']);
+  const ADMIN_PAGES = new Set(['admin.html']);
+
+  // ฟังก์ชันอัปเดต UI (รูปโปรไฟล์/ชื่อ)
+  const updateUI = (me) => {
+    const uname = document.getElementById('uname');
+    const avatar = document.getElementById('avatar');
+    if (uname) uname.textContent = me.username || me.email;
+    if (avatar && me.profile_picture_url) {
+      avatar.src = me.profile_picture_url;
+    }
+  };
+
+  // --- Logic การตรวจสอบ ---
+
+  // A. ถ้าเป็นหน้า GUEST ONLY -> เช็คว่าล็อกอินหรือยัง ถ้าล็อกอินแล้วให้เด้งไป Home/Admin
+  if (GUEST_ONLY.has(page)) {
     fetch(`${API_BASE_URL}/api/auth/status`, { credentials: 'include' })
       .then(r => r.json())
       .then(status => {
         if (status.authenticated) {
-          // ถ้า Login แล้ว แต่ดันมาหน้า index/login -> ให้เด้งไปหน้า home/admin
           const role = (status.role || 'user').toLowerCase();
           if (role === 'admin') location.replace('admin.html');
           else location.replace('home.html');
         }
-        // ถ้า authenticated = false ก็ปล่อยให้อยู่หน้านี้ต่อ (ไม่ทำอะไร)
       })
-      .catch(() => { /* ignore network error */ });
+      .catch(() => {}); // ถ้า error ก็ปล่อยให้อยู่หน้านี้ต่อไป
     return;
   }
 
-  // 2. ถ้าเป็นหน้า Protected (home, admin, settings) -> บังคับ Login
+  // B. ถ้าเป็นหน้า SHARED หรือ PROTECTED -> ลองดึงข้อมูล User
   api('/api/users/me')
     .then((me) => {
+      // -- กรณี: ล็อกอินอยู่ --
+      updateUI(me); // อัปเดตหน้าตาเว็บ
+
       const role = (me.role || 'user').toLowerCase();
 
-      // ใส่ชื่อ/รูป ถ้ามี element เหล่านี้
-      const uname = document.getElementById('uname');
-      const avatar = document.getElementById('avatar');
-      if (uname) uname.textContent = me.username || me.email;
-      if (avatar && me.profile_picture_url) {
-        avatar.src = me.profile_picture_url;
+      // ถ้าพยายามเข้าหน้า Admin แต่ไม่ใช่ Admin
+      if (ADMIN_PAGES.has(page) && role !== 'admin') {
+        location.replace('home.html');
+      }
+      // ถ้า Admin พยายามเข้าหน้า User (Home) ก็ปล่อยเข้าได้ หรือจะ redirect ก็ได้ตาม design
+      // แต่ปกติ Admin เข้า home.html ได้ไม่มีปัญหา
+    })
+    .catch(() => {
+      // -- กรณี: ไม่ได้ล็อกอิน (หรือ Token หมดอายุ) --
+      
+      // ถ้าอยู่ในหน้า SHARED (About, Contact, Download) -> ปล่อยให้อยู่ต่อได้ (ในฐานะ Guest)
+      if (SHARED_PAGES.has(page)) {
+        return; 
       }
 
-      // เช็คสิทธิ์ตาม Role
-      if (role === 'admin') {
-        if (!ADMIN_ALLOWED.has(page)) location.replace('admin.html');
-      } else {
-        if (!USER_ALLOWED.has(page)) location.replace('home.html');
-      }
-    })
-    .catch((err) => {
-      // กรณี 401 Unauthorized หรือ Error อื่นๆ -> ดีดกลับไปหน้าแรก
-      if (err.message === 'Unauthorized' || !LOGGED_OUT_ALLOWED.has(page)) {
-        location.replace('index.html');
-      }
+      // ถ้าเป็นหน้า Protected (Home, Admin, Settings) -> ดีดไปหน้า Login/Index
+      location.replace('index.html');
     });
 })();
 
-/* ==== Optional handlers (เช็ก element ก่อนเสมอ) ==== */
+/* ==== Optional handlers ==== */
 document.addEventListener('DOMContentLoaded', () => {
-  // Dropdown toggle แบบคลิก (มีเฉพาะบางหน้า)
   const menu = document.getElementById('userMenu');
   if (menu) {
     document.addEventListener('click', (e) => {
-      const inside = menu.contains(e.target);
-      if (inside) menu.classList.toggle('open');
+      if (menu.contains(e.target)) menu.classList.toggle('open');
       else menu.classList.remove('open');
     });
   }
 
-  // Logout (มีเฉพาะบางหน้า)
   const logoutBtn = document.getElementById('logoutBtn');
   if (logoutBtn) {
     logoutBtn.addEventListener('click', async () => {
-      try {
-        await api('/api/auth/logout', { method: 'POST' });
-      } catch {
-        // ignore
-      }
+      try { await api('/api/auth/logout', { method: 'POST' }); } catch {}
       location.replace('index.html');
     });
   }
