@@ -24,11 +24,17 @@ const router = express.Router();
 
 function signToken(user) {
   return jwt.sign(
-    { id: user.id, role: user.role },
+    {
+      sub: user.id,         // ✅ ให้ api-pure ใช้ได้
+      id: user.id,          // ✅ กันของเดิม (backendlogins) ที่อ่าน payload.id
+      email: user.email,    // ✅ ให้ api-pure ใช้ได้
+      role: user.role,
+    },
     process.env.JWT_SECRET,
     { expiresIn: '30d' },
   );
 }
+
 
 // ------ REGISTER ------
 router.post('/register', async (req, res) => {
@@ -361,7 +367,17 @@ router.post('/google-mobile', async (req, res) => {
     setAuthCookie(res, token, true); // remember=true
 
     // mobile จะใช้ role ในการตัดสินจะไปหน้า admin หรือ home
-    res.json({ role: user.role });
+    res.json({
+  token,
+  user: {
+    id: user.id,
+    email: user.email,
+    username: user.username,
+    role: user.role,
+    profile_picture_url: user.profile_picture_url,
+  },
+  role: user.role,
+});
   } catch (e) {
     console.error('google-mobile error', e?.response?.data || e?.message || e);
     res.status(401).json({ error: 'Invalid Google auth' });
