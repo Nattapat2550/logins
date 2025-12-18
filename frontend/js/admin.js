@@ -100,8 +100,11 @@ async function saveCarouselRow(id, tr) {
   const fd = new FormData();
   fields.forEach(el => {
     const field = el.getAttribute('data-field');
-    if (field === 'image' && el.files && el.files[0]) fd.append('image', el.files[0]);
-    else fd.append(field, el.value);
+    if (field === 'image') {
+      if (el.files && el.files[0]) fd.append('image', el.files[0]);
+      return; // สำคัญ: ถ้าไม่เลือกรูปใหม่ ไม่ต้องส่ง field นี้
+    }
+    fd.append(field, el.value);
   });
   const res = await fetch(`${API_BASE_URL}/api/admin/carousel/${id}`, {
     method: 'PUT', credentials: 'include', body: fd
