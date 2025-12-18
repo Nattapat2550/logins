@@ -1,4 +1,10 @@
 // backend/utils/pureApi.js
+// Helper สำหรับให้ backend เรียก "pure-api" (internal routes) ด้วย x-api-key
+// รองรับทั้ง GET/POST/PUT/DELETE และรองรับ call แบบเดิม:
+//   callPureApi('/homepage/list', 'GET')
+//   callPureApi('/homepage/update', 'POST', { section_name, content })
+//   callPureApi('/find-user', { email })   // default POST
+
 const PURE_API_URL = process.env.PURE_API_BASE_URL; // เช่น https://pure-api-pry6.onrender.com
 const API_KEY = process.env.PURE_API_KEY;
 
@@ -10,6 +16,7 @@ function normalizeEndpoint(endpoint) {
 }
 
 async function callPureApi(endpoint, methodOrBody = 'POST', maybeBody) {
+  // compatible กับโค้ดเดิม: (endpoint, 'GET') หรือ (endpoint, 'POST', body)
   let method = 'POST';
   let body = undefined;
 
@@ -17,6 +24,7 @@ async function callPureApi(endpoint, methodOrBody = 'POST', maybeBody) {
     method = methodOrBody.toUpperCase();
     body = maybeBody;
   } else {
+    // callPureApi(endpoint, body)
     body = methodOrBody;
   }
 
@@ -35,8 +43,8 @@ async function callPureApi(endpoint, methodOrBody = 'POST', maybeBody) {
   }
 
   const url = `${PURE_API_URL}/api/internal${normalizeEndpoint(endpoint)}`;
-  const headers = { 'x-api-key': API_KEY };
 
+  const headers = { 'x-api-key': API_KEY };
   const init = { method, headers };
 
   const canHaveBody = !(method === 'GET' || method === 'HEAD');
@@ -57,6 +65,8 @@ async function callPureApi(endpoint, methodOrBody = 'POST', maybeBody) {
     if (res.status === 204) return null;
 
     const json = await res.json().catch(() => null);
+
+    // ถ้า API ส่งกลับมาเป็น { ok: true, data: ... } ให้เอา data
     if (json && typeof json === 'object' && 'data' in json) return json.data;
 
     return json;

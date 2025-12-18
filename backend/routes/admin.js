@@ -1,16 +1,18 @@
 const express = require('express');
 const { authenticateJWT, isAdmin } = require('../middleware/auth');
 const { callPureApi } = require('../utils/pureApi');
+
 const multer = require('multer');
 
+// ใช้ memoryStorage เพราะเราอ่าน req.file.buffer เพื่อทำ base64
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 4 * 1024 * 1024 } // 4MB
+  limits: { fileSize: 4 * 1024 * 1024 }, // 4MB
 });
 
 const router = express.Router();
 
-// ================== USERS ==================
+// ---------------------- Users (ผ่าน Pure API) ----------------------
 
 // ดึงรายชื่อ User ทั้งหมด
 router.get('/users', authenticateJWT, isAdmin, async (_req, res) => {
@@ -31,13 +33,13 @@ router.put('/users/:id', authenticateJWT, isAdmin, async (req, res) => {
   res.json(updated);
 });
 
-// ================== CAROUSEL ==================
+// ---------------------- Carousel (local model) ----------------------
 
 const {
   createCarouselItem,
   updateCarouselItem,
   deleteCarouselItem,
-  listCarouselItems
+  listCarouselItems,
 } = require('../models/carousel');
 
 router.get('/carousel', authenticateJWT, isAdmin, async (_req, res) => {
@@ -45,6 +47,7 @@ router.get('/carousel', authenticateJWT, isAdmin, async (_req, res) => {
   res.json(items || []);
 });
 
+// เพิ่ม Carousel
 router.post('/carousel', authenticateJWT, isAdmin, upload.single('image'), async (req, res) => {
   try {
     const body = req.body || {};
@@ -52,10 +55,9 @@ router.post('/carousel', authenticateJWT, isAdmin, upload.single('image'), async
 
     // รองรับทั้ง itemIndex และ item_index
     const itemIndexRaw = (body.itemIndex !== undefined ? body.itemIndex : body.item_index);
-    const itemIndex =
-      (itemIndexRaw !== undefined && itemIndexRaw !== '')
-        ? Number(itemIndexRaw)
-        : 0;
+    const itemIndex = (itemIndexRaw !== undefined && itemIndexRaw !== '')
+      ? Number(itemIndexRaw)
+      : 0;
 
     if (!req.file) return res.status(400).json({ error: 'Image required' });
 
@@ -72,10 +74,9 @@ router.post('/carousel', authenticateJWT, isAdmin, upload.single('image'), async
       title,
       subtitle,
       description,
-      imageDataUrl: dataUrl
+      imageDataUrl: dataUrl,
     });
 
-    if (!created) return res.status(500).json({ error: 'Create failed' });
     res.status(201).json(created);
   } catch (e) {
     console.error('admin create carousel error', e);
@@ -83,6 +84,7 @@ router.post('/carousel', authenticateJWT, isAdmin, upload.single('image'), async
   }
 });
 
+// แก้ไข Carousel
 router.put('/carousel/:id', authenticateJWT, isAdmin, upload.single('image'), async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -91,12 +93,16 @@ router.put('/carousel/:id', authenticateJWT, isAdmin, upload.single('image'), as
 
     // รองรับทั้ง itemIndex และ item_index
     const itemIndexRaw = (body.itemIndex !== undefined ? body.itemIndex : body.item_index);
+
+    // ถ้าไม่ได้ส่ง itemIndex มาเลย -> undefined (ไม่อัปเดตฟิลด์นี้)
+    // ถ้าส่งมาเป็น "" -> undefined (ไม่อัปเดต)
+    // ถ้าส่งเป็นตัวเลข -> Number(...)
     const itemIndex =
       (itemIndexRaw !== undefined && itemIndexRaw !== '')
         ? Number(itemIndexRaw)
         : undefined;
 
-    // ถ้าไม่ได้อัปโหลดรูปใหม่ -> ไม่ต้องส่ง imageDataUrl
+    // สำคัญ: ถ้าไม่ได้อัปโหลดรูปใหม่ -> imageDataUrl ต้องเป็น undefined (ไม่ล้างรูปเดิม)
     let imageDataUrl = undefined;
 
     if (req.file) {
@@ -113,10 +119,10 @@ router.put('/carousel/:id', authenticateJWT, isAdmin, upload.single('image'), as
       title,
       subtitle,
       description,
-      imageDataUrl
+      imageDataUrl,
     });
 
-    if (!updated) return res.status(404).json({ error: 'Not found or Update failed' });
+    if (!updated) return res.status(404).json({ error: 'Not found' });
     res.json(updated);
   } catch (e) {
     console.error('admin update carousel error', e);
