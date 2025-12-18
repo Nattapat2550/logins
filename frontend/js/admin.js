@@ -2,25 +2,31 @@ const msg = document.getElementById('msg');
 
 async function load() {
   try {
+    // ✅ โปรเจกต์คุณใช้ endpoint นี้ (ตรงกับ main.js)
     const me = await api('/api/users/me');
-    if (me.role !== 'admin') return location.replace('home.html');
-    document.getElementById('uname').textContent = me.username || me.email;
+
+    if ((me.role || '').toLowerCase() !== 'admin') {
+      return location.replace('home.html');
+    }
+
+    document.getElementById('uname').textContent = me.username || me.email || '';
     if (me.profile_picture_url) document.getElementById('avatar').src = me.profile_picture_url;
 
-    // Users
+    // ----- Users -----
     const users = await api('/api/admin/users');
     const tbody = document.querySelector('#usersTable tbody');
     tbody.innerHTML = '';
+
     users.forEach(u => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${u.id}</td>
         <td><input value="${u.username || ''}" data-id="${u.id}" data-field="username" /></td>
-        <td><input value="${u.email}" data-id="${u.id}" data-field="email" /></td>
+        <td><input value="${u.email || ''}" data-id="${u.id}" data-field="email" /></td>
         <td>
           <select data-id="${u.id}" data-field="role">
-            <option ${u.role==='user'?'selected':''}>user</option>
-            <option ${u.role==='admin'?'selected':''}>admin</option>
+            <option value="user" ${u.role==='user'?'selected':''}>user</option>
+            <option value="admin" ${u.role==='admin'?'selected':''}>admin</option>
           </select>
         </td>
         <td><button class="btn small" data-save="${u.id}">Save</button></td>
@@ -28,35 +34,67 @@ async function load() {
       tbody.appendChild(tr);
     });
 
-    tbody.addEventListener('click', async (e) => {
-      const id = e.target.getAttribute('data-save');
-      if (!id) return;
-      const row = e.target.closest('tr');
-      const inputs = row.querySelectorAll('[data-id]');
-      const payload = {};
-      inputs.forEach(inp => payload[inp.getAttribute('data-field')] = inp.value);
-      try { await api(`/api/admin/users/${id}`, { method:'PUT', body: payload }); msg.textContent = 'Saved'; }
-      catch (err) { msg.textContent = err.message; }
-    }, { once: true });
+    if (!tbody.dataset.bound) {
+      tbody.dataset.bound = '1';
+      tbody.addEventListener('click', async (e) => {
+        const id = e.target.getAttribute('data-save');
+        if (!id) return;
 
-    // Homepage content form
-    document.getElementById('homeForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const section = document.getElementById('section').value.trim();
-      const content = document.getElementById('content').value;
-      try { await api('/api/homepage', { method:'PUT', body:{ section_name: section, content }}); msg.textContent = `Section "${section}" saved.`; }
-      catch (err) { msg.textContent = err.message; }
-    });
+        const row = e.target.closest('tr');
+        const inputs = row.querySelectorAll('[data-id]');
+        const payload = {};
+        inputs.forEach(inp => payload[inp.getAttribute('data-field')] = inp.value);
 
-    // Carousel
+        try {
+          await api(`/api/admin/users/${id}`, { method: 'PUT', body: payload });
+          msg.textContent = 'Saved';
+        } catch (err) {
+          msg.textContent = err.message || 'Save failed';
+        }
+      });
+    }
+
+    // ----- Homepage Content -----
+    const homeForm = document.getElementById('homeForm');
+    if (homeForm && !homeForm.dataset.bound) {
+      homeForm.dataset.bound = '1';
+      homeForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const section = document.getElementById('section').value.trim();
+        const content = document.getElementById('content').value;
+
+        try {
+          await api('/api/homepage', {
+            method: 'PUT',
+            body: { section_name: section, content },
+          });
+          msg.textContent = `Section "${section}" saved.`;
+        } catch (err) {
+          msg.textContent = err.message || 'Homepage save failed';
+        }
+      });
+    }
+
+    // ----- Carousel -----
     await loadCarousel();
 
     document.getElementById('logoutBtn').onclick = async () => {
-      await api('/api/auth/logout', { method:'POST' });
+      try { await api('/api/auth/logout', { method: 'POST' }); } catch {}
       location.replace('index.html');
     };
-  } catch { location.replace('index.html'); }
+
+  } catch (err) {
+    // ✅ หยุด redirect loop: redirect เฉพาะกรณีไม่ได้ login จริง ๆ
+    // (api() ใน main.js จะ throw 'Unauthorized' ตอน 401)
+    if ((err?.message || '').toLowerCase().includes('unauthorized')) {
+      location.replace('index.html');
+      return;
+    }
+    msg.textContent = err?.message || 'Admin page error (เปิด Console ดูรายละเอียด)';
+    console.error(err);
+  }
 }
+
 load();
 
 // ===== Carousel Admin =====
@@ -64,6 +102,7 @@ async function loadCarousel() {
   const items = await api('/api/admin/carousel');
   const tbody = document.querySelector('#carouselTable tbody');
   tbody.innerHTML = '';
+
   items.forEach(it => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -82,69 +121,90 @@ async function loadCarousel() {
     tbody.appendChild(tr);
   });
 
-  tbody.addEventListener('click', async (e) => {
-    try {
+  // bind handler ครั้งเดียว (กันซ้อนตอน reload)
+  if (!tbody.dataset.bound) {
+    tbody.dataset.bound = '1';
+
+    tbody.addEventListener('click', async (e) => {
       const saveId = e.target.getAttribute('data-save');
       const delId = e.target.getAttribute('data-del');
 
-      if (saveId) {
-        await saveCarouselRow(saveId, e.target.closest('tr'));
-        return;
-      }
+      try {
+        if (saveId) {
+          await saveCarouselRow(saveId, e.target.closest('tr'));
+          return;
+        }
 
-      if (delId) {
-        if (!confirm('Delete this slide?')) return;
-        await api(`/api/admin/carousel/${delId}`, { method: 'DELETE' });
-        document.getElementById('msg').textContent = 'Deleted.';
-        loadCarousel();
+        if (delId) {
+          if (!confirm('Delete this slide?')) return;
+          await api(`/api/admin/carousel/${delId}`, { method: 'DELETE' });
+          msg.textContent = 'Deleted.';
+          await loadCarousel();
+        }
+      } catch (err) {
+        msg.textContent = err.message || 'Action failed';
       }
-    } catch (err) {
-      document.getElementById('msg').textContent = err.message || 'Update failed';
-    }
-  });
-
+    });
+  }
 }
 
 async function saveCarouselRow(id, tr) {
   const fields = tr.querySelectorAll('[data-id="'+id+'"]');
   const fd = new FormData();
+
   fields.forEach(el => {
     const field = el.getAttribute('data-field');
+
     if (field === 'image') {
+      // ✅ ถ้าไม่ได้เลือกรูปใหม่ ไม่ต้องส่ง image เลย
       if (el.files && el.files[0]) fd.append('image', el.files[0]);
-      return; // สำคัญ: ถ้าไม่เลือกรูปใหม่ ไม่ต้องส่ง field นี้
+      return;
     }
+
     fd.append(field, el.value);
   });
+
   const res = await fetch(`${API_BASE_URL}/api/admin/carousel/${id}`, {
-    method: 'PUT', credentials: 'include', body: fd
+    method: 'PUT',
+    credentials: 'include',
+    body: fd
   });
+
   if (!res.ok) {
-    const j = await res.json().catch(()=>({error:'Update failed'}));
+    const j = await res.json().catch(() => ({ error: 'Update failed' }));
     throw new Error(j.error || 'Update failed');
   }
-  document.getElementById('msg').textContent = 'Saved.';
-  loadCarousel();
+
+  msg.textContent = 'Saved.';
+  await loadCarousel();
 }
 
 document.getElementById('carouselForm').addEventListener('submit', async (e) => {
   e.preventDefault();
+
   const file = document.getElementById('cImage').files[0];
   if (!file) { msg.textContent = 'Please choose an image.'; return; }
+
   const fd = new FormData();
   fd.append('image', file);
   fd.append('itemIndex', document.getElementById('cIndex').value);
   fd.append('title', document.getElementById('cTitle').value);
   fd.append('subtitle', document.getElementById('cSubtitle').value);
   fd.append('description', document.getElementById('cDesc').value);
+
   const res = await fetch(`${API_BASE_URL}/api/admin/carousel`, {
-    method:'POST', credentials:'include', body: fd
+    method: 'POST',
+    credentials: 'include',
+    body: fd
   });
+
   if (!res.ok) {
-    const j = await res.json().catch(()=>({error:'Create failed'}));
-    msg.textContent = j.error || 'Create failed'; return;
+    const j = await res.json().catch(() => ({ error: 'Create failed' }));
+    msg.textContent = j.error || 'Create failed';
+    return;
   }
+
   msg.textContent = 'Slide added.';
   e.target.reset();
-  loadCarousel();
+  await loadCarousel();
 });
