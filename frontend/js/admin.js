@@ -68,7 +68,7 @@ async function loadCarousel() {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${it.id}</td>
-      <td><input type="number" value="${it.item_index}" data-id="${it.id}" data-field="item_index" style="width:80px"/></td>
+      <td><input type="number" value="${it.item_index}" data-id="${it.id}" data-field="itemIndex" style="width:80px"/></td>
       <td><img src="${it.image_dataurl}" alt="preview" style="width:120px;height:60px;object-fit:cover;border-radius:.25rem"/></td>
       <td><input type="text" value="${it.title || ''}" data-id="${it.id}" data-field="title"/></td>
       <td><input type="text" value="${it.subtitle || ''}" data-id="${it.id}" data-field="subtitle"/></td>
