@@ -83,16 +83,26 @@ async function loadCarousel() {
   });
 
   tbody.addEventListener('click', async (e) => {
-    const saveId = e.target.getAttribute('data-save');
-    const delId = e.target.getAttribute('data-del');
-    if (saveId) await saveCarouselRow(saveId, e.target.closest('tr'));
-    else if (delId) {
-      if (!confirm('Delete this slide?')) return;
-      await api(`/api/admin/carousel/${delId}`, { method: 'DELETE' });
-      document.getElementById('msg').textContent = 'Deleted.';
-      loadCarousel();
+    try {
+      const saveId = e.target.getAttribute('data-save');
+      const delId = e.target.getAttribute('data-del');
+
+      if (saveId) {
+        await saveCarouselRow(saveId, e.target.closest('tr'));
+        return;
+      }
+
+      if (delId) {
+        if (!confirm('Delete this slide?')) return;
+        await api(`/api/admin/carousel/${delId}`, { method: 'DELETE' });
+        document.getElementById('msg').textContent = 'Deleted.';
+        loadCarousel();
+      }
+    } catch (err) {
+      document.getElementById('msg').textContent = err.message || 'Update failed';
     }
-  }, { once: true });
+  });
+
 }
 
 async function saveCarouselRow(id, tr) {
