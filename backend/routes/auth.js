@@ -138,8 +138,22 @@ router.post('/login', async (req, res) => {
     }
 
     const token = signToken(user);
+
+    // ยัง set cookie เหมือนเดิม (เดสก์ท็อปจะใช้ cookie ได้ปกติ)
     setAuthCookie(res, token, !!remember);
-    res.json({ role: user.role });
+
+    // ✅ เพิ่ม token กลับไปให้ frontend เก็บไว้ใช้เป็น Bearer fallback (มือถือที่บล็อก cookie)
+    res.json({
+      role: user.role,
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+        profile_picture_url: user.profile_picture_url,
+      },
+    });
   } catch (e) {
     console.error('login error', e);
     res.status(500).json({ error: 'Internal error' });

@@ -32,14 +32,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
 /* ==== API helper ==== */
 async function api(path, { method = 'GET', body } = {}) {
+  const token = localStorage.getItem('token');
+
+  const headers = {};
+  if (body) headers['Content-Type'] = 'application/json';
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
   const res = await fetch(`${API_BASE_URL}${path}`, {
     method,
-    credentials: 'include',
-    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    credentials: 'include', // ยังเก็บไว้ (เดสก์ท็อป/บางมือถือใช้ cookie ได้)
+    headers: Object.keys(headers).length ? headers : undefined,
     body: body ? JSON.stringify(body) : undefined,
   });
 
   if (res.status === 401) {
+    // ถ้า token หมดอายุ/ไม่ถูกต้อง ให้ลบทิ้ง ป้องกัน loop
+    localStorage.removeItem('token');
     throw new Error('Unauthorized');
   }
 
@@ -150,6 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (logoutBtn) {
     logoutBtn.addEventListener('click', async () => {
       try { await api('/api/auth/logout', { method: 'POST' }); } catch {}
+      localStorage.removeItem('token'); // ✅ เพิ่ม
       location.replace('index.html');
     });
   }
