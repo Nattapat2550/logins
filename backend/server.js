@@ -61,24 +61,19 @@ const allowedOrigins = (process.env.FRONTEND_URL || '')
 console.log('CORS Allowed Origins:', allowedOrigins); // Log ดูว่า Backend อนุญาตใครบ้าง
 
 app.use(cors({
-  origin(origin, cb) {
-    // กรณี server-to-server หรือ local tool (ไม่มี origin)
-    if (!origin) return cb(null, true);
-    
-    // จัดการ origin ที่เข้ามาให้ไม่มี slash ท้าย
-    const incomingOrigin = normalizeUrl(origin);
-
-    // ถ้ายังไม่ได้ตั้ง FRONTEND_URL หรือลิสต์ว่าง ให้ allow (เฉพาะ dev mode) 
-    // หรือถ้า production ควรจะ strict แต่โค้ดเดิมคุณ allow ถ้า length 0
-    if (allowedOrigins.length === 0) return cb(null, true);
-
-    if (allowedOrigins.includes(incomingOrigin)) {
-      return cb(null, true);
+  origin: function (origin, callback) {
+    // ในช่วงพัฒนา: อนุญาตทุก Origin ที่มาจาก Network เดียวกัน (มือถือ/คอม)
+    // หรือถ้ามีค่าใน env ก็ให้ใช้ตามนั้น
+    if (!origin || process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
     }
-
-    // เพิ่ม Log ตรงนี้เพื่อดูว่า Origin ไหนที่โดนบล็อก
-    console.error(`[CORS Blocked] Origin: ${origin} (Normalized: ${incomingOrigin}) is not in allowed list.`);
-    return cb(new Error('Not allowed by CORS'));
+    
+    const allowedOrigins = (process.env.FRONTEND_URL || '').split(',').map(o => o.trim());
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
   },
   credentials: true,
   methods: ['GET','POST','PUT','DELETE','OPTIONS'],

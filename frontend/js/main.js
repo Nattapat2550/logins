@@ -2,8 +2,15 @@
 
 // กำหนด API_BASE_URL
 let API_BASE_URL = 'https://backendlogins.onrender.com';
-if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
-  API_BASE_URL = 'http://localhost:5000';
+const isLocal = location.hostname === 'localhost' || 
+                location.hostname === '127.0.0.1' || 
+                location.hostname.startsWith('192.168.') || 
+                location.hostname.endsWith('.local'); // รองรับ mDNS เช่น computer.local
+
+if (isLocal) {
+  // สร้าง URL โดยใช้ hostname ปัจจุบันที่เปิดอยู่ และระบุ Port ของ Backend (5000)
+  // วิธีนี้มือถือจะวิ่งไปที่เครื่องคอมพิวเตอร์ของคุณโดยอัตโนมัติ
+  API_BASE_URL = `${location.protocol}//${location.hostname}:5000`;
 }
 
 /* ==== Theme toggle ==== */
