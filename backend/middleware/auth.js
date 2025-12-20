@@ -7,13 +7,11 @@ const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER
 function setAuthCookie(res, token, remember) {
   res.cookie('token', token, {
     httpOnly: true,
-    // สำคัญ: ถ้า SameSite=None ต้อง Secure=true เสมอ (Browser บังคับ)
-    // ถ้าอยู่ Localhost (http) ให้ใช้ SameSite=Lax แทน
     secure: isProduction ? true : false,
-    sameSite: isProduction ? 'None' : 'Lax', 
+    sameSite: isProduction ? 'None' : 'Lax',
     maxAge: remember
-      ? 1000 * 60 * 60 * 24 * 30 // 30 วัน
-      : 1000 * 60 * 60 * 24,     // 1 วัน
+      ? 1000 * 60 * 60 * 24 * 30
+      : 1000 * 60 * 60 * 24,
     path: '/',
   });
 }
@@ -41,15 +39,12 @@ function extractToken(req) {
 
 function authenticateJWT(req, res, next) {
   const token = extractToken(req);
-  // ถ้าไม่มี token ให้ส่ง 401 (ปกติสำหรับ user ที่ยังไม่ login)
-  if (!token) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
 
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     req.user = {
-      id: payload.id,
+      id: payload.id || payload.sub, // รองรับทั้ง id และ sub
       role: payload.role || 'user',
     };
     next();
@@ -59,15 +54,14 @@ function authenticateJWT(req, res, next) {
 }
 
 function isAdmin(req, res, next) {
-  if (req.user && req.user.role === 'admin') {
-    return next();
-  }
+  if (req.user && req.user.role === 'admin') return next();
   return res.status(403).json({ error: 'Forbidden' });
 }
 
 module.exports = {
   setAuthCookie,
   clearAuthCookie,
+  extractToken,
   authenticateJWT,
   isAdmin,
 };

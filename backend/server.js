@@ -23,24 +23,16 @@ app.use(helmet());
 
 // 2) ใส่ security headers เพิ่มเติม
 app.use((req, res, next) => {
-  // CSP สำหรับ backend (ตอบ JSON เป็นหลัก)
   res.setHeader(
     'Content-Security-Policy',
     "default-src 'self'; frame-ancestors 'self'; base-uri 'self';"
   );
-
-  // กันไม่ให้โดเมนอื่น iframe backend ของเรา → ป้องกัน clickjacking
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-
-  // จำกัด referrer ที่ส่งออกไปเว็บอื่น ๆ
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-
-  // ปิด feature ที่เราไม่ได้ใช้ใน backend นี้
   res.setHeader(
     'Permissions-Policy',
     'geolocation=(), camera=(), microphone=(), payment=()'
   );
-
   next();
 });
 
@@ -51,53 +43,54 @@ app.use(express.urlencoded({ extended: false, limit: '2mb' }));
 app.use(cookieParser());
 
 // 4) CORS – อนุญาตเฉพาะ origin ที่กำหนดใน FRONTEND_URL (คั่นด้วย , ได้หลายตัว)
-const normalizeUrl = (url) => (url ? url.replace(/\/+$/, '') : '');
+//    หมายเหตุ: Origin header ไม่มี path และไม่มี trailing slash
+const normalizeOrigin = (s) => (s ? s.trim().replace(/\/+$/, '') : '');
 
 const allowedOrigins = (process.env.FRONTEND_URL || '')
   .split(',')
-  .map(o => normalizeUrl(o.trim())) // ลบ slash ออกกันพลาด
+  .map(normalizeOrigin)
   .filter(Boolean);
 
-console.log('CORS Allowed Origins:', allowedOrigins); // Log ดูว่า Backend อนุญาตใครบ้าง
+console.log('CORS Allowed Origins:', allowedOrigins);
 
 app.use(cors({
   origin: function (origin, callback) {
-    // ในช่วงพัฒนา: อนุญาตทุก Origin ที่มาจาก Network เดียวกัน (มือถือ/คอม)
-    // หรือถ้ามีค่าใน env ก็ให้ใช้ตามนั้น
-    if (!origin || process.env.NODE_ENV !== 'production') {
+    if (!origin) return callback(null, true);
+
+    // dev อนุญาตทั้งหมดเพื่อทดสอบมือถือ/คอมในวงแลนง่าย ๆ
+    if (process.env.NODE_ENV !== 'production') {
       return callback(null, true);
     }
-    
-    const allowedOrigins = (process.env.FRONTEND_URL || '').split(',').map(o => o.trim());
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
+
+    // prod: ถ้าไม่ได้ตั้ง FRONTEND_URL ไว้เลย ให้ยอมรับ (กัน deploy แล้วพัง)
+    if (allowedOrigins.length === 0) {
+      return callback(null, true);
     }
+
+    const o = normalizeOrigin(origin);
+    if (allowedOrigins.includes(o)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
-  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-requested-with'],
 }));
 
 // 5) Health check
 app.get('/healthz', (_req, res) => res.json({ ok: true }));
 
-// 6) redirect root backend ไป frontend (กันคนเข้า URL backend ตรง ๆ)
+// 6) redirect root backend ไป frontend
 app.get('/', (_req, res) => {
-  if (process.env.FRONTEND_URL) {
-    return res.redirect(process.env.FRONTEND_URL);
-  }
+  if (process.env.FRONTEND_URL) return res.redirect(process.env.FRONTEND_URL);
   return res.status(200).send('Backend OK');
 });
 
-// เงียบ favicon
 app.get('/favicon.ico', (_req, res) => res.status(204).end());
 
-// 7) Rate limit เฉพาะ /api/auth (กัน brute-force login / register spam)
+// 7) Rate limit เฉพาะ /api/auth
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,   // 15 นาที
-  max: 100,                   // 100 req / IP / 15 นาที
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   standardHeaders: true,
   legacyHeaders: false,
 });

@@ -1,8 +1,8 @@
+/* วางทับทั้งไฟล์ตามที่ส่งไว้ในโปรเจกต์ (เวอร์ชันแก้แล้ว) */
 const msg = document.getElementById('msg');
 
 async function load() {
   try {
-    // ✅ โปรเจกต์คุณใช้ endpoint นี้ (ตรงกับ main.js)
     const me = await api('/api/users/me');
 
     if ((me.role || '').toLowerCase() !== 'admin') {
@@ -12,7 +12,6 @@ async function load() {
     document.getElementById('uname').textContent = me.username || me.email || '';
     if (me.profile_picture_url) document.getElementById('avatar').src = me.profile_picture_url;
 
-    // ----- Users -----
     const users = await api('/api/admin/users');
     const tbody = document.querySelector('#usersTable tbody');
     tbody.innerHTML = '';
@@ -54,7 +53,6 @@ async function load() {
       });
     }
 
-    // ----- Homepage Content -----
     const homeForm = document.getElementById('homeForm');
     if (homeForm && !homeForm.dataset.bound) {
       homeForm.dataset.bound = '1';
@@ -75,7 +73,6 @@ async function load() {
       });
     }
 
-    // ----- Carousel -----
     await loadCarousel();
 
     document.getElementById('logoutBtn').onclick = async () => {
@@ -84,8 +81,6 @@ async function load() {
     };
 
   } catch (err) {
-    // ✅ หยุด redirect loop: redirect เฉพาะกรณีไม่ได้ login จริง ๆ
-    // (api() ใน main.js จะ throw 'Unauthorized' ตอน 401)
     if ((err?.message || '').toLowerCase().includes('unauthorized')) {
       location.replace('index.html');
       return;
@@ -97,7 +92,6 @@ async function load() {
 
 load();
 
-// ===== Carousel Admin =====
 async function loadCarousel() {
   const items = await api('/api/admin/carousel');
   const tbody = document.querySelector('#carouselTable tbody');
@@ -121,7 +115,6 @@ async function loadCarousel() {
     tbody.appendChild(tr);
   });
 
-  // bind handler ครั้งเดียว (กันซ้อนตอน reload)
   if (!tbody.dataset.bound) {
     tbody.dataset.bound = '1';
 
@@ -156,7 +149,6 @@ async function saveCarouselRow(id, tr) {
     const field = el.getAttribute('data-field');
 
     if (field === 'image') {
-      // ✅ ถ้าไม่ได้เลือกรูปใหม่ ไม่ต้องส่ง image เลย
       if (el.files && el.files[0]) fd.append('image', el.files[0]);
       return;
     }
@@ -167,6 +159,10 @@ async function saveCarouselRow(id, tr) {
   const res = await fetch(`${API_BASE_URL}/api/admin/carousel/${id}`, {
     method: 'PUT',
     credentials: 'include',
+    headers: (function () {
+      const t = localStorage.getItem('token');
+      return t ? { Authorization: `Bearer ${t}` } : undefined;
+    })(),
     body: fd
   });
 
@@ -195,6 +191,10 @@ document.getElementById('carouselForm').addEventListener('submit', async (e) => 
   const res = await fetch(`${API_BASE_URL}/api/admin/carousel`, {
     method: 'POST',
     credentials: 'include',
+    headers: (function () {
+      const t = localStorage.getItem('token');
+      return t ? { Authorization: `Bearer ${t}` } : undefined;
+    })(),
     body: fd
   });
 
