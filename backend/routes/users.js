@@ -33,12 +33,12 @@ router.put('/me', authenticateJWT, async (req, res) => {
 router.delete('/me', authenticateJWT, async (req, res) => {
   try {
     await deleteUser(req.user.id);
-    // ลบบัญชีเสร็จแล้ว ให้ลบ cookie token ทิ้งด้วย เพื่อกัน loop index/home
     clearAuthCookie(res);
     res.status(204).end();
   } catch (e) {
     console.error('delete me error', e);
-    res.status(500).json({ error: 'Internal error' });
+    const status = e?.status && Number.isFinite(e.status) ? e.status : 500;
+    res.status(status).json({ error: e?.message || 'Delete failed' });
   }
 });
 
