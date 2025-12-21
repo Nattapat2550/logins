@@ -41,8 +41,7 @@ router.post('/register', async (req, res) => {
   try {
     const { email } = req.body || {};
 
-    // ✅ โหมด preview: หน้า form ยังไม่กด Save (ห้ามเขียน DB)
-    // ฝั่ง frontend ส่งมาเป็น { preview: true } หรือ query ?preview=1
+    // ✅ optional preview: ถ้า frontend ส่ง {preview:true} จะไม่เขียน DB/ไม่ส่งเมล
     const isPreview =
       req.query?.preview === '1' ||
       req.body?.preview === true ||
@@ -53,13 +52,10 @@ router.post('/register', async (req, res) => {
     }
 
     if (isPreview) {
-      // ✅ ไม่เรียก find-user / create-user / store-code / sendEmail
       return res.status(200).json({ ok: true, preview: true });
     }
 
-    // ---------- Save จริง (submit/register) ----------
     const existing = await findUserByEmail(email);
-
     if (existing && existing.is_email_verified) {
       return res.status(409).json({ error: 'Email already registered' });
     }
@@ -75,21 +71,18 @@ router.post('/register', async (req, res) => {
     const code = generateCode();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    // ✅ กันเคส Pure-API ส่งกลับ void (null/empty) แต่จริง ๆ สำเร็จ
-    const storeResult = await storeVerificationCode(user.id, code, expiresAt);
-    const storedOk = storeResult === true || storeResult === null || storeResult === undefined;
-
-    if (!storedOk) {
+    const stored = await storeVerificationCode(user.id, code, expiresAt);
+    if (!stored) {
       return res.status(503).json({ error: 'Cannot store verification code. Please try again.' });
     }
 
-    // ✅ ส่งเมลไม่สำเร็จไม่ทำให้ register ล้ม (เพราะ user ต้องมีสิทธิ์ retry ได้)
+    // ✅ ส่งเมลแบบ TEXT-ONLY เหมือน smtp.zip เพื่อให้เข้า Outlook ง่ายสุด
     let emailSent = true;
     try {
       await sendEmail(
         email,
-        "Your verification code",
-        `Your code is ${code}. It expires in 10 minutes.`
+        'Your verification code',
+        `Your verification code is: ${code}\n\nThis code expires in 10 minutes.`
       );
     } catch (e) {
       emailSent = false;
@@ -284,12 +277,17 @@ router.post('/forgot-password', async (req, res) => {
 
     if (user) {
       const link = `${process.env.FRONTEND_URL}/reset.html?token=${rawToken}`;
-      await sendEmail({
-        to: email,
-        subject: 'Password reset',
-        text: `Reset your password using this link (valid 30 minutes): ${link}`,
-        html: `<p>Reset your password (valid 30 minutes): <a href="${link}">${link}</a></p>`,
-      });
+
+      // ✅ ส่งแบบ TEXT-ONLY (เข้า Outlook ง่ายกว่า html)
+      try {
+        await sendEmail(
+          email,
+          'Password reset',
+          `Reset your password using this link (valid 30 minutes):\n\n${link}`
+        );
+      } catch (e) {
+        console.error('sendEmail forgot-password failed', e);
+      }
     }
 
     res.json({ ok: true });
