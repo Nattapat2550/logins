@@ -86,12 +86,11 @@ router.post('/register', async (req, res) => {
     // ✅ ส่งเมลไม่สำเร็จไม่ทำให้ register ล้ม (เพราะ user ต้องมีสิทธิ์ retry ได้)
     let emailSent = true;
     try {
-      await sendEmail({
-        to: email,
-        subject: 'Your verification code',
-        text: `Your code is ${code}. It expires in 10 minutes.`,
-        html: `<p>Your code is <b>${code}</b>. It expires in 10 minutes.</p>`,
-      });
+      await sendEmail(
+        email,
+        "Your verification code",
+        `Your code is ${code}. It expires in 10 minutes.`
+      );
     } catch (e) {
       emailSent = false;
       console.error('sendEmail failed', e);
