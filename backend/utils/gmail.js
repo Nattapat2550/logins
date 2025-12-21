@@ -11,30 +11,48 @@ oauth2Client.setCredentials({ refresh_token: process.env.REFRESH_TOKEN });
 
 const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
-function isEmailDisabled() {
-  const v = (process.env.EMAIL_DISABLE || '').toString().trim().toLowerCase();
-  return v === 'true' || v === '1' || v === 'yes';
+function requireEnv(name) {
+  const v = (process.env[name] || '').trim();
+  if (!v) throw new Error(`${name} is missing`);
+  return v;
 }
 
-async function sendEmail({ to, subject, text, html }) {
-  if (isEmailDisabled()) {
-    console.log('[MAIL] EMAIL_DISABLE=true -> skip sending. to=', to);
-    return { skipped: true };
+// รองรับทั้ง 2 แบบ:
+// 1) sendEmail({to, subject, text, html})
+// 2) sendEmail(to, subject, text)  // แบบที่โปรเจกต์ smtp ใช้
+async function sendEmail(arg1, arg2, arg3) {
+  let to, subject, text, html;
+
+  if (typeof arg1 === 'string') {
+    // sendEmail(to, subject, text)
+    to = arg1;
+    subject = arg2;
+    text = arg3;
+    html = undefined;
+  } else {
+    // sendEmail({to, subject, text, html})
+    ({ to, subject, text, html } = arg1 || {});
   }
 
-  const sender = (process.env.SENDER_EMAIL || '').trim();
-  if (!sender) throw new Error('SENDER_EMAIL is missing');
+  const sender = requireEnv('SENDER_EMAIL');
 
-  // Outlook ชอบเมลที่มี both text+html และ from เป็นรูปแบบ "Name <email>"
+  // กันส่งเมลแบบไม่มีเนื้อหา
+  if (!text && !html) {
+    throw new Error('Email body is missing (text/html)');
+  }
+
+  // Outlook มักรับง่ายสุดเมื่อมี text แน่ ๆ
+  if (!text && html) {
+    text = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
   const mail = new MailComposer({
     to,
     subject,
     text,
     html,
-    from: `Verify Bot <${sender}>`,
-    headers: {
-      'X-App': 'backendlogins',
-    },
+    // ✅ ให้เหมือนตัวที่ส่งได้: from ต้องเป็น Gmail ที่ถูกต้อง (ตรงกับ refresh token)
+    from: sender,
   });
 
   const message = await new Promise((resolve, reject) => {
@@ -47,15 +65,15 @@ async function sendEmail({ to, subject, text, html }) {
     .replace(/\//g, '_')
     .replace(/=+$/, '');
 
-  const { data } = await gmail.users.messages.send({
+  const res = await gmail.users.messages.send({
     userId: 'me',
     requestBody: { raw: encoded },
   });
 
-  // ✅ ตรงนี้แหละ “หลักฐาน” ว่าส่งออกจริงจาก Gmail แล้ว
-  console.log('[MAIL] sent ok. to=%s id=%s threadId=%s', to, data?.id, data?.threadId);
+  // ✅ log ไว้เช็คว่า “ส่งออกจริง”
+  console.log('[MAIL] sent ok to=%s id=%s threadId=%s', to, res?.data?.id, res?.data?.threadId);
 
-  return { id: data?.id, threadId: data?.threadId };
+  return res.data;
 }
 
 module.exports = { sendEmail };
