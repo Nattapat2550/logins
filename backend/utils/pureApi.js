@@ -55,6 +55,9 @@ async function callPureApi(endpoint, methodOrBody = 'POST', maybeBody) {
 
     if (!res.ok) {
       const txt = await res.text();
+      if (res.status === 404 && endpoint === '/find-user') {
+        return null;
+      }
       console.error(`PureAPI Error [${method} ${endpoint}]:`, res.status, txt);
       return null;
     }
