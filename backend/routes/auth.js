@@ -40,16 +40,26 @@ function signToken(user) {
 router.post('/register', async (req, res) => {
   try {
     const { email } = req.body || {};
+
+    // ✅ โหมด preview: หน้า form ยังไม่กด Save (ห้ามเขียน DB)
+    // ฝั่ง frontend ส่งมาเป็น { preview: true } หรือ query ?preview=1
+    const isPreview =
+      req.query?.preview === '1' ||
+      req.body?.preview === true ||
+      req.body?.mode === 'preview';
+
     if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
       return res.status(400).json({ error: 'Invalid email' });
     }
 
+    if (isPreview) {
+      // ✅ ไม่เรียก find-user / create-user / store-code / sendEmail
+      return res.status(200).json({ ok: true, preview: true });
+    }
+
+    // ---------- Save จริง (submit/register) ----------
     const existing = await findUserByEmail(email);
 
-    // ถ้า Pure-API ถูก block/429 แล้ว callPureApi คืน null
-    // เราแยก "ไม่เจอ user" ออกจาก "เรียก API ไม่สำเร็จ" ด้วยวิธีง่าย ๆ:
-    // - ถ้าคืน null แล้วอยากชัวร์ ให้ลองเรียกอีกครั้ง 1 ครั้ง (optional)
-    // แต่ตอนนี้: ถ้า existing เป็น null เราจะยังลอง create ต่อได้
     if (existing && existing.is_email_verified) {
       return res.status(409).json({ error: 'Email already registered' });
     }
@@ -57,7 +67,6 @@ router.post('/register', async (req, res) => {
     const user = existing || (await createUserByEmail(email));
 
     if (!user || !user.id) {
-      // ตรงนี้คือหัวใจ: อย่าไป user.id ต่อแล้ว crash
       return res.status(503).json({
         error: 'Pure API is temporarily unavailable (rate-limited/blocked). Please try again.',
       });
@@ -66,12 +75,16 @@ router.post('/register', async (req, res) => {
     const code = generateCode();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    const ok = await storeVerificationCode(user.id, code, expiresAt);
-    if (!ok) {
+    // ✅ กันเคส Pure-API ส่งกลับ void (null/empty) แต่จริง ๆ สำเร็จ
+    const storeResult = await storeVerificationCode(user.id, code, expiresAt);
+    const storedOk = storeResult === true || storeResult === null || storeResult === undefined;
+
+    if (!storedOk) {
       return res.status(503).json({ error: 'Cannot store verification code. Please try again.' });
     }
 
-    // (ถ้า Gmail ยัง invalid_grant อยู่ ให้ทำแบบไม่ล้มทั้ง register ได้)
+    // ✅ ส่งเมลไม่สำเร็จไม่ทำให้ register ล้ม (เพราะ user ต้องมีสิทธิ์ retry ได้)
+    let emailSent = true;
     try {
       await sendEmail({
         to: email,
@@ -80,12 +93,11 @@ router.post('/register', async (req, res) => {
         html: `<p>Your code is <b>${code}</b>. It expires in 10 minutes.</p>`,
       });
     } catch (e) {
+      emailSent = false;
       console.error('sendEmail failed', e);
-      // เลือกได้: จะ return 201 ก็ได้ แต่แจ้งว่า email ส่งไม่ออก
-      return res.status(201).json({ ok: true, emailSent: false });
     }
 
-    return res.status(201).json({ ok: true, emailSent: true });
+    return res.status(201).json({ ok: true, emailSent });
   } catch (e) {
     console.error('register error', e);
     return res.status(500).json({ error: 'Internal error' });
