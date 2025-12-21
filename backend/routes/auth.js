@@ -45,27 +45,50 @@ router.post('/register', async (req, res) => {
     }
 
     const existing = await findUserByEmail(email);
+
+    // ถ้า Pure-API ถูก block/429 แล้ว callPureApi คืน null
+    // เราแยก "ไม่เจอ user" ออกจาก "เรียก API ไม่สำเร็จ" ด้วยวิธีง่าย ๆ:
+    // - ถ้าคืน null แล้วอยากชัวร์ ให้ลองเรียกอีกครั้ง 1 ครั้ง (optional)
+    // แต่ตอนนี้: ถ้า existing เป็น null เราจะยังลอง create ต่อได้
     if (existing && existing.is_email_verified) {
       return res.status(409).json({ error: 'Email already registered' });
     }
 
     const user = existing || (await createUserByEmail(email));
+
+    if (!user || !user.id) {
+      // ตรงนี้คือหัวใจ: อย่าไป user.id ต่อแล้ว crash
+      return res.status(503).json({
+        error: 'Pure API is temporarily unavailable (rate-limited/blocked). Please try again.',
+      });
+    }
+
     const code = generateCode();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    await storeVerificationCode(user.id, code, expiresAt);
+    const ok = await storeVerificationCode(user.id, code, expiresAt);
+    if (!ok) {
+      return res.status(503).json({ error: 'Cannot store verification code. Please try again.' });
+    }
 
-    await sendEmail({
-      to: email,
-      subject: 'Your verification code',
-      text: `Your code is ${code}. It expires in 10 minutes.`,
-      html: `<p>Your code is <b>${code}</b>. It expires in 10 minutes.</p>`,
-    });
+    // (ถ้า Gmail ยัง invalid_grant อยู่ ให้ทำแบบไม่ล้มทั้ง register ได้)
+    try {
+      await sendEmail({
+        to: email,
+        subject: 'Your verification code',
+        text: `Your code is ${code}. It expires in 10 minutes.`,
+        html: `<p>Your code is <b>${code}</b>. It expires in 10 minutes.</p>`,
+      });
+    } catch (e) {
+      console.error('sendEmail failed', e);
+      // เลือกได้: จะ return 201 ก็ได้ แต่แจ้งว่า email ส่งไม่ออก
+      return res.status(201).json({ ok: true, emailSent: false });
+    }
 
-    res.status(201).json({ ok: true });
+    return res.status(201).json({ ok: true, emailSent: true });
   } catch (e) {
     console.error('register error', e);
-    res.status(500).json({ error: 'Internal error' });
+    return res.status(500).json({ error: 'Internal error' });
   }
 });
 
