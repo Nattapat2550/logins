@@ -1,0 +1,67 @@
+name: Backend API Tests
+
+# จะทำงานเมื่อมีการ Push โค้ดขึ้น branch main หรือมีการเปิด Pull Request
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    # สร้าง Database จำลองสำหรับรันเทสบน GitHub
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: myapp_test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      # 1. ดึงโค้ดล่าสุดของคุณจาก GitHub
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2. ติดตั้ง Node.js เวอร์ชัน 18 (ตาม package.json ของคุณ)
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      # 3. เข้าไปที่โฟลเดอร์ backend (สมมติว่า package.json อยู่ในโฟลเดอร์ backend)
+      # หาก package.json อยู่โฟลเดอร์นอกสุด ให้ลบ working-directory ออกได้เลย
+      - name: Install dependencies
+        working-directory: ./backend
+        run: npm install
+
+      # 4. สร้างโครงสร้างตารางใน Database จำลองก่อนเริ่มเทส
+      # ตรงนี้จะดึงไฟล์ database.sql / db.sql ของคุณมารันเพื่อสร้างตาราง
+      - name: Initialize Database
+        env:
+          PGPASSWORD: testpassword
+        run: |
+          sudo apt-get install -y postgresql-client
+          # ระบุ path ของไฟล์ sql ของคุณให้ถูกต้อง เช่น ./database.sql
+          psql -h localhost -U testuser -d myapp_test_db -f ./database.sql
+
+      # 5. สั่งรันคำสั่ง npm run test พร้อมยัด Environment Variables สำหรับเทส
+      - name: Run Jest Tests
+        working-directory: ./backend
+        env:
+          NODE_ENV: test
+          PORT: 5000
+          # URL นี้ตรงกับ config ใน services ด้านบนเป๊ะๆ
+          DATABASE_URL: postgres://testuser:testpassword@localhost:5432/myapp_test_db
+          JWT_SECRET: super_secret_test_key
+          PURE_API_KEY: my_mock_pure_api_key
+        run: npm run test
