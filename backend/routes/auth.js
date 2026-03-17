@@ -1,4 +1,3 @@
-/* (วางทับทั้งไฟล์) */
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const { google } = require('googleapis');
@@ -19,7 +18,7 @@ const {
 
 const { sendEmail } = require('../utils/gmail');
 const generateCode = require('../utils/generateCode');
-const { setAuthCookie, clearAuthCookie, extractToken } = require('../middleware/auth');
+const { setAuthCookie, clearAuthCookie } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -41,7 +40,6 @@ router.post('/register', async (req, res) => {
   try {
     const { email } = req.body || {};
 
-    // ✅ optional preview: ถ้า frontend ส่ง {preview:true} จะไม่เขียน DB/ไม่ส่งเมล
     const isPreview =
       req.query?.preview === '1' ||
       req.body?.preview === true ||
@@ -76,7 +74,6 @@ router.post('/register', async (req, res) => {
       return res.status(503).json({ error: 'Cannot store verification code. Please try again.' });
     }
 
-    // ✅ ส่งเมลแบบ TEXT-ONLY เหมือน smtp.zip เพื่อให้เข้า Outlook ง่ายสุด
     let emailSent = true;
     try {
       await sendEmail(
@@ -184,9 +181,7 @@ router.post('/logout', async (_req, res) => {
 });
 
 // ------ GOOGLE OAUTH (WEB FLOW) ------
-const GOOGLE_WEB_CLIENT_ID =
-  process.env.GOOGLE_CLIENT_ID_WEB || process.env.GOOGLE_CLIENT_ID;
-const GOOGLE_ANDROID_CLIENT_ID = process.env.GOOGLE_CLIENT_ID_ANDROID;
+const GOOGLE_WEB_CLIENT_ID = process.env.GOOGLE_CLIENT_ID_WEB || process.env.GOOGLE_CLIENT_ID;
 
 const oauth2ClientWeb = new google.auth.OAuth2(
   GOOGLE_WEB_CLIENT_ID,
@@ -196,24 +191,11 @@ const oauth2ClientWeb = new google.auth.OAuth2(
 
 router.get('/google', (req, res) => {
   try {
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    const redirectUri = process.env.GOOGLE_CALLBACK_URI;
-
-    if (!clientId || !redirectUri) {
-      console.error('Google OAuth not configured. Missing GOOGLE_CLIENT_ID or GOOGLE_CALLBACK_URI');
-      return res.status(500).send('Google OAuth is not configured');
-    }
-
-    const params = new URLSearchParams({
-      client_id: clientId,
-      redirect_uri: redirectUri,
-      response_type: 'code',
-      scope: 'openid email profile',
+    const url = oauth2ClientWeb.generateAuthUrl({
       access_type: 'offline',
       prompt: 'consent',
+      scope: ['openid', 'email', 'profile'],
     });
-
-    const url = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
     return res.redirect(url);
   } catch (err) {
     console.error('GET /api/auth/google error:', err);
@@ -277,8 +259,6 @@ router.post('/forgot-password', async (req, res) => {
 
     if (user) {
       const link = `${process.env.FRONTEND_URL}/reset.html?token=${rawToken}`;
-
-      // ✅ ส่งแบบ TEXT-ONLY (เข้า Outlook ง่ายกว่า html)
       try {
         await sendEmail(
           email,
@@ -372,8 +352,17 @@ router.post('/google-mobile', async (req, res) => {
   }
 });
 
+// ------ STATUS CHECK ------
 router.get('/status', (req, res) => {
-  const token = extractToken(req);
+  let token = req.cookies?.token;
+  
+  if (!token && req.headers.authorization) {
+    const parts = req.headers.authorization.split(' ');
+    if (parts.length === 2 && parts[0] === 'Bearer') {
+      token = parts[1];
+    }
+  }
+
   if (!token) return res.json({ authenticated: false });
 
   try {
@@ -389,3 +378,4 @@ router.get('/status', (req, res) => {
 });
 
 module.exports = router;
+module.exports.default = router;
