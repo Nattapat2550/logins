@@ -63,5 +63,6 @@ jobs:
           # URL นี้ตรงกับ config ใน services ด้านบนเป๊ะๆ
           DATABASE_URL: postgres://testuser:testpassword@localhost:5432/myapp_test_db
           JWT_SECRET: super_secret_test_key
-          PURE_API_KEY: my_mock_pure_api_key
+          PURE_API_BASE_URL: https://pure-api.onrender.com
+          PURE_API_KEY: docker-key-123
         run: npm run test
