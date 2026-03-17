@@ -115,7 +115,14 @@ app.use((err, _req, res, _next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server listening on ${PORT}`);
-  console.log("PORT from env =", process.env.PORT);
-});
+
+// ถ้าไม่ได้อยู่ในโหมดเทส ถึงจะสั่งให้ Server ทำงาน (ป้องกัน Port ชนกันและ TCPSERVERWRAP)
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server listening on ${PORT}`);
+    console.log("PORT from env =", process.env.PORT);
+  });
+}
+
+// 🌟 สำคัญมาก: ต้อง Export ตัวแปร app ออกไปให้ Jest และ Supertest ใช้งาน
+module.exports = app;
