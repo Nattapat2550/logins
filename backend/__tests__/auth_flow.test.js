@@ -2,7 +2,11 @@
 const request = require('supertest');
 const { setupGlobalMock } = require('./testHelper.js');
 
-// 🛑 1. Mock ระบบส่งอีเมล (ไม่ให้ส่งเมลหาคนจริงๆ ตอนรันเทส)
+// ✅ เพิ่ม 2 บรรทัดนี้ (จำลองค่า Environment Variables ของ Google)
+process.env.GOOGLE_CLIENT_ID_WEB = 'mock_google_id';
+process.env.GOOGLE_CLIENT_SECRET = 'mock_google_secret';
+
+// 🛑 1. Mock ระบบส่งอีเมล
 jest.mock('../utils/gmail.js', () => ({
   sendEmail: jest.fn().mockResolvedValue(true)
 }));
