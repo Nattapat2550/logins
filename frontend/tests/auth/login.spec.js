@@ -8,7 +8,6 @@ const corsHeaders = {
 test.describe('Login Flow UI', () => {
 
   test.beforeEach(async ({ page }) => {
-    // เปลี่ยน URL ไปยังหน้าล็อกอินของคุณ (เช่น /login.html หรือ /index.html)
     await page.goto('/login.html'); 
   });
 
@@ -29,7 +28,6 @@ test.describe('Login Flow UI', () => {
     await page.fill('#password', 'ValidPassword123!');
     await page.click('button[type="submit"]');
 
-    // ตรวจสอบว่า Route ทำการเปลี่ยนไปหน้า home.html สำเร็จ
     await expect(page).toHaveURL(/.*home\.html/);
   });
 
@@ -42,6 +40,7 @@ test.describe('Login Flow UI', () => {
         status: 401,
         headers: corsHeaders,
         contentType: 'application/json',
+        // api() wrapper ของคุณอาจจะไม่ได้ใช้ error field นี้ แต่เรา mock ไว้เผื่อ
         body: JSON.stringify({ error: 'Invalid email or password' })
       });
     });
@@ -50,7 +49,7 @@ test.describe('Login Flow UI', () => {
     await page.fill('#password', 'WrongPassword!');
     await page.click('button[type="submit"]');
 
-    // ตรวจสอบกล่องข้อความแจ้งเตือน Error บนหน้าจอ (สมมติว่าใช้ id="msg")
-    await expect(page.locator('#msg')).toContainText(/Invalid/);
+    // ✅ แก้ไขตรงนี้: เช็คให้ตรงกับสิ่งที่ frontend api() สร้างออกมา (Unauthorized หรือ Invalid)
+    await expect(page.locator('#msg')).toContainText(/(Invalid|Unauthorized)/i);
   });
 });

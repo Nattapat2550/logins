@@ -11,7 +11,8 @@ test.describe('Register Flow UI', () => {
     await page.goto('/register.html'); 
   });
 
-  test('1. สมัครสมาชิกสำเร็จ ระบบแสดงข้อความให้ไปตรวจสอบอีเมล', async ({ page }) => {
+  test('1. สมัครสมาชิกสำเร็จ ระบบเด้งไปหน้า check.html เพื่อตรวจสอบอีเมล', async ({ page }) => {
+    // 1. Mock API ข้ามการเช็ค Preview
     await page.route('**/api/auth/register', async route => {
       if (route.request().method() === 'OPTIONS') {
         return route.fulfill({ status: 204, headers: corsHeaders });
@@ -24,13 +25,11 @@ test.describe('Register Flow UI', () => {
       });
     });
 
+    // 2. กรอกอีเมลและกดปุ่ม
     await page.fill('#email', 'new_ui_user@example.com');
-    // หากมีฟิลด์รหัสผ่านด้วย ให้กรอกเพิ่มที่นี่
-    // await page.fill('#password', 'Password123!');
-    
     await page.click('button[type="submit"]');
 
-    // ตรวจสอบว่าหน้าจอแสดงข้อความส่งอีเมล OTP สำเร็จ
-    await expect(page.locator('#msg')).toBeVisible();
+    // ✅ แก้ไขตรงนี้: เช็คว่า URL ถูกเปลี่ยนไปที่ check.html แทนการดักรอข้อความ
+    await expect(page).toHaveURL(/.*check\.html/);
   });
 });
