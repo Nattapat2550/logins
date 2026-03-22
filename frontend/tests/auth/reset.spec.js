@@ -1,5 +1,11 @@
 const { test, expect } = require('@playwright/test');
 
+// ตั้งค่า CORS ให้ตรงกับที่เบราว์เซอร์ต้องการเมื่อมี credentials: 'include'
+const corsHeaders = {
+  'Access-Control-Allow-Origin': 'http://127.0.0.1:5500',
+  'Access-Control-Allow-Credentials': 'true'
+};
+
 test.describe('Password Reset Flow', () => {
 
   test.describe('Part 1: Request Reset Link', () => {
@@ -14,9 +20,13 @@ test.describe('Password Reset Flow', () => {
 
     test('1.2 ส่งอีเมลขอลิงก์สำเร็จ', async ({ page }) => {
       await page.route('**/api/auth/forgot-password', async route => {
+        // ดักจับ Preflight (OPTIONS)
+        if (route.request().method() === 'OPTIONS') {
+          return route.fulfill({ status: 204, headers: corsHeaders });
+        }
         await route.fulfill({ 
           status: 200, 
-          headers: { 'Access-Control-Allow-Origin': '*' }, // แก้ CORS
+          headers: corsHeaders,
           contentType: 'application/json',
           body: JSON.stringify({ success: true, message: 'Email sent' })
         });
@@ -29,17 +39,20 @@ test.describe('Password Reset Flow', () => {
 
     test('1.3 แสดง Error เมื่อ API มีปัญหา', async ({ page }) => {
       await page.route('**/api/auth/forgot-password', async route => {
+        if (route.request().method() === 'OPTIONS') {
+          return route.fulfill({ status: 204, headers: corsHeaders });
+        }
         await route.fulfill({ 
           status: 500, 
-          headers: { 'Access-Control-Allow-Origin': '*' },
+          headers: corsHeaders,
           contentType: 'application/json',
-          body: JSON.stringify({ success: false, message: 'Internal Server Error' })
+          // โค้ดใน main.js คุณใช้ j.error ในการแสดงข้อความ
+          body: JSON.stringify({ error: 'Internal Server Error' })
         });
       });
 
       await page.fill('#email', 'error@example.com');
       await page.click('#requestForm button[type="submit"]');
-      // รองรับทั้งข้อความจาก API หรือ Fallback จากระบบ
       await expect(page.locator('#msg')).toHaveText(/(Internal Server Error|Request failed)/);
     });
   });
@@ -56,9 +69,12 @@ test.describe('Password Reset Flow', () => {
 
     test('2.2 ตั้งรหัสผ่านใหม่สำเร็จ', async ({ page }) => {
       await page.route('**/api/auth/reset-password', async route => {
+        if (route.request().method() === 'OPTIONS') {
+          return route.fulfill({ status: 204, headers: corsHeaders });
+        }
         await route.fulfill({ 
           status: 200, 
-          headers: { 'Access-Control-Allow-Origin': '*' },
+          headers: corsHeaders,
           contentType: 'application/json',
           body: JSON.stringify({ success: true, message: 'Password updated' })
         });
@@ -71,11 +87,14 @@ test.describe('Password Reset Flow', () => {
 
     test('2.3 ตั้งรหัสผ่านใหม่ไม่สำเร็จ (เช่น Token หมดอายุ)', async ({ page }) => {
       await page.route('**/api/auth/reset-password', async route => {
+        if (route.request().method() === 'OPTIONS') {
+          return route.fulfill({ status: 204, headers: corsHeaders });
+        }
         await route.fulfill({ 
           status: 400, 
-          headers: { 'Access-Control-Allow-Origin': '*' },
+          headers: corsHeaders,
           contentType: 'application/json',
-          body: JSON.stringify({ success: false, message: 'Token is invalid or expired' })
+          body: JSON.stringify({ error: 'Token is invalid or expired' })
         });
       });
 
@@ -84,4 +103,5 @@ test.describe('Password Reset Flow', () => {
       await expect(page.locator('#msg')).toHaveText(/(Token is invalid or expired|Request failed)/);
     });
   });
+
 });
