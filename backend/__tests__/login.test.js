@@ -3,19 +3,20 @@ const request = require('supertest');
 const app = require('../server.js');
 const { setupGlobalMock, setupTestAccounts } = require('./testHelper.js');
 
-let userEmail = 'testuser@example.com'; 
-let userPassword = 'TestPassword123!'; 
+let userEmail = ''; 
+let userPassword = ''; 
 
 describe('🔑 Standard Login API', () => {
   beforeAll(async () => {
+    // 1. ตั้งค่า Mock DB ก่อน
     setupGlobalMock();
     
-    // จำลองการสร้าง Account ก่อนทดสอบ หาก Test Helper ไม่ได้คืนรหัสผ่านมา ให้จำลองการสมัครใหม่ที่นี่
-    await request(app).post('/api/auth/complete-profile').send({ 
-        email: userEmail, 
-        username: 'TestLoginUser', 
-        password: userPassword 
-    });
+    // 2. ใช้ Helper ที่มีอยู่แล้วสร้าง Account ขึ้นมาให้ถูกต้องครบ Flow
+    const accounts = await setupTestAccounts(app);
+    
+    // 3. ดึงอีเมลและรหัสผ่านจากบัญชีจำลองมาใช้เทสต์
+    userEmail = accounts.testUserConfig.email;
+    userPassword = accounts.testUserConfig.password;
   });
 
   it('✅ POST /api/auth/login - ล็อกอินสำเร็จด้วย Email และ Password ที่ถูกต้อง', async () => {
@@ -32,7 +33,7 @@ describe('🔑 Standard Login API', () => {
   it('❌ POST /api/auth/login - ล็อกอินไม่สำเร็จถ้ารหัสผ่านผิด', async () => {
     const res = await request(app).post('/api/auth/login').send({
       email: userEmail,
-      password: 'WrongPassword999!'
+      password: 'WrongPassword999!' // รหัสผ่านมั่ว
     });
     
     expect(res.statusCode).toEqual(401);
@@ -45,6 +46,6 @@ describe('🔑 Standard Login API', () => {
       password: 'Password123!'
     });
     
-    expect([401, 404]).toContain(res.statusCode);
+    expect([401, 404]).toContain(res.statusCode); // API อาจจะตอบ 401 หรือ 404 ก็ได้ขึ้นอยู่กับการเขียน
   });
 });
