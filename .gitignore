@@ -4,3 +4,8 @@ node_modules/
 /dist
 /build
 .DS_Store
+# ไฟล์ขยะและ Dependencies ของ Frontend
+frontend/node_modules/
+frontend/test-results/
+frontend/playwright-report/
+frontend/playwright/.cache/

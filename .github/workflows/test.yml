@@ -38,13 +38,13 @@ jobs:
           JWT_SECRET: super_secret_test_key
         run: npm test
 
-  # ==========================================
+ # ==========================================
   # 2. Job: รันเทส Frontend (Playwright E2E)
   # ==========================================
   frontend-e2e-tests:
     name: Frontend E2E Tests
     runs-on: ubuntu-latest
-    needs: backend-tests # ต้องรอให้เทส Backend ผ่านก่อนถึงจะเริ่มเทส Frontend
+    needs: backend-tests
     services:
       mongodb:
         image: mongo:latest
@@ -63,13 +63,12 @@ jobs:
         working-directory: ./backend
         run: npm install
 
-      - name: Install Playwright & http-server
+      # เปลี่ยนมาติดตั้ง Dependencies ในโฟลเดอร์ frontend
+      - name: Install Frontend Dependencies & Playwright
+        working-directory: ./frontend
         run: |
-          npm init -y
-          npm install -D @playwright/test http-server
-
-      - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
+          npm install
+          npx playwright install --with-deps
 
       - name: Start Backend Server (Background)
         working-directory: ./backend
@@ -79,11 +78,15 @@ jobs:
           PORT: 5000
         run: npm start &
 
+      # เปลี่ยนจุดที่รัน Live Server ให้อยู่ใน frontend
       - name: Start Frontend Live Server (Background)
-        run: npx http-server ./frontend -p 5500 &
+        working-directory: ./frontend
+        run: npx http-server . -p 5500 &
 
       - name: Wait for Servers to Boot Up
-        run: sleep 5 # รอ 5 วินาทีให้เซิร์ฟเวอร์ทั้งสองรันเสร็จ
+        run: sleep 5
 
+      # สั่งรันเทสจากในโฟลเดอร์ frontend
       - name: Run Playwright Tests
+        working-directory: ./frontend
         run: npx playwright test
