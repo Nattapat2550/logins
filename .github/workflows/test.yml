@@ -20,10 +20,10 @@ jobs:
           - 27017:27017
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4   # 👈 เปลี่ยนจาก v3 เป็น v4 ตรงนี้
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4 # 👈 เปลี่ยนจาก v3 เป็น v4 ตรงนี้
         with:
           node-version: '18.x'
 
@@ -38,13 +38,13 @@ jobs:
           JWT_SECRET: super_secret_test_key
         run: npm test
 
- # ==========================================
+  # ==========================================
   # 2. Job: รันเทส Frontend (Playwright E2E)
   # ==========================================
   frontend-e2e-tests:
     name: Frontend E2E Tests
     runs-on: ubuntu-latest
-    needs: backend-tests
+    needs: backend-tests 
     services:
       mongodb:
         image: mongo:latest
@@ -52,10 +52,10 @@ jobs:
           - 27017:27017
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4   # 👈 เปลี่ยนจาก v3 เป็น v4 ตรงนี้
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4 # 👈 เปลี่ยนจาก v3 เป็น v4 ตรงนี้
         with:
           node-version: '18.x'
 
@@ -63,7 +63,6 @@ jobs:
         working-directory: ./backend
         run: npm install
 
-      # เปลี่ยนมาติดตั้ง Dependencies ในโฟลเดอร์ frontend
       - name: Install Frontend Dependencies & Playwright
         working-directory: ./frontend
         run: |
@@ -78,15 +77,13 @@ jobs:
           PORT: 5000
         run: npm start &
 
-      # เปลี่ยนจุดที่รัน Live Server ให้อยู่ใน frontend
       - name: Start Frontend Live Server (Background)
         working-directory: ./frontend
         run: npx http-server . -p 5500 &
 
       - name: Wait for Servers to Boot Up
-        run: sleep 5
+        run: sleep 5 
 
-      # สั่งรันเทสจากในโฟลเดอร์ frontend
       - name: Run Playwright Tests
         working-directory: ./frontend
         run: npx playwright test
