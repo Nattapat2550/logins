@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main, master ]
 
+# Add this environment variable to opt into Node.js 24 for GitHub Actions
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   # ==========================================
   # 1. Job: รันเทส Backend (Jest & Supertest)
