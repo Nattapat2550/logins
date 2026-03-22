@@ -32,7 +32,6 @@ test.describe('Admin Dashboard Access & Features', () => {
         status: 200,
         headers: corsHeaders,
         contentType: 'application/json',
-        // ส่งเป็น Object เพียวๆ เพราะ admin.js เช็คค่า me.role
         body: JSON.stringify({ id: 'admin1', role: 'admin', username: 'admin', email: 'admin@test.com' })
       });
     });
@@ -44,7 +43,6 @@ test.describe('Admin Dashboard Access & Features', () => {
         status: 200,
         headers: corsHeaders,
         contentType: 'application/json',
-        // ส่งเป็น Array เพียวๆ เพราะ admin.js ใช้ users.forEach()
         body: JSON.stringify([
           { id: '1', email: 'user1@test.com', username: 'user1', role: 'user' },
           { id: '2', email: 'admin@test.com', username: 'admin', role: 'admin' }
@@ -52,24 +50,24 @@ test.describe('Admin Dashboard Access & Features', () => {
       });
     });
 
-    // 3. Mock API ดึงข้อมูล Carousel (ถ้าไม่ Mock หน้าเว็บจะ Error แล้วหยุดทำงาน)
+    // 3. Mock API ดึงข้อมูล Carousel
     await page.route('**/api/admin/carousel', async route => {
       if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: corsHeaders });
       await route.fulfill({
         status: 200,
         headers: corsHeaders,
         contentType: 'application/json',
-        body: JSON.stringify([]) // ส่ง Array ว่างกลับไป
+        body: JSON.stringify([]) 
       });
     });
 
     await page.goto('/admin.html');
     
-    // รอให้หน้าโหลดและมั่นใจว่ายังอยู่ที่หน้า admin.html
     await expect(page).toHaveURL(/.*admin\.html/);
     
-    // เช็คข้อมูลในตารางว่าเรนเดอร์อีเมลของ user1 ออกมาได้สำเร็จ
-    await expect(page.locator('body')).toContainText('user1@test.com');
+    // 🚀 เปลี่ยนวิธีเช็ค: ตรวจสอบว่ามีช่อง <input> ที่มี data-field="email" และมีค่าเท่ากับ user1@test.com หรือไม่
+    const emailInput = page.locator('input[data-field="email"][data-id="1"]');
+    await expect(emailInput).toHaveValue('user1@test.com');
   });
 
 });
