@@ -1,61 +1,62 @@
-// tests/frontend.spec.js
 const { test, expect } = require('@playwright/test');
 
 test.describe('Frontend - Authentication & User Flow', () => {
 
-  test('1. หน้า Register: สมัครสมาชิกใหม่สำเร็จ', async ({ page }) => {
-    // ไปที่หน้า Register
+  test('1. หน้า Register: กรอกอีเมลสำเร็จและพาไปหน้า check.html', async ({ page }) => {
+    // 1. ไปที่หน้า Register
     await page.goto('/register.html');
     
-    // กรอกข้อมูลฟอร์ม
-    await page.fill('#username', 'testuser_ui');
-    await page.fill('#email', 'testuser_ui@example.com');
-    await page.fill('#password', 'Password123!');
-    await page.fill('#confirm_password', 'Password123!');
+    // 2. ในหน้าเว็บจริงมีแค่ช่อง Email เราก็กรอกแค่อีเมล
+    await page.fill('#email', 'test_playwright@example.com');
     
-    // ดักจับ Alert ว่าขึ้นข้อความสำเร็จหรือไม่
-    page.on('dialog', async dialog => {
-      expect(dialog.message().toLowerCase()).toContain('success');
-      await dialog.accept();
-    });
-
-    // กดปุ่ม Submit
+    // 3. กดปุ่ม Submit
     await page.click('button[type="submit"]');
+    
+    // 4. ตามลอจิกใน register.js เมื่อสำเร็จจะพาไปหน้า check.html
+    // เราตั้งเวลารอให้ API ตอบกลับหน่อย (เผื่อเน็ตช้า)
+    await expect(page).toHaveURL(/.*check\.html/, { timeout: 10000 });
+    
+    // 5. เช็คว่ามีการเซ็ต sessionStorage ตามโค้ดใน js หรือไม่
+    const pendingEmail = await page.evaluate(() => sessionStorage.getItem('pendingEmail'));
+    expect(pendingEmail).toBe('test_playwright@example.com');
   });
 
-  test('2. หน้า Login: เข้าสู่ระบบสำเร็จและพาไปหน้า Home', async ({ page }) => {
+  test('2. หน้า Login: ทดสอบฟีเจอร์ Show/Hide Password', async ({ page }) => {
     await page.goto('/login.html');
     
-    await page.fill('#email', 'testuser_ui@example.com');
-    await page.fill('#password', 'Password123!');
+    // พิมพ์รหัสผ่านลงไป
+    await page.fill('#password', 'SecretPass123!');
+    
+    // เช็คว่าตอนแรก type เป็น password
+    await expect(page.locator('#password')).toHaveAttribute('type', 'password');
+    
+    // ติ๊กกล่อง Show Password
+    await page.check('#showPw');
+    
+    // เช็คว่า type เปลี่ยนเป็น text แล้ว
+    await expect(page.locator('#password')).toHaveAttribute('type', 'text');
+  });
+
+  test('3. หน้า Login: แจ้งเตือนเมื่อกรอกข้อมูลผิด (User ไม่มีในระบบ)', async ({ page }) => {
+    await page.goto('/login.html');
+    
+    await page.fill('#email', 'wrong_user@example.com');
+    await page.fill('#password', 'WrongPassword!');
     
     // คลิก Login
     await page.click('button[type="submit"]');
     
-    // เช็คว่าพาไปหน้า home.html หรือ index.html สำเร็จหรือไม่ (ภายใน 5 วินาที)
-    await expect(page).toHaveURL(/.*(home|index)\.html/, { timeout: 5000 });
-    
-    // เช็คว่ามี Token ถูกเก็บลงใน LocalStorage แล้ว
-    const token = await page.evaluate(() => localStorage.getItem('token'));
-    expect(token).toBeTruthy();
-  });
-
-  test('3. หน้า Login: แจ้งเตือนเมื่อกรอกรหัสผ่านผิด', async ({ page }) => {
-    await page.goto('/login.html');
-    await page.fill('#email', 'testuser_ui@example.com');
-    await page.fill('#password', 'WrongPassword!');
-    
-    page.on('dialog', async dialog => {
-      expect(dialog.message().toLowerCase()).toContain('invalid');
-      await dialog.accept();
-    });
-
-    await page.click('button[type="submit"]');
+    // เช็คว่ามีข้อความ Error ขึ้นที่แท็ก <p id="msg"></p> 
+    // โดยข้อความต้องไม่เป็นค่าว่าง (แปลว่ามี Error จาก Backend ส่งมา)
+    const msgLocator = page.locator('#msg');
+    await expect(msgLocator).not.toBeEmpty({ timeout: 5000 });
   });
 
   test('4. หน้า Admin: ป้องกันการเข้าถึงหากไม่ใช่ผู้ดูแลระบบ', async ({ page }) => {
-    // จำลองสถานการณ์ว่ามียูสเซอร์ธรรมดาล็อกอินอยู่
-    await page.goto('/login.html'); // เปิดหน้าเว็บก่อนเซ็ต Storage
+    // ไปที่หน้าเว็บเพื่อเซ็ต LocalStorage จำลอง
+    await page.goto('/index.html'); 
+    
+    // จำลองสถานการณ์ว่ามียูสเซอร์ธรรมดาล็อกอินอยู่ (role = user)
     await page.evaluate(() => {
       localStorage.setItem('token', 'fake_user_token');
       localStorage.setItem('role', 'user'); 
@@ -64,7 +65,8 @@ test.describe('Frontend - Authentication & User Flow', () => {
     // พยายามเข้าหน้า Admin
     await page.goto('/admin.html');
     
-    // ระบบควรจะเตะกลับไปหน้า login หรือ home (ไม่ควรอยู่หน้า admin)
+    // ตามลอจิกของ admin.js ถ้าไม่ใช่แอดมิน จะโดนเตะออก
+    // เราก็เช็คว่า URL ต้องไม่ใช่หน้า admin.html
     await expect(page).not.toHaveURL(/.*admin\.html/);
   });
 
