@@ -115,6 +115,32 @@ router.put('/carousel/:id', authenticateJWT, isAdmin, upload.single('image'), as
   }
 });
 
+router.patch('/users/:id/role', authenticateJWT, isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role, status, first_name, last_name, tel, username } = req.body || {};
+
+    // ส่ง Payload ไปที่ API ของ Rust เพื่อเซฟ
+    const updated = await callPureApi('/admin/users/update', 'POST', { 
+      id, 
+      role, 
+      status,
+      first_name,
+      last_name,
+      tel,
+      username
+    });
+
+    if (!updated) return res.status(404).json({ error: 'Update failed or Not found' });
+    if (updated.error) return res.status(400).json(updated);
+
+    res.json(updated);
+  } catch (err) {
+    console.error('Admin update user error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.delete('/carousel/:id', authenticateJWT, isAdmin, async (req, res) => {
   try {
     const id = Number(req.params.id);

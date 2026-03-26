@@ -4,6 +4,9 @@ async function loadMe() {
   try {
     const me = await api('/api/users/me');
     document.getElementById('username').value = me.username || '';
+    document.getElementById('first_name').value = me.first_name || '';
+    document.getElementById('last_name').value = me.last_name || '';
+    document.getElementById('tel').value = me.tel || '';
   } catch {
     location.replace('index.html');
   }
@@ -14,8 +17,15 @@ document.getElementById('settingsForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   msg.textContent='';
   const username = document.getElementById('username').value.trim();
+  const first_name = document.getElementById('first_name').value.trim();
+  const last_name = document.getElementById('last_name').value.trim();
+  const tel = document.getElementById('tel').value.trim();
+  
   try {
-    await api('/api/users/me', { method:'PUT', body:{ username }});
+    await api('/api/users/me', { 
+      method:'PUT', // หรือใช้ PATCH ถ้า Backend กำหนดไว้
+      body: { username, first_name, last_name, tel }
+    });
     msg.textContent = 'Saved.';
   } catch (err) {
     msg.textContent = err.message;
@@ -55,9 +65,13 @@ document.getElementById('avatarForm').addEventListener('submit', async (e)=>{
 });
 
 document.getElementById('deleteBtn').addEventListener('click', async ()=>{
-  if (!confirm('Delete your account? This cannot be undone.')) return;
+  if (!confirm('บัญชีของคุณจะถูกปิดใช้งานและซ่อนจากระบบ หากคุณไม่กลับมาเข้าสู่ระบบภายใน 30 วัน ข้อมูลจะถูกลบถาวรอัตโนมัติ')) return;
   try {
-    await api('/api/users/me', { method:'DELETE' });
+    // อัปเดตสถานะเป็น 'deleted' (Soft Delete)
+    await api('/api/users/me', { 
+      method:'PATCH', 
+      body: { status: 'deleted' } 
+    });
     localStorage.removeItem('token');
     location.replace('index.html');
   } catch (err) {

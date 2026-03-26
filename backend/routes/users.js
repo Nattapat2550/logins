@@ -10,23 +10,44 @@ const router = express.Router();
 router.get('/me', authenticateJWT, async (req, res) => {
   const u = await findUserById(req.user.id);
   if (!u) return res.status(404).json({ error: 'Not found' });
-  const { id, username, email, role, profile_picture_url } = u;
-  res.json({ id, username, email, role, profile_picture_url });
+  const { id, user_id, username, email, role, status, profile_picture_url, first_name, last_name, tel } = u;
+  res.json({ id, user_id, username, email, role, status, profile_picture_url, first_name, last_name, tel });
 });
 
 router.put('/me', authenticateJWT, async (req, res) => {
   try {
-    const { username, profilePictureUrl } = req.body || {};
-    const updated = await updateProfile(req.user.id, { username, profilePictureUrl });
+    const { username, profilePictureUrl, first_name, last_name, tel } = req.body || {};
+    const updated = await updateProfile(req.user.id, { 
+      username, 
+      profilePictureUrl,
+      firstName: first_name,
+      lastName: last_name,
+      tel
+    });
     if (!updated) return res.status(404).json({ error: 'Not found' });
-    const { id, email, role, profile_picture_url } = updated;
-    res.json({ id, username: updated.username, email, role, profile_picture_url });
+    res.json(updated);
   } catch (e) {
     if (e.code === '23505') {
       return res.status(409).json({ error: 'Username already taken' });
     }
     console.error('update profile error', e);
     res.status(500).json({ error: 'Internal error' });
+  }
+});
+
+// ใช้สำหรับ Soft delete หรือเปลี่ยน status โดย User เอง
+router.patch('/me', authenticateJWT, async (req, res) => {
+  try {
+    const { status } = req.body || {};
+    if (status === 'deleted') {
+      await updateProfile(req.user.id, { status: 'deleted' });
+      clearAuthCookie(res);
+      return res.status(200).json({ ok: true, message: 'Account deactivated' });
+    }
+    return res.status(400).json({ error: 'Invalid status update' });
+  } catch (e) {
+    console.error('patch me error', e);
+    res.status(500).json({ error: 'Update failed' });
   }
 });
 

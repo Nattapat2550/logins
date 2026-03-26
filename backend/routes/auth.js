@@ -112,15 +112,18 @@ router.post('/verify-code', async (req, res) => {
   }
 });
 
-// ------ COMPLETE PROFILE ------
+// ------------------------------------------------------------------
+// แทนที่ Route /complete-profile เดิมด้วยโค้ดนี้
+// ------------------------------------------------------------------
 router.post('/complete-profile', async (req, res) => {
   try {
-    const { email, username, password } = req.body || {};
+    const { email, username, password, first_name, last_name, tel } = req.body || {};
     if (!email || !username || !password) return res.status(400).json({ error: 'Missing fields' });
     if (username.length < 3) return res.status(400).json({ error: 'Username too short' });
     if (password.length < 8) return res.status(400).json({ error: 'Password too short' });
 
-    const updated = await setUsernameAndPassword(email, username, password);
+    // ส่งฟิลด์ใหม่ไปให้ models
+    const updated = await setUsernameAndPassword(email, username, password, first_name, last_name, tel);
     if (!updated) return res.status(401).json({ error: 'Email not verified' });
 
     const token = signToken(updated);
@@ -132,6 +135,7 @@ router.post('/complete-profile', async (req, res) => {
       role: updated.role,
       user: {
         id: updated.id,
+        user_id: updated.user_id,
         email: updated.email,
         username: updated.username,
         role: updated.role,
@@ -145,15 +149,30 @@ router.post('/complete-profile', async (req, res) => {
   }
 });
 
-// ------ LOGIN (EMAIL / PASSWORD) ------
+// ------------------------------------------------------------------
+// แทนที่ Route /login เดิมด้วยโค้ดนี้
+// ------------------------------------------------------------------
 router.post('/login', async (req, res) => {
   try {
     const { email, password, remember } = req.body || {};
-    const user = await findUserByEmail(email || '');
+    let user = await findUserByEmail(email || '');
     if (!user || !user.password_hash) return res.status(401).json({ error: 'Invalid credentials' });
 
     const ok = await bcrypt.compare(password || '', user.password_hash);
     if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
+
+    // ตรวจสอบสถานะบัญชี
+    if (user.status === 'banned') {
+      return res.status(401).json({ error: 'ACCOUNT_BANNED' });
+    }
+
+    let reactivated = false;
+    // ระบบ Reactivation อัตโนมัติ หากสถานะเป็น deleted ให้ปรับกลับมาเป็น active
+    if (user.status === 'deleted') {
+      const { updateProfile } = require('../models/user');
+      user = await updateProfile(user.id, { status: 'active' });
+      reactivated = true;
+    }
 
     const token = signToken(user);
     setAuthCookie(res, token, !!remember);
@@ -161,11 +180,14 @@ router.post('/login', async (req, res) => {
     res.json({
       role: user.role,
       token,
+      reactivated, // ส่ง flag บอก frontend ว่ามีการกู้คืน
       user: {
         id: user.id,
+        user_id: user.user_id,
         email: user.email,
         username: user.username,
         role: user.role,
+        status: user.status,
         profile_picture_url: user.profile_picture_url,
       },
     });

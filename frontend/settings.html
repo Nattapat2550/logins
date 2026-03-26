@@ -25,19 +25,23 @@
     <form id="settingsForm">
       <label>Username</label>
       <input type="text" id="username" />
+      <div class="row">
+        <div style="flex:1;">
+          <label>First Name</label>
+          <input type="text" id="first_name" />
+        </div>
+        <div style="flex:1; margin-left: 10px;">
+          <label>Last Name</label>
+          <input type="text" id="last_name" />
+        </div>
+      </div>
+      <label>Telephone</label>
+      <input type="tel" id="tel" />
       <button class="btn" type="submit">Save</button>
     </form>
 
-    <div style="height:1rem"></div>
-
-    <form id="avatarForm" enctype="multipart/form-data">
-      <label>Upload new profile picture</label>
-      <input type="file" id="avatarFile" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp" />
-      <button class="btn" type="submit">Upload</button>
-    </form>
-
     <hr/>
-    <button id="deleteBtn" class="btn danger">Delete my account</button>
+    <button id="deleteBtn" class="btn danger">Deactivate / Delete my account</button>
     <p id="msg" class="muted"></p>
   </main>
   <script src="js/main.js" defer></script>

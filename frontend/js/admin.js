@@ -20,12 +20,26 @@ async function load() {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${u.id}</td>
+        <td><small style="color:#666">${u.user_id || '-'}</small></td>
+        <td>
+          <input value="${u.first_name || ''}" data-id="${u.id}" data-field="first_name" placeholder="First Name" style="width:80px; margin-bottom:4px;" />
+          <input value="${u.last_name || ''}" data-id="${u.id}" data-field="last_name" placeholder="Last Name" style="width:80px" />
+        </td>
+        <td><input value="${u.tel || ''}" data-id="${u.id}" data-field="tel" style="width:100px" /></td>
         <td><input value="${u.username || ''}" data-id="${u.id}" data-field="username" /></td>
         <td><input value="${u.email || ''}" data-id="${u.id}" data-field="email" /></td>
         <td>
           <select data-id="${u.id}" data-field="role">
             <option value="user" ${u.role==='user'?'selected':''}>user</option>
             <option value="admin" ${u.role==='admin'?'selected':''}>admin</option>
+          </select>
+        </td>
+        <td>
+          <select data-id="${u.id}" data-field="status">
+            <option value="active" ${u.status==='active'?'selected':''}>active</option>
+            <option value="suspended" ${u.status==='suspended'?'selected':''}>suspended</option>
+            <option value="banned" ${u.status==='banned'?'selected':''}>banned</option>
+            <option value="deleted" ${u.status==='deleted'?'selected':''}>deleted</option>
           </select>
         </td>
         <td><button class="btn small" data-save="${u.id}">Save</button></td>
@@ -45,8 +59,13 @@ async function load() {
         inputs.forEach(inp => payload[inp.getAttribute('data-field')] = inp.value);
 
         try {
-          await api(`/api/admin/users/${id}`, { method: 'PUT', body: payload });
-          msg.textContent = 'Saved';
+          // ใช้ PATCH ชี้ไปที่ endpoint จัดการบทบาทและสถานะตามที่คุณระบุในสเปก
+          await api(`/api/users/${id}/role`, { method: 'PATCH', body: payload });
+          
+          // หรือถ้าคุณต้องการส่งข้อมูลไปอัปเดตฟิลด์อื่นๆ ด้วย เช่นชื่อ เบอร์โทร ให้ส่งไปที่ PUT ตัวเดิมด้วย:
+          // await api(`/api/admin/users/${id}`, { method: 'PUT', body: payload });
+          
+          msg.textContent = 'Saved user data successfully';
         } catch (err) {
           msg.textContent = err.message || 'Save failed';
         }

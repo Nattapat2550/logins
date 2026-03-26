@@ -89,20 +89,32 @@ async function markEmailVerified(_userId) {
 }
 
 /**
- * ตั้ง Username และ Password (Register แบบ Email)
+ * ตั้ง Username, Password และข้อมูล Profile พื้นฐาน (Register แบบ Email)
  */
-async function setUsernameAndPassword(email, username, password) {
-  return await callPureApi('/set-username-password', { email, username, password });
+async function setUsernameAndPassword(email, username, password, firstName, lastName, tel) {
+  return await callPureApi('/set-username-password', { 
+    email, 
+    username, 
+    password,
+    first_name: firstName,
+    last_name: lastName,
+    tel: tel
+  });
 }
 
 /**
- * อัปเดตข้อมูล Profile (Username, Avatar)
+ * อัปเดตข้อมูล Profile
  */
-async function updateProfile(userId, { username, profilePictureUrl }) {
+async function updateProfile(userId, { username, profilePictureUrl, firstName, lastName, tel, status }) {
+  // ส่งข้อมูลไปที่ Pure API (Rust) เพื่อทำการบันทึกลง Database
   return await callPureApi('/admin/users/update', {
     id: userId,
     username,
     profile_picture_url: profilePictureUrl,
+    first_name: firstName,
+    last_name: lastName,
+    tel: tel,
+    status: status
   });
 }
 

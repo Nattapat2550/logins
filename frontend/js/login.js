@@ -32,9 +32,21 @@ document.getElementById('loginForm').addEventListener('submit', async (e)=>{
 
   try {
     const r = await api('/api/auth/login', { method:'POST', body:{ email, password, remember }});
+    
+    // แจ้งเตือนถ้ามีการกู้คืนบัญชี (ขึ้นอยู่กับ Backend ว่ามี Flag ส่งมาด้วยหรือไม่ หรือแค่ Login ผ่านปกติ)
+    if (r && r.reactivated) {
+      alert("กู้คืนบัญชีสำเร็จ ยินดีต้อนรับกลับมา");
+    }
+
     if (r && r.token) localStorage.setItem('token', r.token);
     location.href = (r.role || 'user') === 'admin' ? 'admin.html' : 'home.html';
   } catch (err) {
-    msg.textContent = err.message;
+    // ดักจับ Error หากโดน Ban
+    if (err.message && (err.message.includes('banned') || err.message.includes('ACCOUNT_BANNED'))) {
+      alert('บัญชีของคุณถูกระงับการใช้งานถาวร');
+      msg.textContent = 'บัญชีของคุณถูกระงับการใช้งานถาวร';
+    } else {
+      msg.textContent = err.message;
+    }
   }
 });
