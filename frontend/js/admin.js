@@ -1,4 +1,3 @@
-/* วางทับทั้งไฟล์ตามที่ส่งไว้ในโปรเจกต์ (เวอร์ชันแก้แล้ว) */
 const msg = document.getElementById('msg');
 
 async function load() {
@@ -12,65 +11,7 @@ async function load() {
     document.getElementById('uname').textContent = me.username || me.email || '';
     if (me.profile_picture_url) document.getElementById('avatar').src = me.profile_picture_url;
 
-    const users = await api('/api/admin/users');
-    const tbody = document.querySelector('#usersTable tbody');
-    tbody.innerHTML = '';
-
-    users.forEach(u => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${u.id}</td>
-        <td><small style="color:#666">${u.user_id || '-'}</small></td>
-        <td>
-          <input value="${u.first_name || ''}" data-id="${u.id}" data-field="first_name" placeholder="First Name" style="width:80px; margin-bottom:4px;" />
-          <input value="${u.last_name || ''}" data-id="${u.id}" data-field="last_name" placeholder="Last Name" style="width:80px" />
-        </td>
-        <td><input value="${u.tel || ''}" data-id="${u.id}" data-field="tel" style="width:100px" /></td>
-        <td><input value="${u.username || ''}" data-id="${u.id}" data-field="username" /></td>
-        <td><input value="${u.email || ''}" data-id="${u.id}" data-field="email" /></td>
-        <td>
-          <select data-id="${u.id}" data-field="role">
-            <option value="user" ${u.role==='user'?'selected':''}>user</option>
-            <option value="admin" ${u.role==='admin'?'selected':''}>admin</option>
-          </select>
-        </td>
-        <td>
-          <select data-id="${u.id}" data-field="status">
-            <option value="active" ${u.status==='active'?'selected':''}>active</option>
-            <option value="suspended" ${u.status==='suspended'?'selected':''}>suspended</option>
-            <option value="banned" ${u.status==='banned'?'selected':''}>banned</option>
-            <option value="deleted" ${u.status==='deleted'?'selected':''}>deleted</option>
-          </select>
-        </td>
-        <td><button class="btn small" data-save="${u.id}">Save</button></td>
-      `;
-      tbody.appendChild(tr);
-    });
-
-    if (!tbody.dataset.bound) {
-      tbody.dataset.bound = '1';
-      tbody.addEventListener('click', async (e) => {
-        const id = e.target.getAttribute('data-save');
-        if (!id) return;
-
-        const row = e.target.closest('tr');
-        const inputs = row.querySelectorAll('[data-id]');
-        const payload = {};
-        inputs.forEach(inp => payload[inp.getAttribute('data-field')] = inp.value);
-
-        try {
-          // ใช้ PATCH ชี้ไปที่ endpoint จัดการบทบาทและสถานะตามที่คุณระบุในสเปก
-          await api(`/api/users/${id}/role`, { method: 'PATCH', body: payload });
-          
-          // หรือถ้าคุณต้องการส่งข้อมูลไปอัปเดตฟิลด์อื่นๆ ด้วย เช่นชื่อ เบอร์โทร ให้ส่งไปที่ PUT ตัวเดิมด้วย:
-          // await api(`/api/admin/users/${id}`, { method: 'PUT', body: payload });
-          
-          msg.textContent = 'Saved user data successfully';
-        } catch (err) {
-          msg.textContent = err.message || 'Save failed';
-        }
-      });
-    }
+    await loadUsers();
 
     const homeForm = document.getElementById('homeForm');
     if (homeForm && !homeForm.dataset.bound) {
@@ -111,6 +52,61 @@ async function load() {
 
 load();
 
+async function loadUsers() {
+  const users = await api('/api/admin/users');
+  const tbody = document.querySelector('#usersTable tbody');
+  tbody.innerHTML = '';
+
+  users.forEach(u => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${u.id}</td>
+      <td><small style="color:#666">${u.user_id || '-'}</small></td>
+      <td><input value="${u.first_name || ''}" data-id="${u.id}" data-field="first_name" style="width:100px" /></td>
+      <td><input value="${u.last_name || ''}" data-id="${u.id}" data-field="last_name" style="width:100px" /></td>
+      <td><input value="${u.tel || ''}" data-id="${u.id}" data-field="tel" style="width:100px" /></td>
+      <td><input value="${u.username || ''}" data-id="${u.id}" data-field="username" style="width:100px" /></td>
+      <td><input value="${u.email || ''}" data-id="${u.id}" data-field="email" style="width:150px" /></td>
+      <td>
+        <select data-id="${u.id}" data-field="role">
+          <option value="user" ${u.role==='user'?'selected':''}>user</option>
+          <option value="admin" ${u.role==='admin'?'selected':''}>admin</option>
+        </select>
+      </td>
+      <td>
+        <select data-id="${u.id}" data-field="status">
+          <option value="active" ${u.status==='active'?'selected':''}>active</option>
+          <option value="suspended" ${u.status==='suspended'?'selected':''}>suspended</option>
+          <option value="banned" ${u.status==='banned'?'selected':''}>banned</option>
+          <option value="deleted" ${u.status==='deleted'?'selected':''}>deleted</option>
+        </select>
+      </td>
+      <td><button class="btn small" data-save="${u.id}">Save</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  if (!tbody.dataset.bound) {
+    tbody.dataset.bound = '1';
+    tbody.addEventListener('click', async (e) => {
+      const id = e.target.getAttribute('data-save');
+      if (!id) return;
+
+      const row = e.target.closest('tr');
+      const inputs = row.querySelectorAll('[data-id]');
+      const payload = {};
+      inputs.forEach(inp => payload[inp.getAttribute('data-field')] = inp.value);
+
+      try {
+        await api(`/api/admin/users/${id}`, { method: 'PUT', body: payload });
+        msg.textContent = 'Saved user data successfully';
+      } catch (err) {
+        msg.textContent = err.message || 'Save failed';
+      }
+    });
+  }
+}
+
 async function loadCarousel() {
   const items = await api('/api/admin/carousel');
   const tbody = document.querySelector('#carouselTable tbody');
@@ -134,8 +130,8 @@ async function loadCarousel() {
     tbody.appendChild(tr);
   });
 
-  if (!tbody.dataset.bound) {
-    tbody.dataset.bound = '1';
+  if (!tbody.dataset.boundCarousel) {
+    tbody.dataset.boundCarousel = '1';
 
     tbody.addEventListener('click', async (e) => {
       const saveId = e.target.getAttribute('data-save');
@@ -194,36 +190,40 @@ async function saveCarouselRow(id, tr) {
   await loadCarousel();
 }
 
-document.getElementById('carouselForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
+const carouselForm = document.getElementById('carouselForm');
+if (carouselForm && !carouselForm.dataset.bound) {
+  carouselForm.dataset.bound = '1';
+  carouselForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
 
-  const file = document.getElementById('cImage').files[0];
-  if (!file) { msg.textContent = 'Please choose an image.'; return; }
+    const file = document.getElementById('cImage').files[0];
+    if (!file) { msg.textContent = 'Please choose an image.'; return; }
 
-  const fd = new FormData();
-  fd.append('image', file);
-  fd.append('itemIndex', document.getElementById('cIndex').value);
-  fd.append('title', document.getElementById('cTitle').value);
-  fd.append('subtitle', document.getElementById('cSubtitle').value);
-  fd.append('description', document.getElementById('cDesc').value);
+    const fd = new FormData();
+    fd.append('image', file);
+    fd.append('itemIndex', document.getElementById('cIndex').value);
+    fd.append('title', document.getElementById('cTitle').value);
+    fd.append('subtitle', document.getElementById('cSubtitle').value);
+    fd.append('description', document.getElementById('cDesc').value);
 
-  const res = await fetch(`${API_BASE_URL}/api/admin/carousel`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: (function () {
-      const t = localStorage.getItem('token');
-      return t ? { Authorization: `Bearer ${t}` } : undefined;
-    })(),
-    body: fd
+    const res = await fetch(`${API_BASE_URL}/api/admin/carousel`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: (function () {
+        const t = localStorage.getItem('token');
+        return t ? { Authorization: `Bearer ${t}` } : undefined;
+      })(),
+      body: fd
+    });
+
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({ error: 'Create failed' }));
+      msg.textContent = j.error || 'Create failed';
+      return;
+    }
+
+    msg.textContent = 'Slide added.';
+    e.target.reset();
+    await loadCarousel();
   });
-
-  if (!res.ok) {
-    const j = await res.json().catch(() => ({ error: 'Create failed' }));
-    msg.textContent = j.error || 'Create failed';
-    return;
-  }
-
-  msg.textContent = 'Slide added.';
-  e.target.reset();
-  await loadCarousel();
-});
+}

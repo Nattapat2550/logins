@@ -8,6 +8,7 @@ const {
   createUserByEmail,
   findUserByEmail,
   setUsernameAndPassword,
+  updateProfile,
   storeVerificationCode,
   validateAndConsumeCode,
   setOAuthUser,
@@ -39,19 +40,13 @@ function signToken(user) {
 router.post('/register', async (req, res) => {
   try {
     const { email } = req.body || {};
-
-    const isPreview =
-      req.query?.preview === '1' ||
-      req.body?.preview === true ||
-      req.body?.mode === 'preview';
+    const isPreview = req.query?.preview === '1' || req.body?.preview === true || req.body?.mode === 'preview';
 
     if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
       return res.status(400).json({ error: 'Invalid email' });
     }
 
-    if (isPreview) {
-      return res.status(200).json({ ok: true, preview: true });
-    }
+    if (isPreview) return res.status(200).json({ ok: true, preview: true });
 
     const existing = await findUserByEmail(email);
     if (existing && existing.is_email_verified) {
@@ -59,28 +54,18 @@ router.post('/register', async (req, res) => {
     }
 
     const user = existing || (await createUserByEmail(email));
-
     if (!user || !user.id) {
-      return res.status(503).json({
-        error: 'Pure API is temporarily unavailable (rate-limited/blocked). Please try again.',
-      });
+      return res.status(503).json({ error: 'Pure API is temporarily unavailable (rate-limited/blocked). Please try again.' });
     }
 
     const code = generateCode();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
     const stored = await storeVerificationCode(user.id, code, expiresAt);
-    if (!stored) {
-      return res.status(503).json({ error: 'Cannot store verification code. Please try again.' });
-    }
+    if (!stored) return res.status(503).json({ error: 'Cannot store verification code. Please try again.' });
 
     let emailSent = true;
     try {
-      await sendEmail(
-        email,
-        'Your verification code',
-        `Your verification code is: ${code}\n\nThis code expires in 10 minutes.`
-      );
+      await sendEmail(email, 'Your verification code', `Your verification code is: ${code}\n\nThis code expires in 10 minutes.`);
     } catch (e) {
       emailSent = false;
       console.error('sendEmail failed', e);
@@ -112,9 +97,7 @@ router.post('/verify-code', async (req, res) => {
   }
 });
 
-// ------------------------------------------------------------------
-// แทนที่ Route /complete-profile เดิมด้วยโค้ดนี้
-// ------------------------------------------------------------------
+// ------ COMPLETE PROFILE (การันตีอัปเดตข้อมูล) ------
 router.post('/complete-profile', async (req, res) => {
   try {
     const { email, username, password, first_name, last_name, tel } = req.body || {};
@@ -122,9 +105,17 @@ router.post('/complete-profile', async (req, res) => {
     if (username.length < 3) return res.status(400).json({ error: 'Username too short' });
     if (password.length < 8) return res.status(400).json({ error: 'Password too short' });
 
-    // ส่งฟิลด์ใหม่ไปให้ models
-    const updated = await setUsernameAndPassword(email, username, password, first_name, last_name, tel);
-    if (!updated) return res.status(401).json({ error: 'Email not verified' });
+    // รอบที่ 1: ตั้ง Username Password ตามปกติ
+    let updated = await setUsernameAndPassword(email, username, password, first_name, last_name, tel);
+    if (!updated) return res.status(401).json({ error: 'Email not verified or pure-api error' });
+
+    // รอบที่ 2: ระบบ Fallback - ตรวจสอบว่า Rust เซฟ first_name ให้ไหม ถ้าไม่เซฟ เราจะบังคับอัปเดตให้อีกครั้งทันที!
+    const needsFallback = (first_name || last_name || tel) && 
+                          (updated.first_name !== first_name || updated.last_name !== last_name || updated.tel !== tel);
+    if (needsFallback) {
+      const fallbackResult = await updateProfile(updated.id, { first_name, last_name, tel });
+      if (fallbackResult) updated = fallbackResult;
+    }
 
     const token = signToken(updated);
     setAuthCookie(res, token, true);
@@ -139,6 +130,9 @@ router.post('/complete-profile', async (req, res) => {
         email: updated.email,
         username: updated.username,
         role: updated.role,
+        first_name: updated.first_name,
+        last_name: updated.last_name,
+        tel: updated.tel,
         profile_picture_url: updated.profile_picture_url,
       },
     });
@@ -149,9 +143,7 @@ router.post('/complete-profile', async (req, res) => {
   }
 });
 
-// ------------------------------------------------------------------
-// แทนที่ Route /login เดิมด้วยโค้ดนี้
-// ------------------------------------------------------------------
+// ------ LOGIN (EMAIL / PASSWORD) ------
 router.post('/login', async (req, res) => {
   try {
     const { email, password, remember } = req.body || {};
@@ -161,15 +153,14 @@ router.post('/login', async (req, res) => {
     const ok = await bcrypt.compare(password || '', user.password_hash);
     if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
 
-    // ตรวจสอบสถานะบัญชี
+    // เช็คสถานะแบน
     if (user.status === 'banned') {
       return res.status(401).json({ error: 'ACCOUNT_BANNED' });
     }
 
+    // กู้คืนบัญชี (Reactivate)
     let reactivated = false;
-    // ระบบ Reactivation อัตโนมัติ หากสถานะเป็น deleted ให้ปรับกลับมาเป็น active
     if (user.status === 'deleted') {
-      const { updateProfile } = require('../models/user');
       user = await updateProfile(user.id, { status: 'active' });
       reactivated = true;
     }
@@ -180,7 +171,7 @@ router.post('/login', async (req, res) => {
     res.json({
       role: user.role,
       token,
-      reactivated, // ส่ง flag บอก frontend ว่ามีการกู้คืน
+      reactivated,
       user: {
         id: user.id,
         user_id: user.user_id,
@@ -188,6 +179,9 @@ router.post('/login', async (req, res) => {
         username: user.username,
         role: user.role,
         status: user.status,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        tel: user.tel,
         profile_picture_url: user.profile_picture_url,
       },
     });
@@ -204,7 +198,6 @@ router.post('/logout', async (_req, res) => {
 
 // ------ GOOGLE OAUTH (WEB FLOW) ------
 const GOOGLE_WEB_CLIENT_ID = process.env.GOOGLE_CLIENT_ID_WEB || process.env.GOOGLE_CLIENT_ID;
-
 const oauth2ClientWeb = new google.auth.OAuth2(
   GOOGLE_WEB_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
@@ -282,11 +275,7 @@ router.post('/forgot-password', async (req, res) => {
     if (user) {
       const link = `${process.env.FRONTEND_URL}/reset.html?token=${rawToken}`;
       try {
-        await sendEmail(
-          email,
-          'Password reset',
-          `Reset your password using this link (valid 30 minutes):\n\n${link}`
-        );
+        await sendEmail(email, 'Password reset', `Reset your password using this link (valid 30 minutes):\n\n${link}`);
       } catch (e) {
         console.error('sendEmail forgot-password failed', e);
       }
@@ -324,15 +313,10 @@ router.post('/google-mobile', async (req, res) => {
 
     const webClientId = process.env.GOOGLE_CLIENT_ID_WEB || process.env.GOOGLE_CLIENT_ID;
     if (!webClientId || !process.env.GOOGLE_CLIENT_SECRET) {
-      console.error('Google web client or secret is not configured');
       return res.status(500).json({ error: 'Google auth is not configured on server' });
     }
 
-    const oauth2ClientMobile = new google.auth.OAuth2(
-      webClientId,
-      process.env.GOOGLE_CLIENT_SECRET,
-    );
-
+    const oauth2ClientMobile = new google.auth.OAuth2(webClientId, process.env.GOOGLE_CLIENT_SECRET);
     const { tokens } = await oauth2ClientMobile.getToken(authCode);
     oauth2ClientMobile.setCredentials(tokens);
 
@@ -346,14 +330,7 @@ router.post('/google-mobile', async (req, res) => {
 
     if (!email) return res.status(400).json({ error: 'No email from Google' });
 
-    const user = await setOAuthUser({
-      email,
-      provider: 'google',
-      oauthId,
-      pictureUrl: picture,
-      name,
-    });
-
+    const user = await setOAuthUser({ email, provider: 'google', oauthId, pictureUrl: picture, name });
     const token = signToken(user);
     setAuthCookie(res, token, true);
 
@@ -361,6 +338,7 @@ router.post('/google-mobile', async (req, res) => {
       token,
       user: {
         id: user.id,
+        user_id: user.user_id,
         email: user.email,
         username: user.username,
         role: user.role,
@@ -377,12 +355,9 @@ router.post('/google-mobile', async (req, res) => {
 // ------ STATUS CHECK ------
 router.get('/status', (req, res) => {
   let token = req.cookies?.token;
-  
   if (!token && req.headers.authorization) {
     const parts = req.headers.authorization.split(' ');
-    if (parts.length === 2 && parts[0] === 'Bearer') {
-      token = parts[1];
-    }
+    if (parts.length === 2 && parts[0] === 'Bearer') token = parts[1];
   }
 
   if (!token) return res.json({ authenticated: false });

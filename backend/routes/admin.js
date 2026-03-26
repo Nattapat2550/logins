@@ -17,15 +17,20 @@ router.get('/users', authenticateJWT, isAdmin, async (_req, res) => {
 });
 
 router.put('/users/:id', authenticateJWT, isAdmin, async (req, res) => {
-  const { id } = req.params;
-  const body = req.body || {};
+  try {
+    const { id } = req.params;
+    const body = req.body || {};
 
-  const updated = await callPureApi('/admin/users/update', 'POST', { id, ...body });
+    const updated = await callPureApi('/admin/users/update', 'POST', { id, ...body });
 
-  if (!updated) return res.status(404).json({ error: 'Update failed or Not found' });
-  if (updated.error) return res.status(400).json(updated);
+    if (!updated) return res.status(404).json({ error: 'Update failed or Not found' });
+    if (updated.error) return res.status(400).json(updated);
 
-  res.json(updated);
+    res.json(updated);
+  } catch (err) {
+    console.error('Admin update user error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // -------------------- Carousel --------------------
@@ -43,7 +48,6 @@ router.post('/carousel', authenticateJWT, isAdmin, upload.single('image'), async
     const body = req.body || {};
     const { title, subtitle, description } = body;
 
-    // รองรับทั้ง itemIndex และ item_index
     const itemIndexRaw = (body.itemIndex !== undefined ? body.itemIndex : body.item_index);
     const itemIndex = (itemIndexRaw !== undefined && itemIndexRaw !== '')
       ? Number(itemIndexRaw)
@@ -81,13 +85,11 @@ router.put('/carousel/:id', authenticateJWT, isAdmin, upload.single('image'), as
     const body = req.body || {};
     const { title, subtitle, description } = body;
 
-    // รองรับทั้ง itemIndex และ item_index
     const itemIndexRaw = (body.itemIndex !== undefined ? body.itemIndex : body.item_index);
     const itemIndex = (itemIndexRaw !== undefined && itemIndexRaw !== '')
       ? Number(itemIndexRaw)
       : undefined;
 
-    // ถ้าไม่อัปโหลดรูปใหม่ => ไม่ส่ง imageDataUrl (อย่าใส่ null)
     let imageDataUrl = undefined;
 
     if (req.file) {
@@ -112,32 +114,6 @@ router.put('/carousel/:id', authenticateJWT, isAdmin, upload.single('image'), as
   } catch (e) {
     console.error('admin update carousel error', e);
     res.status(500).json({ error: 'Internal error' });
-  }
-});
-
-router.patch('/users/:id/role', authenticateJWT, isAdmin, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { role, status, first_name, last_name, tel, username } = req.body || {};
-
-    // ส่ง Payload ไปที่ API ของ Rust เพื่อเซฟ
-    const updated = await callPureApi('/admin/users/update', 'POST', { 
-      id, 
-      role, 
-      status,
-      first_name,
-      last_name,
-      tel,
-      username
-    });
-
-    if (!updated) return res.status(404).json({ error: 'Update failed or Not found' });
-    if (updated.error) return res.status(400).json(updated);
-
-    res.json(updated);
-  } catch (err) {
-    console.error('Admin update user error:', err);
-    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

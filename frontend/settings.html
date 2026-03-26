@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <title>Settings</title>
@@ -18,13 +18,26 @@
     <div class="links">
       <a href="home.html">Home</a>
       <button id="themeToggle">🌓</button>
+      
+      <div id="userMenu" class="user-menu" style="display: none;">
+        <img id="navAvatar" src="images/user.png" alt="avatar" />
+        <span id="navUname"></span>
+        <div class="dropdown">
+          <a href="settings.html">Settings</a>
+          <button id="logoutBtn" class="linklike">Logout</button>
+        </div>
+      </div>
+
     </div>
   </nav>
+
   <main class="container">
     <h2>Settings</h2>
+    
     <form id="settingsForm">
       <label>Username</label>
       <input type="text" id="username" />
+      
       <div class="row">
         <div style="flex:1;">
           <label>First Name</label>
@@ -35,15 +48,26 @@
           <input type="text" id="last_name" />
         </div>
       </div>
+      
       <label>Telephone</label>
       <input type="tel" id="tel" />
-      <button class="btn" type="submit">Save</button>
+      
+      <button class="btn" type="submit">Save Profile</button>
+    </form>
+
+    <div style="height:1rem"></div>
+
+    <form id="avatarForm" enctype="multipart/form-data">
+      <label>Upload new profile picture</label>
+      <input type="file" id="avatarFile" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp" />
+      <button class="btn" type="submit">Upload</button>
     </form>
 
     <hr/>
     <button id="deleteBtn" class="btn danger">Deactivate / Delete my account</button>
     <p id="msg" class="muted"></p>
   </main>
+  
   <script src="js/main.js" defer></script>
   <script src="js/settings.js" defer></script>
 </body>

@@ -20,8 +20,8 @@ router.put('/me', authenticateJWT, async (req, res) => {
     const updated = await updateProfile(req.user.id, { 
       username, 
       profilePictureUrl,
-      firstName: first_name,
-      lastName: last_name,
+      first_name,
+      last_name,
       tel
     });
     if (!updated) return res.status(404).json({ error: 'Not found' });
@@ -35,7 +35,6 @@ router.put('/me', authenticateJWT, async (req, res) => {
   }
 });
 
-// ใช้สำหรับ Soft delete หรือเปลี่ยน status โดย User เอง
 router.patch('/me', authenticateJWT, async (req, res) => {
   try {
     const { status } = req.body || {};

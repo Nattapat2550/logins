@@ -1,10 +1,6 @@
 // backend/models/user.js
 const { callPureApi } = require('../utils/pureApi');
 
-/**
- * ใช้สำหรับเรียก Pure-API แบบ "ต้องสำเร็จเท่านั้น" (ถ้าไม่ ok ให้ throw)
- * เพื่อไม่ให้เคส delete เงียบ ๆ แล้วดูเหมือนสำเร็จแต่จริง ๆ ไม่ลบ
- */
 function normalizeEndpoint(endpoint) {
   if (!endpoint) return '/';
   return endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
@@ -39,7 +35,6 @@ async function callPureApiStrict(endpoint, method = 'POST', body) {
   const res = await fetch(url, init);
 
   if (!res.ok) {
-    // พยายามอ่าน error จาก body เพื่อ debug ง่าย
     const txt = await res.text().catch(() => '');
     const err = new Error(txt || `PureAPI request failed: ${res.status}`);
     err.status = res.status;
@@ -47,81 +42,46 @@ async function callPureApiStrict(endpoint, method = 'POST', body) {
     throw err;
   }
 
-  // delete-user ของ Rust ส่ง Json(()) ซึ่งมักจะเป็น "null"
-  // ถ้า parse ไม่ได้ก็ถือว่า ok แล้ว
   const json = await res.json().catch(() => null);
   return json;
 }
 
-/**
- * สร้าง User ใหม่ด้วย Email (ยังไม่ Verify)
- */
 async function createUserByEmail(email) {
   return await callPureApi('/create-user-email', { email });
 }
 
-/**
- * ค้นหา User ด้วย Email
- */
 async function findUserByEmail(email) {
   return await callPureApi('/find-user', { email });
 }
 
-/**
- * ค้นหา User ด้วย ID
- */
 async function findUserById(id) {
   return await callPureApi('/find-user', { id });
 }
 
-/**
- * ค้นหา User ด้วย OAuth Provider
- */
 async function findUserByOAuth(provider, oauthId) {
   return await callPureApi('/find-user', { provider, oauthId });
 }
 
-/**
- * เปลี่ยนสถานะ Email Verified
- */
 async function markEmailVerified(_userId) {
   return null;
 }
 
-/**
- * ตั้ง Username, Password และข้อมูล Profile พื้นฐาน (Register แบบ Email)
- */
-async function setUsernameAndPassword(email, username, password, firstName, lastName, tel) {
-  return await callPureApi('/set-username-password', { 
-    email, 
-    username, 
-    password,
-    first_name: firstName,
-    last_name: lastName,
-    tel: tel
-  });
+async function setUsernameAndPassword(email, username, password, first_name, last_name, tel) {
+  return await callPureApi('/set-username-password', { email, username, password, first_name, last_name, tel });
 }
 
-/**
- * อัปเดตข้อมูล Profile
- */
-async function updateProfile(userId, { username, profilePictureUrl, firstName, lastName, tel, status }) {
-  // ส่งข้อมูลไปที่ Pure API (Rust) เพื่อทำการบันทึกลง Database
+async function updateProfile(userId, { username, profilePictureUrl, first_name, last_name, tel, status }) {
   return await callPureApi('/admin/users/update', {
     id: userId,
     username,
     profile_picture_url: profilePictureUrl,
-    first_name: firstName,
-    last_name: lastName,
-    tel: tel,
-    status: status
+    first_name,
+    last_name,
+    tel,
+    status
   });
 }
 
-/**
- * ✅ ลบ User (ทำงานจริงแล้ว)
- * เรียก Pure-API: POST /api/internal/delete-user { id }
- */
 async function deleteUser(userId) {
   const id = Number(userId);
   if (!Number.isFinite(id)) {
@@ -132,8 +92,6 @@ async function deleteUser(userId) {
 
   await callPureApiStrict('/delete-user', 'POST', { id });
 
-  // (Optional) เช็คความชัวร์ว่าไม่เหลือจริง
-  // ถ้ายังหาเจอ แปลว่าลบไม่สำเร็จ
   const still = await callPureApi('/find-user', { id });
   if (still) {
     const err = new Error('Delete failed (user still exists)');
@@ -144,23 +102,14 @@ async function deleteUser(userId) {
   return { ok: true };
 }
 
-/**
- * ดึง User ทั้งหมด (สำหรับ Admin)
- */
 async function getAllUsers() {
   return (await callPureApi('/admin/users')) || [];
 }
 
-/**
- * บันทึก Verification Code
- */
 async function storeVerificationCode(userId, code, expiresAt) {
   return await callPureApi('/store-verification-code', { userId, code, expiresAt });
 }
 
-/**
- * ตรวจสอบและใช้ Verification Code
- */
 async function validateAndConsumeCode(email, code) {
   const result = await callPureApi('/verify-code', { email, code });
   if (!result || result.ok === false) {
@@ -169,30 +118,18 @@ async function validateAndConsumeCode(email, code) {
   return { ok: true, userId: result.userId || result.data?.userId };
 }
 
-/**
- * สร้างหรืออัปเดต User จาก OAuth (Google)
- */
 async function setOAuthUser(data) {
   return await callPureApi('/set-oauth-user', data);
 }
 
-/**
- * สร้าง Token สำหรับ Reset Password
- */
 async function createPasswordResetToken(email, token, expiresAt) {
   return await callPureApi('/create-reset-token', { email, token, expiresAt });
 }
 
-/**
- * ตรวจสอบและใช้ Token Reset Password
- */
 async function consumePasswordResetToken(rawToken) {
   return await callPureApi('/consume-reset-token', { token: rawToken });
 }
 
-/**
- * เปลี่ยนรหัสผ่านใหม่ (Reset Password)
- */
 async function setPassword(userId, newPassword) {
   return await callPureApi('/set-password', { userId, newPassword });
 }
